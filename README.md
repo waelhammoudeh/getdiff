@@ -76,7 +76,7 @@ NUM is the number part in the differ file name to start download from.
 
 First thing to know is the last date included in your OSM data file to update.
 The region download page on geofabrik.de site lists this date, for example:
-"This file was last modified 1 day ago and contains all OSM data up to 2022-04-09T20:21:55Z. File size: 195 MB;"
+"last modified 1 day ago and contains all OSM data up to 2022-04-09T20:21:55Z. File size: 195 MB;"
 This date can also be retrieved from the OSM data file with "osmium fileinfo"
 using the "--extended" option as:
  osmium fileinfo --extended regionfilename.osm.pbf
