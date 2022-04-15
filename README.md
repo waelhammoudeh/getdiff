@@ -38,7 +38,7 @@ names are as follows:
  PASSWD    : same as --passwd option above.
 ```
 
-### Option Arguments:
+#### Option Arguments:
 ```
 --source URL: full path to area differ files list including geofabrik server
               name. This is the URL to your area used in browser to view
@@ -70,7 +70,7 @@ names are as follows:
              If that is not found, program looks in its own executable directory
              for "getdiff.conf" as a second default alternative.
 ```
-### Setting --begin NUM argument:
+#### Setting --begin NUM argument:
 ```
 NUM is the number part in the differ file name to start download from.
 
