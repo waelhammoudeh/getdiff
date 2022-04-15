@@ -27,7 +27,7 @@ Configuration file is a text file with each line providing a directive pair of N
 separated by space or tab and an optional equal sign '='.
 Comment lines start with '#' or ';' characters, no comment is allowed on a directive line.
 Directive names in configuration file are all capitalized, not to be changed and similar to
-command line options above. Unrecognized directive name trigers an error. Directive
+command line options above. Unrecognized directive name triggers an error. Directive
 names are as follows:
 
  VERBOSE   : accepted values {on, off, true, false, 1, 0} case ignored for value.
@@ -37,9 +37,9 @@ names are as follows:
  USER      : same as --user option above.
  PASSWD    : same as --passwd option above.
 ```
-```
-### Option Arguments:
 
+### Option Arguments:
+```
 --source URL: full path to area differ files list including geofabrik server
               name. This is the URL to your area used in browser to view
               available differ files. It includes the area name and ends with
@@ -69,9 +69,9 @@ names are as follows:
 --conf FILE: The user configuration file to use. Default is /etc/getdiff.conf.
              If that is not found, program looks in its own executable directory
              for "getdiff.conf" as a second default alternative.
-
+```
 ### Setting --begin NUM argument:
-
+```
 NUM is the number part in the differ file name to start download from.
 
 First thing to know is the last date included in your OSM data file to update.
@@ -100,7 +100,7 @@ date is just before last date in your region OSM data file.
 ```
 ## How Does It Work:
 
-Program is written using C. Demonstrates parsing command line, parsing html file, parsing cookie file ... parse until blue in the face
+Program is written using C. Demonstrates parsing command line, parsing html file, parsing cookie file.
 String handling in C is shown. Uses libcurl, uses structures like double linked list. System calls are used. Forking processes in Linux.
 
 ### Program workflow:
