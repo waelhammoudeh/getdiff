@@ -14,14 +14,14 @@ Program requires "libcurl" version 7.80.0 or later. A makefile is included in th
 Program accepts input from the command line, configuration file or combination of both. Command line option overrides the same configuration settings. Default configuration file is used unless changed by user.
 ```
 Usage: %s [ option optarg ]
-   -h, --help                          Show help information page.
-   -v, --verbose                    Prints progress messages.
-   -s, --source URL              Specify full URL with area differ files list.
-   -b, --begin NUM             Specify 3 digits differ file number to start download from.
-   -u, --user NAME             Specify OSM account user name.
+   -h, --help              Show help information page.
+   -v, --verbose           Prints progress messages.
+   -s, --source URL        Specify full URL with area differ files list.
+   -b, --begin NUM         Specify 3 digits differ file number to start download from.
+   -u, --user NAME         Specify OSM account user name.
    -p, --passwd SECRET     Specify OSM account password.
-   -d, --directory DIR         Program work directory, default {USERHOME}/Downloads/getdiff/.
-   -c, --conf FILE                 Configuration file to use, default /etc/getdiff.conf
+   -d, --directory DIR     Program work directory, default {USERHOME}/Downloads/getdiff/.
+   -c, --conf FILE         Configuration file to use, default /etc/getdiff.conf
 
 Configuration file is a text file with each line providing a directive pair of NAME and VALUE
 separated by space or tab and an optional equal sign '='.
@@ -30,12 +30,12 @@ Directive names in configuration file are all capitalized, not to be changed and
 command line options above. Unrecognized directive name trigers an error. Directive
 names are as follows:
 
- VERBOSE : accepted values {on, off, true, false, 1, 0} case ignored for value.
- SOURCE : same as --source option above.
+ VERBOSE   : accepted values {on, off, true, false, 1, 0} case ignored for value.
+ SOURCE    : same as --source option above.
  DIRECTORY : same as --directory option above.
- BEGIN : same as --begin option above.
- USER : same as --user option above.
- PASSWD : same as --passwd option above.
+ BEGIN     : same as --begin option above.
+ USER      : same as --user option above.
+ PASSWD    : same as --passwd option above.
 ```
 ```
 ### Option Arguments:
