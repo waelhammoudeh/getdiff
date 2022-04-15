@@ -98,3 +98,11 @@ differ file.
 Examine the date the time stamp line has, set NUM to file name number where this
 date is just before last date in your region OSM data file.
 ```
+## How Does It Work:
+
+Program is written using C. Demonstrates parsing command line, parsing html file, parsing cookie file ... parse until blue in the face
+String handling in C is shown. Uses libcurl, uses structures like double linked list. System calls are used. Forking processes in Linux.
+
+### Program work flow:
+
+Lots of documentation still to add.
