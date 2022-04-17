@@ -111,4 +111,32 @@ String handling in C is shown. Uses libcurl, uses structures like double linked 
 
 ### Program workflow:
 
+This is work in progress ...
+
 Lots of documentation still to add.
+
+###### The short story:
+
+OSM (.osc) differ files and their (.state.txt) files are list on Geofabrik website as an HTML page, which has URL address;
+this address is a required argument for this program. Using this address, program fetches
+this page as the index.html file.
+In the case of Geofabrik public server, the page URL is all that is required.However for
+the Geofabrik internal server case; one needs to be logged into OpenStreetMap.org own
+account so the user account name and password are also required to fetch this index.html
+page.
+
+This HTML is downloaded using "libcurl" functions. Program parses this HTML page using
+standard C library functions then places extracted file names into a sorted string list.
+Users do not - and should not - need to download this whole list for their updates, so
+this program sets a starting file name from the sorted list then downloads files to the
+end of the list. Note sorted list has both change and state files.
+
+In the internal server case, a token string is required to access any file. Geofabrik provides
+a python script ["oauth_cookie_client.py"](https://github.com/geofabrik/sendfile_osm_oauth_protector/blob/master/doc/client.md) to retrieve the cookie.
+The cookie format and the script usage are documented on Geofabrik github repository.
+This program calls this script  (by forking) with argument to save cookie as a text file, program parses this text file to get access token string and expiration date. Each time the internal server is used,
+program checks expiration date and gets new cookie only if it has expired. The "access token string" is used in "libcurl" function calls.
+
+Program writes the sorted list as a text file, logs its progress to a log file.
+Program can append most recent downloaded file names to user set file name; user may use
+this file as helper file when writing "update script".
