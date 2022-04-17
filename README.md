@@ -22,6 +22,7 @@ Usage: %s [ option optarg ]
    -p, --passwd SECRET     Specify OSM account password.
    -d, --directory DIR     Program work directory, default {USERHOME}/Downloads/getdiff/.
    -c, --conf FILE         Configuration file to use, default /etc/getdiff.conf
+   -n, --new FILE          File (path + name) append list of downloaded file to.
 
 Configuration file is a text file with each line providing a directive pair of NAME and VALUE
 separated by space or tab and an optional equal sign '='.
@@ -36,6 +37,7 @@ names are as follows:
  BEGIN     : same as --begin option above.
  USER      : same as --user option above.
  PASSWD    : same as --passwd option above.
+ NEWER_FILE : same as --new option above.
 ```
 
 #### Option Arguments:
@@ -69,6 +71,10 @@ names are as follows:
 --conf FILE: The user configuration file to use. Default is /etc/getdiff.conf.
              If that is not found, program looks in its own executable directory
              for "getdiff.conf" as a second default alternative.
+
+--new FILE: File is path and name where just downloaded files list is appended to.
+            List is to be used by "update script", script should remove file
+            when done.
 ```
 #### Setting --begin NUM argument:
 ```
