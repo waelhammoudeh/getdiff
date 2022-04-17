@@ -117,13 +117,13 @@ Lots of documentation still to add.
 
 ###### The short story:
 
-OSM (.osc) differ files and their (.state.txt) files are list on Geofabrik website as an HTML page, which has URL address;
+OSM (.osc) differ files and their (.state.txt) files are listed on Geofabrik website as an HTML page, which has URL address;
 this address is a required argument for this program. Using this address, program fetches
 this page as the index.html file.
-In the case of Geofabrik public server, the page URL is all that is required.However for
+In the case of Geofabrik public server, the page URL is all that is required. However for
 the Geofabrik internal server case; one needs to be logged into OpenStreetMap.org own
-account so the user account name and password are also required to fetch this index.html
-page.
+account so the user account name and password are also required to fetch this "index.html"
+page. Program saves the source for this page in its work directory each time it is used.
 
 This HTML is downloaded using "libcurl" functions. Program parses this HTML page using
 standard C library functions then places extracted file names into a sorted string list.
