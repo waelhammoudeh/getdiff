@@ -14,6 +14,7 @@ to update overpass database with limited area installation.
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "getdiff.h"
 #include "util.h"
@@ -73,6 +74,7 @@ int main(int argc, char *argv[]){
 			{"TEST_SITE", NULL, NAME_CT, 5},
 			{"BEGIN", NULL, NAME_CT, 6},
 			{"VERBOSE", NULL, BOOL_CT, 7},
+			{"NEWER_FILE", NULL, NAME_CT, 8},
             {NULL, NULL, 0, 0}
     };
 
@@ -575,6 +577,14 @@ int main(int argc, char *argv[]){
     			progName, mySettings->indexListFile);
     }
 
+    /* currentStart is set at this point; first use from user, start_id
+     * file is used to get currentStart if it exists.
+     * 6 lines comment here. 2 lines above are rephrased in 3 lines below!
+     * we write last downloaded differ number in our start_id file;
+     * if currentStart came from that file move to next differ.
+     * First use will have no start_id file, user begin is what we use.
+     * ***************************************************************/
+
     startElem = findElemSubstring (pageList, currentStart);
     if ( ! startElem ){
 
@@ -584,10 +594,6 @@ int main(int argc, char *argv[]){
     	return ztNotFound;
     }
 
-    /* we write last downloaded differ number in our start_id file;
-     * if currentStart came from that file move to next differ.
-     * First use will have no start_id file, user begin is what we use.
-     * ***************************************************************/
    /* DL_IS_TAIL(element) - 2 files always: 288.osc.gz and 288.state.txt
     findElemSubstring() gets the first one, if we are at the end of the list,
     then there is nothing to get. */
@@ -684,7 +690,8 @@ int main(int argc, char *argv[]){
 		elem = DL_NEXT(elem);
 	}
 
-	if ( iCount ){ /* downloaded some files - update start_id file. after each file?? */
+	if ( iCount ){ /* downloaded some files - update start_id file. after each file??
+	                         append newer files list to newerFile if set */
 
 		filename = (char *) DL_DATA(DL_TAIL(pageList));
 
@@ -694,6 +701,11 @@ int main(int argc, char *argv[]){
 
 		/* start_id file gets the number from file in the TAIL element */
 		writeStart_Id (tmpBuf, mySettings->startFile);
+
+		if (mySettings->newerFile)
+
+			writeNewerFile (mySettings->newerFile, startElem, pageList);
+
 	}
 
 	currentTime = formatC_Time();
@@ -795,6 +807,11 @@ void printSettings(SETTINGS *settings){
     	fprintf(stdout, "Verbose is on: <%s>\n", settings->verbose);
     else
     	fprintf(stdout, "Verbose is NOT set.\n");
+
+    if (settings->newerFile)
+    	fprintf(stdout, "Newer File name is set to: <%s>\n", settings->newerFile);
+    else
+    	fprintf(stdout, "Newer File name is NOT set.\n");
 
     fprintf (stdout, "\n");
 
@@ -927,7 +944,24 @@ int updateSettings (SETTINGS *settings, CONF_ENTRY confEntries[]){
 
         	break;
 
-            default:
+        case 8: // NEWER_FILE
+
+        	if ( ! settings->newerFile && moverEntry->value){
+
+				if ( ! IsGoodFileName (moverEntry->value) ){
+
+					fprintf (stderr, "%s: Error bad file name specified for NEWER_FILE value "
+            				": [%s].\n", progName, moverEntry->value);
+                    return ztInvalidArg;
+				}
+
+				settings->newerFile = strdup (moverEntry->value);
+
+        	}
+
+        	break;
+
+        default:
 
             break;
         } // end switch
@@ -1103,4 +1137,51 @@ int logMessage (FILE *to, char *txt){
 	fprintf (to, "%s [%d] %s\n", timestamp, (int) myPID, txt);
 
 	return ztSuccess;
+}
+
+/* opens toFile for appending, fromList is assumed sorted, appends strings
+ * in element starting from startElem to end of list - update script should
+ * empty or delete this file when done updating successfully */
+int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList){
+
+	FILE    *filePtr = NULL;
+	char   *str;
+	DL_ELEM   *elem;
+
+	ASSERTARGS(toFile && startElem && fromList);
+
+	if (DL_SIZE(fromList) < 2){
+
+		fprintf (stderr, "%s: Error newer list parameter size < 2. Files should be in pairs!\n",
+				progName);
+		return ztInvalidArg;
+	}
+
+	errno = 0;
+	filePtr = fopen(toFile, "a"); /* open file for appending mode */
+	if ( ! filePtr ){
+
+		fprintf (stderr, "%s: Error could not create newer file! <%s>\n",
+				      progName, toFile);
+		printf("System error message: %s\n\n", strerror(errno));
+		return ztOpenFileError;
+	}
+
+	elem = startElem;
+	while (elem){
+
+		assert (DL_DATA(elem));
+
+		str = (char *) DL_DATA(elem);
+
+		fprintf(filePtr, "%s\n", str);
+
+		elem = DL_NEXT(elem);
+	}
+
+	fclose(filePtr);
+	fflush (filePtr);
+
+	return ztSuccess;
+
 }

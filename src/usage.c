@@ -49,7 +49,8 @@ void showHelp(void){
 			"   -b, --begin NUM     Specify 3 digits differ file number to start download from.\n"
 			"   -u, --user NAME     Specify OSM account user name.\n"
 			"   -p, --passwd SECRET Specify OSM account password.\n"
-			"   -c, --conf FILE     Configuration file to use, default /etc/getdiff.conf \n\n"
+			"   -c, --conf FILE     Configuration file to use, default /etc/getdiff.conf \n"
+			"   -n, --new FILE      File (path + name) append list of downloaded file to.\n\n"
 
 "Program accepts short or long option, each option must be followed by its\n"
 "argument, except \"help and verbose\".\n"
@@ -85,7 +86,11 @@ void showHelp(void){
 
 "--conf FILE: The user configuration file to use. Default is /etc/getdiff.conf.\n"
 "             If that is not found, program looks in its own executable directory\n"
-"             for \"getdiff.conf\" as a second default alternative.\n\n";
+"             for \"getdiff.conf\" as a second default alternative.\n\n"
+
+"--new FILE: File is path and name where just downloaded files list is appended to.\n"
+"            List is to be used by \"update script\", script should remove file\n"
+"            when done.\n\n";
 
 	char		*confDesc =
 	"Configuration file is a text file with each line providing a directive pair of\n"
@@ -105,7 +110,9 @@ void showHelp(void){
 
 	" USER : same as --user option above.\n\n"
 
-	" PASSWD : same as --passwd option above.\n\n";
+	" PASSWD : same as --passwd option above.\n\n"
+
+	" NEWER_FILE : same as --new option above.\n\n";
 
 	char const *confExample =
 
@@ -142,6 +149,11 @@ void showHelp(void){
 
 	"# To turn verbose on use: TRUE, ON or 1. Case ignored for TRUE and ON.\n"
 	"VERBOSE = True\n\n"
+
+	"# Script helper! Update script should remove this file when done.\n"
+	"# List of just downloaded files is added - appended - to this file.\n"
+	"# New downloads recreate file again.\n"
+	"NEWER_FILE = /path/to/newerFile.txt\n\n"
 
 	"# End configuration example.\n\n";
 

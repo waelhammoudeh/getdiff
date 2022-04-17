@@ -8,6 +8,7 @@
 #ifndef GETDIFF_H_
 #define GETDIFF_H_
 
+#include "dList.h"
 #include "configure.h"
 
 #define MAX_NAME_LENGTH 64
@@ -33,6 +34,7 @@ typedef struct SETTINGS_ {
 	char		*htmlFile;
 	char		*indexListFile;
 	char		*verbose;
+	char		*newerFile;
 
 } SETTINGS;
 
@@ -45,5 +47,7 @@ int readStart_Id (char **dest, char *filename);
 int writeStart_Id (char *idStr, char *filename);
 
 int logMessage (FILE *to, char *txt);
+
+int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList);
 
 #endif /* GETDIFF_H_ */

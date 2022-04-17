@@ -21,7 +21,7 @@
 
 int parseCmdLine(SETTINGS *ptrSetting, int argc, char* const argv[]){
 
-	static const char *shortOptions = "c:u:p:s:d:b:hv";
+	static const char *shortOptions = "c:u:p:s:d:b:n:hv";
 
 	static const struct option longOptions[] = {
 		{"help", 0, NULL, 'h'},
@@ -32,15 +32,16 @@ int parseCmdLine(SETTINGS *ptrSetting, int argc, char* const argv[]){
 		{"directory", 1, NULL, 'd'},
 		{"begin", 1, NULL, 'b'},
 		{"verbose", 0, NULL, 'v'},
+		{"new", 1, NULL, 'n'},
 		{NULL, 0, NULL, 0}
 	};
 
 	int 	opt = 0;
 	int 	longIndex = 0;
 	int 	confFlag, usrFlag, passwdFlag,
-	        srcFlag, destFlag, beginFlag; /* do not allow same option twice */
+	        srcFlag, destFlag, beginFlag, newFlag; /* do not allow same option twice */
 
-	confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = 0;
+	confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = newFlag = 0;
 	/* This is ugly maybe!
 	 * It is easy to specify same option more than once with short option?! */
 
@@ -184,6 +185,25 @@ int parseCmdLine(SETTINGS *ptrSetting, int argc, char* const argv[]){
 				}
 
 				beginFlag = 1;
+				break;
+
+			case 'n':
+
+				if (newFlag){
+					fprintf(stderr, "%s: Error; duplicate \"new\" option!\n", progName);
+					return ztInvalidArg;
+				}
+
+				if ( ! IsGoodFileName (optarg) ){
+
+					fprintf (stderr, "%s: parseCmdLine() Error bad file name specified for new option "
+            				": [%s].\n", progName, optarg);
+                    return ztInvalidArg;
+				}
+
+				ptrSetting->newerFile = strdup (optarg);
+
+				newFlag = 1;
 				break;
 
 			case -1: /* done with options */
