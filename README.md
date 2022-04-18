@@ -104,6 +104,17 @@ differ file.
 Examine the date the time stamp line has, set NUM to file name number where this
 date is just before last date in your region OSM data file.
 ```
+#### Typical Usage:
+
+The configuration file is optional but it makes using the program a lot easier, use it to set most settings you use.
+It also enables you to update multiple regions or extracts by having different configuration files. With most used
+settings in configuration file - I do not set password - I start mine with "conf" and "passwd" options only:
+```
+   wael@yafa:~$ /mypath/getdiff -c ~/getdiff.conf -p *********
+```
+where I type my password for that option. You do not need to use all settings in configuration file, leave unused options
+commented out with '#' character or ';' character. For me the "=" character makes reading and editing the file easier.
+
 ## How Does It Work:
 
 Program is written using C. Demonstrates parsing command line, parsing html file, parsing cookie file.
