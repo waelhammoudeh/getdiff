@@ -1,0 +1,36 @@
+# This is an example "getdiff.conf" file; configuration file for getdiff program.
+# This line is a comment line.
+; So is this one too. No comment is allowed on directive line.
+
+# USER : OSM openstreetmap user name. email??
+# name is limited to 64 characters.
+USER = johndoe
+
+# PASSWD: password for OSM user.
+# PASSWD = mysecret
+
+# SOURCE: source with update file list on "https://osm-internal.download.geofabrik.de"
+# or "https://download.geofabrik.de"
+# Try to always use "https:" NOT  "http:" with public server.
+# Full URL is required. https://osm-internal.download.geofabrik.de/ + {area_name}/{area_name}-updates/000/003/
+SOURCE = https://osm-internal.download.geofabrik.de/north-america/us/arizona-updates/000/003/
+
+# DIRECTORY : working directory for the program.  A directory with the name "diff" will
+# be created under this for destination where update files will be saved to.
+# This has a default {$HOME}/Downloads/getdiff/, so you will find your files under
+# "{$HOME}/Downloads/getdiff/diff/" directory.
+# Full real path here. No path expansion is done. User has write permission on parent directory.
+# Directory is created if not present ONLY if parent directory exist. Path is used as entered.
+DIRECTORY = /path/to/your/getdiff/
+
+# BEGIN: start the download from file number - only the three digit number from file name.
+# This is for first use! Afterward, program reads its created file "start_id".
+BEGIN = 264
+
+# To turn verbose on use: TRUE, ON or 1. Case ignored for TRUE and ON.
+# VERBOSE = True
+
+# Script helper! Update script should remove this file when done.
+# List of just downloaded files is added - appended - to this file.
+# New downloads recreate file again.
+NEWER_FILE = /path/to/newerFile.txt

@@ -117,9 +117,9 @@ void showHelp(void){
 	char const *confExample =
 
 			"The following is an example configuration file:\n\n"
-			"# This is getdiff.conf file; configuration file for getdiff program.\n"
-			"# This line is a comment line.\n"
-			"; So is this one too. No comment is allowed on directive line.\n\n"
+			"# This is getdiff.conf file example; configuration file for getdiff program.\n"
+			"# This line is a comment line (starts with #).\n"
+			"; So is this one too (starts with ;). No comment is allowed on directive line.\n\n"
 
 			"# USER : OSM openstreetmap user name. email??\n"
 			"# name is limited to 64 characters.\n"
@@ -129,7 +129,7 @@ void showHelp(void){
 			"# PASSWD = mysecret\n\n"
 
 			"# SOURCE: source with update file list on \"https://osm-internal.download.geofabrik.de\"\n"
-			"or \"https://download.geofabrik.de\"\n"
+			"# or \"https://download.geofabrik.de\"\n"
 			"# Try to always use \"https:\" NOT  \"http:\" with public server.\n"
 			"# Full URL is required. https://osm-internal.download.geofabrik.de/ + {area_name}/{area_name}-updates/000/003/\n"
 			"SOURCE = https://osm-internal.download.geofabrik.de/north-america/us/arizona-updates/000/003/\n\n"
@@ -148,7 +148,7 @@ void showHelp(void){
 	"BEGIN = 264\n\n"
 
 	"# To turn verbose on use: TRUE, ON or 1. Case ignored for TRUE and ON.\n"
-	"VERBOSE = True\n\n"
+	"# VERBOSE = True\n\n"
 
 	"# Script helper! Update script should remove this file when done.\n"
 	"# List of just downloaded files is added - appended - to this file.\n"
