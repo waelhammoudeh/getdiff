@@ -12,6 +12,7 @@ Program requires "libcurl" version 7.80.0 or later. A makefile is included in th
 
 ## Usage:
 Program accepts input from the command line, configuration file or combination of both. Command line option overrides the same configuration settings. Default configuration file is used unless changed by user.
+Configuration file is NOT required, a warning is issued if no configuration file is set and defaults were not found.
 ```
 Usage: %s [ option optarg ]
    -h, --help              Show help information page.
