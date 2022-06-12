@@ -696,7 +696,7 @@ int main(int argc, char *argv[]){
 
 	    iCount++;
 
-		if (iCount > 60){
+		if ( (iCount / 2) == 30){ /* get & keep files in PAIRS */
 
 			fprintf(stdout, "%s: Warning maximum download reached! "
 					"Please wait some time before trying again, thank you.\n", progName);
