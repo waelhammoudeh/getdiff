@@ -87,6 +87,7 @@ int main(int argc, char *argv[]){
 
     COOKIE	*myCookie = NULL;
     DL_LIST	*pageList; // server listing
+    DL_LIST	*sessionDL; // current session downloaded files
 
     FILE		*indexFilePtr;
 
@@ -627,6 +628,14 @@ int main(int argc, char *argv[]){
     	fprintf(stdout, "Starting download with file number: <%s>\n", (char *) DL_DATA(startElem));
     }
 
+    // initial sessionDL list
+    sessionDL = (DL_LIST *) malloc(sizeof(DL_LIST));
+    if ( ! sessionDL ){
+    	fprintf(stdout, "%s: Error allocating memory.\n", progName);
+    	return ztMemoryAllocate;
+    }
+    initialDL(sessionDL, zapString, NULL);
+
 	/* curlParseHandle has the path PART for source; see above when initialed:
 	 *      curlParseHandle = initialURL(mySettings->src);
 	 * pageList has filenames for differs SORTED.
@@ -678,6 +687,13 @@ int main(int argc, char *argv[]){
 		fprintf( stdout, "%s: %s\n", progName, tmpBuf);
 		logMessage(fLogPtr, tmpBuf);
 
+		/* insert downloaded filename into sessionDL as last element - source is sorted */
+		result = insertNextDL (sessionDL, DL_TAIL(sessionDL), (void *) filename);
+		if (result != ztSuccess){
+			fprintf (stderr, "%s: Error inserting filename into sessionDL.\n", progName);
+			return result;
+		}
+
 	    iCount++;
 
 		if (iCount > 60){
@@ -693,7 +709,7 @@ int main(int argc, char *argv[]){
 	if ( iCount ){ /* downloaded some files - update start_id file. after each file??
 	                         append newer files list to newerFile if set */
 
-		filename = (char *) DL_DATA(DL_TAIL(pageList));
+		filename = (char *) DL_DATA(DL_TAIL(sessionDL));
 
 		memset(tmpBuf, 0, sizeof(tmpBuf));
 
@@ -704,8 +720,8 @@ int main(int argc, char *argv[]){
 
 		if (mySettings->newerFile)
 
-			writeNewerFile (mySettings->newerFile, startElem, pageList);
-
+			//writeNewerFile (mySettings->newerFile, startElem, pageList);
+			writeNewerFile (mySettings->newerFile, DL_HEAD(sessionDL), sessionDL);
 	}
 
 	currentTime = formatC_Time();
