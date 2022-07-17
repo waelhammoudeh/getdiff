@@ -12,6 +12,21 @@ This program assumes python3 executable to be found in the default slackware ins
 ## Building:
 Program requires "libcurl" version 7.80.0 or later. A makefile is included in the root directory; to compile run 'make' in that directory.
 
+## I need your feedback please:
+
+If you use this program and receive "429" HTTP response code from Geofabrik server,
+please let me know your configuration; your area URL and the number of differ files
+you are able to download before you get that response code, thank you in advance.
+The following error message outputs the "server HTTP response code" in case of error:
+
+```
+performDownload(): Error response code was not OKAY.
+CODE: [XYZ]
+```
+
+where XYZ is 429.
+Contact me with an email at: w_hammoudeh@hotmail.com
+
 ## Usage:
 Program accepts input from the command line, configuration file or combination of both. Command line option overrides the same configuration settings. Default configuration file is used unless changed by user.
 Configuration file is NOT required, a warning is issued if no configuration file is set and defaults were not found.
