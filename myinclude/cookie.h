@@ -8,6 +8,8 @@
 #ifndef COOKIE_H_
 #define COOKIE_H_
 
+extern int serverResponse;
+
 /* geofabric cookie file NOW has only one single line - they may change this format */
 #define MAX_COOKIE_LINES		1
 
@@ -54,5 +56,13 @@ void printCookie(COOKIE *ck);
 int isExpiredCookie(COOKIE *ck);
 
 int removeFiles (SETTINGS *settings);
+
+int pipeSpawnScript (const char *prog, char * const argList[], char **outputString);
+
+int getResponseCode (int *code, char *msg);
+
+void logUnseen(SETTINGS *settings, char *msg, char *lastPart);
+
+int getCookieRetry (SETTINGS *settings);
 
 #endif /* COOKIE_H_ */

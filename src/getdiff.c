@@ -5,7 +5,10 @@ Author      : Wael Hammoudeh
 Date	: Feb. 7/2022
 Version     :
 Copyright   : Your copyright notice
-Description : program to download differ files from https://osm-internal.download.geofabrik.de/
+Description : program to download differ files from:
+ https://osm-internal.download.geofabrik.de/ web site referred to as "internal server". Or
+ https://download.geofabrik.de/ web site referred to as "public server"
+
 to update overpass database with limited area installation.
 ============================================================================
 */
@@ -272,7 +275,7 @@ int main(int argc, char *argv[]){
 			fprintf(stderr, "OSM user name and password are required to use the"
 					" internal server.\n"
 					"Note collected settings are as follows:\n");
-			printSettings(mySettings);
+			printSettings(NULL, mySettings);
 			return ztMissingArgError;
 		}
 
@@ -437,7 +440,7 @@ int main(int argc, char *argv[]){
 
 	if (flagVerbose)
 
-		printSettings(mySettings);
+		printSettings(NULL, mySettings);
 
 	if ((strcasecmp(server, publicServer) == 0) ){
 
@@ -455,12 +458,16 @@ int main(int argc, char *argv[]){
 
 		if (IsArgUsableFile (mySettings->cookieFile) != ztSuccess){
 
-			result = getCookieFile(mySettings);
+			if (mySettings->verbose)
+				fprintf (stdout, "%s: No cookie file was found, retrieving new cookie.\n", progName);
+
+			// result = getCookieFile(mySettings);
+			result = getCookieRetry(mySettings);
 			if (result != ztSuccess){
 
-				fprintf (stderr, "%s: Error we failed to retrieve login cookie :( No cookie! Maybe faulty software?\n"
-		                " But check user name and password anyway, please.\n", progName);
-		        return ztUnknownError;
+				fprintf (stderr, "%s: Error we failed to retrieve login cookie. Please see the previous error above.\n", progName);
+				fprintf(stderr, " Failed getCookieRetry() function with error: <%s>\n", code2Msg(result));
+		        return result;
 			}
 		}
 
@@ -483,12 +490,13 @@ int main(int argc, char *argv[]){
 
 	        fprintf(stdout, "%s: Existing cookie has expired, retrieving new cookie ...\n", progName);
 
-	        result = getCookieFile(mySettings);
+	        // result = getCookieFile(mySettings);
+	        result = getCookieRetry(mySettings);
 			if (result != ztSuccess){
 
-				fprintf (stderr, "%s: Error we failed to retrieve login cookie :( No cookie! Maybe faulty software?\n"
-		                " But check user name and password anyway, please.\n", progName);
-		        return ztUnknownError;
+				fprintf (stderr, "%s: Error we failed to retrieve login cookie. Please see the previous error above.\n", progName);
+				fprintf(stderr, " Failed getCookieRetry() function with error: <%s>\n", code2Msg(result));
+		        return result;
 			}
 
 			memset(myCookie, 0, sizeof(COOKIE));
@@ -698,8 +706,13 @@ int main(int argc, char *argv[]){
 
 		if ( (iCount / 2) == 30){ /* get & keep files in PAIRS */
 
-			fprintf(stdout, "%s: Warning maximum download reached! "
-					"Please wait some time before trying again, thank you.\n", progName);
+			fprintf(stdout, "%s: Warning maximum download reached!\n"
+					"This program has a maximum of 30 change files and their state files per session.\n"
+					"Geofabrik provide this free service to you and I, please do not abuse their server\n"
+					"with too many requests in a short period of time. This maximum is set to avoid server\n"
+					"abuse in the first place. Geofabrik free service - like a lot of free services - have rules\n"
+					"and consequences for abuse.\n"
+					"Please wait some time (an hour or more) before trying again, thank you.\n", progName);
 			break;
 		}
 
@@ -743,93 +756,104 @@ int main(int argc, char *argv[]){
 
 } // END main()
 
-void printSettings(SETTINGS *settings){
+void printSettings(FILE *toFile, SETTINGS *settings){
+
+	FILE	*stream;
 
     ASSERTARGS(settings);
 
-    fprintf(stdout, "printSettings() : Those are the current settings:\n\n");
+    if (toFile == NULL)
+
+    	stream = stdout;
+
+    else
+
+    	stream = toFile;
+
+
+    fprintf(stream, "printSettings() : Those are the current settings:\n\n");
 
     if (settings->usr)
-        fprintf(stdout, "OSM USER is: <%s>\n", settings->usr);
+        fprintf(stream, "OSM USER is: <%s>\n", settings->usr);
     else
-        fprintf(stdout, "OSM USER is NOT set.\n");
+        fprintf(stream, "OSM USER is NOT set.\n");
 
     if (settings->psswd)
-        fprintf(stdout, "Password is: <%s>\n", "xxxxxxxxxx");
+        fprintf(stream, "Password is: <%s>\n", "xxxxxxxxxx");
     else
-        fprintf(stdout, "Password is NOT set.\n");
+        fprintf(stream, "Password is NOT set.\n");
 
     if (settings->conf)
-        fprintf(stdout, "Configuration File is: <%s>\n", settings->conf);
+        fprintf(stream, "Configuration File is: <%s>\n", settings->conf);
     else
-        fprintf(stdout, "Configuration File is NOT set.\n");
+        fprintf(stream, "Configuration File is NOT set.\n");
 
     if (settings->src)
-        fprintf(stdout, "Source URL is: <%s>\n", settings->src);
+        fprintf(stream, "Source URL is: <%s>\n", settings->src);
     else
-        fprintf(stdout, "Source is NOT set.\n");
+        fprintf(stream, "Source is NOT set.\n");
 
     if (settings->workDir)
-    	fprintf(stdout, "Work directory is: <%s>\n", settings->workDir);
+    	fprintf(stream, "Work directory is: <%s>\n", settings->workDir);
     else
-    	fprintf(stdout, "Work directory is NOT set.\n");
+    	fprintf(stream, "Work directory is NOT set.\n");
 
     if (settings->dst)
-        fprintf(stdout, "Destination is: <%s>\n", settings->dst);
+        fprintf(stream, "Destination is: <%s>\n", settings->dst);
     else
-        fprintf(stdout, "Destination is NOT set.\n");
+        fprintf(stream, "Destination is NOT set.\n");
 
     if (settings->startFile)
-    	fprintf(stdout, "Start File Name is: <%s>\n", settings->startFile);
+    	fprintf(stream, "Start File Name is: <%s>\n", settings->startFile);
     else
-    	fprintf(stdout, "Start File Name is NOT set.\n");
+    	fprintf(stream, "Start File Name is NOT set.\n");
 
     if (settings->start)
-    	fprintf(stdout, "Begin with is: <%s>\n", settings->start);
+    	fprintf(stream, "Begin with is: <%s>\n", settings->start);
     else
-    	fprintf(stdout, "Begin is NOT set.\n");
+    	fprintf(stream, "Begin is NOT set.\n");
 
     if (settings->cookieFile)
-        fprintf(stdout, "Cookie File is: <%s>\n", settings->cookieFile);
+        fprintf(stream, "Cookie File is: <%s>\n", settings->cookieFile);
     else
-        fprintf(stdout, "Cookie File is NOT set.\n");
+        fprintf(stream, "Cookie File is NOT set.\n");
 
     if (settings->scriptFile)
-        fprintf(stdout, "Script File is: <%s>\n", settings->scriptFile);
+        fprintf(stream, "Script File is: <%s>\n", settings->scriptFile);
     else
-        fprintf(stdout, "Script File is NOT set.\n");
+        fprintf(stream, "Script File is NOT set.\n");
 
     if (settings->jsonFile)
-            fprintf(stdout, "JSON File is: <%s>\n", settings->jsonFile);
+            fprintf(stream, "JSON File is: <%s>\n", settings->jsonFile);
         else
-            fprintf(stdout, "JSON File is NOT set.\n");
+            fprintf(stream, "JSON File is NOT set.\n");
 
     if (settings->logFile)
-    	fprintf(stdout, "LOG File is: <%s>\n", settings->logFile);
+    	fprintf(stream, "LOG File is: <%s>\n", settings->logFile);
     else
-    	fprintf(stdout, "LOG File is NOT set.\n");
+    	fprintf(stream, "LOG File is NOT set.\n");
 
     if (settings->htmlFile)
-    	fprintf(stdout, "HTML File is: <%s>\n", settings->htmlFile);
+    	fprintf(stream, "HTML File is: <%s>\n", settings->htmlFile);
     else
-    	fprintf(stdout, "HTML File is NOT set.\n");
+    	fprintf(stream, "HTML File is NOT set.\n");
 
     if (settings->indexListFile)
-    	fprintf(stdout, "Sorted LIST File is: <%s>\n", settings->indexListFile);
+    	fprintf(stream, "Sorted LIST File is: <%s>\n", settings->indexListFile);
     else
-    	fprintf(stdout, "Sorted LIST File is NOT set.\n");
+    	fprintf(stream, "Sorted LIST File is NOT set.\n");
 
     if (settings->verbose)
-    	fprintf(stdout, "Verbose is on: <%s>\n", settings->verbose);
+    	fprintf(stream, "Verbose is on: <%s>\n", settings->verbose);
     else
-    	fprintf(stdout, "Verbose is NOT set.\n");
+    	fprintf(stream, "Verbose is NOT set.\n");
 
     if (settings->newerFile)
-    	fprintf(stdout, "Newer File name is set to: <%s>\n", settings->newerFile);
+    	fprintf(stream, "Newer File name is set to: <%s>\n", settings->newerFile);
     else
-    	fprintf(stdout, "Newer File name is NOT set.\n");
+    	fprintf(stream, "Newer File name is NOT set.\n");
 
-    fprintf (stdout, "\n");
+    fprintf (stream, "\n");
 
     return;
 }

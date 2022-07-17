@@ -23,7 +23,7 @@ typedef enum {
 	ztPathNotDir,
 	ztBadFileName,
 	ztNoReadPerm,
-	ztNotRegFile, //not regular file
+	ztNotRegFile,
 	ztNullArg,
 	ztOpenFileError,
 	ztUnexpectedEOF,
@@ -61,7 +61,7 @@ typedef enum {
 	ztLineLengthError,
 	ztDisallowedChar,
 	ztBadLineZI,
-	ztStrToolong,
+	ztStrTooLong,
 	ztStrTooShort,
 	ztGotNull,
 	ztInvalidToken,
@@ -71,10 +71,19 @@ typedef enum {
 	ztSmallBuf,
 	ztInvalidResponse,
 	ztFileNotFound,
-
-
+	ztEmptyString,
+	ztUnrecognizedMsg,
+	ztBadResponse,
+	ztHighResponse,
+	ztPyExecNotFound,
+	ztUnusableFile,
+	ztOutResource,
+	ztResponse403,
+	ztResponse429,
+	ztResponse500,
 	ztUnknownError,
 	ztUnknownCode /* LAST ERROR */
+
 } ztExitCodeType;
 
 #define MAX_ERR_CODE ztUnknownCode

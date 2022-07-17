@@ -72,12 +72,17 @@ static char *errorString[] = {
 		"Error: Small hard coded buffer size.",
 		"Error: Invalid response from remote server. May contain server error message",
 		"Error: Argument file was not found.",
-
-
-
-
+		"Error: Empty string; string length is zero.",
+		"Error: Unrecognized error message by parse function.",
+		"Error: Bad response code, not integer, code includes non-digit character.",
+		"Error: High HTTP response code, higher than 599.",
+		"Error: Python3 executable not found",
+		"Error: Named file is unusable file; failed IsArgUsableFile() call.",
+		"Error: system run out of a resource; memory or full disk.",
+		"Error: Received server response code 403; invalid credential",
+		"Error: Received server response code 429; too many requests",
+		"Error: Received server response code 500; internal server error",
 		"Error: Unknown error.",
-
 		"Error: Unknown error CODE specified!"
 };
 

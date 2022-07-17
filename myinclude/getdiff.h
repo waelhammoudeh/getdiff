@@ -38,7 +38,7 @@ typedef struct SETTINGS_ {
 
 } SETTINGS;
 
-void printSettings(SETTINGS *settings);
+void printSettings(FILE *toFile, SETTINGS *settings);
 
 int updateSettings (SETTINGS *settings, CONF_ENTRY confEntries[]);
 

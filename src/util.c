@@ -505,6 +505,7 @@ char* get_self_executable_directory (){
  *   ztNoReadPerm
  *   ztNotRegFile
  *   ztNullArg
+ *   ztFileEmpty
  *
  * function is usually used to test input file argument.
  */
@@ -757,6 +758,7 @@ int mySpawn (char *prgName, char **argLst){
 
 int spawnWait (char *prog, char **argsList){
 
+	/* wait() : caller (parent) waits for child process to finish */
 	//pid_t		childPid;
 	int		childStatus;
 
@@ -769,7 +771,7 @@ int spawnWait (char *prog, char **argsList){
 	// wait for the child to finish
 	wait(&childStatus);
 
-	//if (WIFEXITED(childStatus)) // normal exit
+	//if (WIFEXITED(childStatus)) ??? normal exit
 	if (WEXITSTATUS(childStatus) == EXIT_SUCCESS)
 
 		return ztSuccess;
@@ -931,6 +933,8 @@ char	 *formatC_Time(void){
 
 /* formatMsgHeadTime(): compact time format used as line beginning of
  * logged message : 2022-Mar-21 19:45:37 note no line feed.
+ *
+ * Head -> head of the line!
  * ***********************************************************************/
 char* formatMsgHeadTime(void){
 

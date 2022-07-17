@@ -6,6 +6,8 @@ Differ files on Geofabrik servers are daily diff updates (.osc.gz, Gzip compress
 The program is a command line tool written using C programming language intended to ease updating regional data extracts, can be called from scripts. Program does not update any data.
 
 Program uses "oauth_cookie_client.py" script from [Geofabrik github repository](https://github.com/geofabrik/sendfile_osm_oauth_protector/blob/master/doc/client.md). Please see [LICENSE.md](/LICENSE.md).
+The script above is used to retrieve login cookie from OpenStreetMap.org when geofabrik internal server is used.
+This program assumes python3 executable to be found in the default slackware installation; that is '/usr/bin/python3'.
 
 ## Building:
 Program requires "libcurl" version 7.80.0 or later. A makefile is included in the root directory; to compile run 'make' in that directory.

@@ -12,7 +12,7 @@
 // global variables
 static  CURL    *curl_handle;
 static  int     sessionFlag = 0; // global initial flag
-static  int     afterPostFlag = 0; // this is ugly! But maybe I am catering for stupid.
+static  int     afterPostFlag = 0; // this is ugly! But ...
 
 
 int initialCurlSession(void){
@@ -479,6 +479,8 @@ int performDownload (FILE *toFilePtr, CURL *handle){
 				"Curl Error Msg: %s\n", curl_easy_strerror(ret));
 		return ret;
 	}
+
+/* TODO: write server response code in global variable, to be checked in case of error!? */
 
 	if (responseCode != OK_RESPONSE_CODE){
 		fprintf(stderr, "performDownload(): Error response code was not OKAY.\n CODE: [%ld]\n",

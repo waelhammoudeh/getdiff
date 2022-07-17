@@ -30,16 +30,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ** End LICENSE.md **/
 
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <assert.h>
 
 #include "getdiff.h"
 #include "util.h"
 #include "ztError.h"
 #include "cookie.h"
+
+#define LOG_UNSEEN
+
+int serverResponse = 0;
 
 int writeScript (char	 *fileName){
 
@@ -185,13 +194,13 @@ char const *script =
     if (result != strlen(script)){
 
         if (result < 0){
-            fprintf (stderr, "%s: Failed fprintf() call in writeScript() function.\n", progName);
+            fprintf (stderr, "%s: Output error in fprintf() call in writeScript() function.\n", progName);
             return ztWriteError;
         }
 
         fprintf (stderr, "%s: writeScript(): Error returned from fprintf() to script file\n"
                 "result does not match script length!\n", progName);
-        return ztUnknownError;
+        return ztWriteError;
     }
 
     fflush(filePtr);
@@ -201,34 +210,83 @@ char const *script =
 
 }
 
+/* getCookieFile (): function retrieves OSM login cookie via "geofabrik" web server,
+ *   function stores the cookie in a text file on disk.
+ *
+ *   Function runs "oauth_cookie_client.py" script to retrieve the cookie. Script behaviour
+ *   is summarized in pipeSpawnScript () function below. Also see repository:
+ *   https://github.com/geofabrik/sendfile_osm_oauth_protector/blob/master/doc/client.md
+ *   for more information about the script.
+ *
+ *   Function calls fork() then runs the script as the child process in a pipe
+ *   with redirection of standard error to capture error messages by the
+ *   parent process. In case of error; function calls  getResponseCode () function
+ *   to parse error message for server response code.
+ * Script error message example:
+ *   POST https://www.openstreetmap.org/oauth/authorize, received HTTP code 403 but expected 200
+ *
+ *	In case of script failure; function sets global variable (int serverResponse) to
+ *	received Response Code when possible. If we fail to parse error message for
+ *	Response Code then function sets (int serverResponse) to zero.
+ *	User (caller) should check serverResponse value on failure.
+ *
+ *
+ * Geofabrik \Response codes I know:
+ *  403 --> invalid user or password
+ *  429 --> too many requests
+ *  500 --> internal server error
+ *
+ *	check written cookie file - can not be empty.
+ *
+ * Return:
+ *   ztSuccess,
+ *   ztPyExecNotFound : could not find python3 executable.
+ *   ztCreateFileErr,
+ *   ztWriteError,
+ *   ztUnusableFile : failed IsArgUsableFile() call.
+ *   ztGotNull,
+ *   ztEmptyString,
+ *   ztUnrecognizedMsg : unrecognized error message from script.
+ *   ztMemoryAllocate,
+ *   ztBadResponse : parse error, failed to convert string to long.
+ *   ztHighResponse : server response code > 599
+ *   ztFailedSysCall,
+ *   ztChildProcessFailed : exit code for script was not EXIT_SUCCESS or (0).
+ *
+ **********************************************************************************/
 
 int getCookieFile (SETTINGS *settings){
 
-    char		*pyExec = "/usr/bin/python3";
-    char		*argsList[5];
+    char    *pyExec = "/usr/bin/python3";
+    char    *argsList[5];
+    char    tmpBuf[PATH_MAX];
+    int       result;
+    char    *msg;
+    char    *markerStr = "received HTTP code"; /* included in script error message */
+    char    *lastPart = NULL;
+    int       responseCode = 0; /* only change when we get from getResponseCode() */
+    int       returnValue = 0;
+    int       pssResult; /* returned result from pipeSpawnScript() */
 
-    char		tmpBuf[PATH_MAX];
-    int		result;
-
-    ASSERTARGS (settings && settings->scriptFile &&
-            settings->jsonFile);
+    ASSERTARGS (settings && settings->scriptFile && settings->jsonFile);
 
     if( IsArgUsableFile(pyExec) != ztSuccess ){
-		fprintf(stderr, "%s: Error could not find file: <%s>.\n", progName, pyExec);
-		return ztFileNotFound;
-	}
+        fprintf(stderr, "%s: Error could not find file: <%s>.\n", progName, pyExec);
+        return ztPyExecNotFound;
+    }
 
-	result = writeScript(settings->scriptFile);
-	if (result != ztSuccess){
-		fprintf(stderr, "%s: Error failed to write script to file.\n", progName);
-		return result;
-	}
+    result = writeScript(settings->scriptFile);
+    if (result != ztSuccess){
+        fprintf(stderr, "%s: Error failed to write script to file.\n", progName);
+        return result;
+    }
 
-	result = writeJSONfile(settings->jsonFile, settings);
-	if (result != ztSuccess){
-		fprintf(stderr, "%s: Error failed to write JSON settings file.\n", progName);
-		return result;
-	}
+    result = writeJSONfile(settings->jsonFile, settings);
+    if (result != ztSuccess){
+        fprintf(stderr, "%s: Error failed to write JSON settings file.\n", progName);
+        remove(settings->scriptFile);
+        return result;
+    }
 
     argsList[0] = pyExec;
     argsList[1] = settings->scriptFile;
@@ -241,14 +299,99 @@ int getCookieFile (SETTINGS *settings){
 
     argsList[4] = NULL;
 
-    result = spawnWait (pyExec, argsList);
+    pssResult = pipeSpawnScript (pyExec, argsList, &msg);
+
+    if (pssResult == ztSuccess){
+
+        serverResponse = 200; /* no script output to check! */
+        /* check cookie file status */
+        result = IsArgUsableFile(settings->cookieFile);
+        if ( result != ztSuccess )
+            returnValue = ztUnusableFile;
+    }
+    else { /* failed script result */
+              /* examine and parse its error message (3rd parameter "msg") */
+
+        if (msg == NULL) {
+
+#ifdef LOG_UNSEEN
+    logUnseen (settings, "ztGotNull error: (msg == NULL)", "NULL");
+#endif
+            fprintf (stderr, "%s: Error failed script with NULL error msg in getCookieFile().\n", progName);
+            returnValue = ztGotNull;
+        }
+        else if (strlen(msg) == 0){
+
+#ifdef LOG_UNSEEN
+    logUnseen (settings, "ztEmptyString error: (strlen(msg) == 0)", "NULL");
+#endif
+
+            fprintf (stderr, "%s: Error failed script with EMPTY error msg in getCookieFile().\n", progName);
+            returnValue = ztEmptyString;
+        }
+        else if (msg){
+
+            lastPart = strstr(msg, markerStr);
+            if ( ! lastPart ){
+                /* error message doesn't include markerStr -> unrecognized message
+                 * for now we log such error messages */
+#ifdef LOG_UNSEEN
+    sprintf (tmpBuf, "UNRECOGNIZED msg: <%s>", msg);
+    logUnseen (settings, tmpBuf, "No lastPart");
+#endif
+
+                fprintf (stderr, "%s: Error failed script with UNRECOGNIZED server error"
+                		                 " message in getCookieFile()\n "
+                                         "  Server Error Message: <%s>.\n", progName, msg);
+                returnValue = ztUnrecognizedMsg;
+            }
+            else { /* markerStr IS included in message */
+
+                result = getResponseCode (&responseCode, lastPart);
+                if (result != ztSuccess){
+
+                	/* handle getResponseCode() errors:
+                	 *  ztInvalidArg & ztEmptyString are handled above */
+
+                    if (result == ztMemoryAllocate){
+                        returnValue = ztMemoryAllocate;
+                    }
+
+                    if (result == ztBadResponse){
+#ifdef LOG_UNSEEN
+    sprintf (tmpBuf, "ztBadResponse error from msg: <%s>", msg);
+    logUnseen (settings, tmpBuf, lastPart);
+#endif
+                        returnValue = ztBadResponse;
+                    }
+
+                    if (result == ztHighResponse){
+#ifdef LOG_UNSEEN
+    sprintf (tmpBuf, "ztHighResponse from msg: <%s>", msg);
+    logUnseen (settings, tmpBuf, lastPart);
+#endif
+                        serverResponse = responseCode;
+                        returnValue = ztHighResponse;
+                    }
+                } /* end getResponseCode() errors */
+
+                serverResponse = responseCode;
+                returnValue = pssResult;
+            } /* end else {* markerStr IS included in message * */
+        }
+    } /* end if script failed */
 
     result = removeFiles(settings);
     if (result != ztSuccess)
         fprintf(stderr, "%s: Warning failed to remove temporary file(s)!\n", progName);
 
-    return result;
-}
+    if (returnValue != 0)
+
+        return returnValue;
+
+    return ztSuccess;
+
+} /* END getCookieFile() */
 
 int day2num (char *day){
 
@@ -775,3 +918,479 @@ int removeFiles (SETTINGS *settings){
     return ztSuccess;
 }
 
+/* pipeSpawnScript(): runs script in a pipe AND gets script STDERR output
+ * in char **outputString variable
+ *
+ * How oauth_cookie_client.py script work:
+ *   - script usually outputs the cookie string to terminal on success: standard output.
+ *   - on failure script writes an error message with server response code to
+ *     "STANDARD ERROR" then exits.
+ *   - cookie string can be written to a file with -o (--output) option which is used
+ *     in argList here, so on success there is no terminal output
+ *   - this function gets the error message in its "outputString" variable from
+ *     STDERR_FILENO. Again "STANDARD ERROR" not "standard output".
+ *
+ * Returns: ztFailedSysCall, ztMemoryAllocate, ztChildProcessFailed, ztSuccess.
+ * In case of "ztChildProcessFailed" script error message is copied into the
+ * third variable (outputString). Parameter (outputString) is set to NULL if
+ * we can not read error message.
+ *
+ ******************************************************************************/
+
+int pipeSpawnScript (const char *prog, char * const argList[], char **outputString){
+
+	/* function prototype to match execv() system call from man page:
+	 *
+	 *      int execv(const char *pathname, char *const argv[]);
+	 *
+	 ******************************************************************/
+
+	pid_t		childPid;
+	int		fds[2];                /* pipe fds are in alphabetical order (0->read & 1->write) */
+	FILE		*scriptTerminal;   /* so we can use fgets() */
+	int		waitStatus;            /* exit status; code */
+	int		result;
+	char		temBuf[1024] = {0};
+
+	// TODO: use error number! set errno to zero
+	errno = 0;
+
+	// create the pipe
+	result = pipe(fds);
+
+	if (result == -1){ // failed pipe() call
+
+		perror ("pipe");
+		fprintf (stderr, "%s: Error failed system call to pipe()\n", progName);
+		// TODO: get errno and provide better error message
+		return ztFailedSysCall;
+	}
+
+	childPid = fork();
+	if (childPid == -1){ // failed fork() call
+
+		perror ("fork");
+		fprintf (stderr, "%s: Error failed system call to fork()\n", progName);
+		// TODO: get errno and provide better error message
+		return ztFailedSysCall;
+	}
+
+	if (childPid == (pid_t) 0){ // this is the child, do child work
+
+		// close the pipe read end
+		close (fds[0]);
+
+		scriptTerminal = fdopen (fds[1], "w");
+
+		/* connect pipe write end to STANDARD ERROR:
+		 *   this is like shell redirection.
+		 * Note that we ignore standard output.
+		 * *********************************************************************/
+		result = dup2 (fds[1], STDERR_FILENO);
+		if (result == -1){
+
+			perror ("dup2");
+			fprintf (stderr, "%s: Error failed system call to dup2()\n", progName);
+			return ztFailedSysCall;
+		}
+
+		// run the script; this replaces the child process!
+		execv (prog, argList);
+
+		/* The execv function returns only if an error occurs. */
+		printf ("%s: Error: I am the CHILD in pipeSpawnScript():\n"
+				    "If you see this then there was an error in execv() call...\n", progName);
+		fprintf (stderr, "%s: Error in pipeSpawnScript(): an error occurred in"
+				                 " execv() ... aborting!\n",
+				                  progName);
+		abort();  // TODO: return error AND remove abort()
+
+		fflush(scriptTerminal);
+
+		close (fds[1]);
+
+	} // end child work
+
+	else { // this is the parent; do parent work
+
+		// close the pipe write end
+		close (fds[1]);
+
+		// wait for the child to finish AND store its exit status
+		waitpid (childPid, &waitStatus, 0);
+
+		if (WEXITSTATUS(waitStatus) == EXIT_SUCCESS) {
+
+			return ztSuccess;
+		}
+
+		else { /*  WEXITSTATUS(waitStatus) != EXIT_SUCCESS
+			        * failed script -> get its error text message */
+
+			// convert script output terminal to FILE * ,,, so we can use fgets() function
+			scriptTerminal = fdopen (fds[0], "r");
+
+			if ( ! scriptTerminal ){
+
+				perror ("fdopen");
+				fprintf (stderr, "%s: Error returned from fdopen() call.\n", progName);
+				return ztFailedSysCall;
+			}
+
+			while ( !feof (scriptTerminal)) // script writes only ONE line, still use while()
+
+				fgets (temBuf, 1023, scriptTerminal);
+
+			/* maybe there is nothing to get or read! */
+			if (strlen(temBuf) == 0){
+
+				*outputString = NULL; /* make sure it is NULL in this case */
+				return ztChildProcessFailed;
+			}
+
+			// remove linefeed character
+			temBuf[strlen(temBuf) -1] = '\0';
+
+			*outputString = (char *) malloc ((strlen(temBuf) + 1) * sizeof(char));
+			if ( *outputString == NULL){
+
+				fprintf(stderr, "%s: Error allocating memory in pipeSpawnScript().\n", progName);
+				return ztMemoryAllocate;
+			}
+
+			strcpy (*outputString, temBuf);
+
+			fprintf (stderr, "pipeSpawnScript(): The script failed to retrieve cookie; error message from script was:\n  < %s >\n\n", temBuf);
+
+			return ztChildProcessFailed;
+
+		} // end failed script
+
+	} // end parent work
+
+}
+
+/* getResponseCode(): Function extracts 'response code' ABC from the following
+ *  exact string message: received HTTP code ABC but expected 200
+ *  function sets the integer pointed to by code to response code on ztSuccess.
+ *  On errors code is set to zero except when error is ztHighResponse.
+ *
+ *  returns:
+ *  ztInvalidArg : message does not match "received HTTP code ABC but expected 200"
+ *  ztMemoryAllocate : could not allocate memory for own message copy
+ *  ztEmptyString : Empty error message (msg)
+ *  ztBadResponse : failed to convert string to long - has non digit maybe
+ *  ztHighResponse : when code > 599
+ *  ztSuccess.
+ *
+ ******************************************************************************/
+
+int getResponseCode (int *code, char *msg){
+
+	char		*myMsg;
+	char		*startDigit = "123456789";
+	char		*startMarker = "received HTTP code";
+	char		*subStr1;
+	char		*expectedStr = "but expected 200";
+	char		*subStr2;
+	char		*codeStr;
+	char		*codeToken;
+	char		*spaceDel = "\040";
+	int		codeNum;
+	char		*endPtr;
+
+
+	ASSERTARGS (code && msg);
+
+	*code = 0; /* only change when we get it */
+
+	if (strlen(msg) == 0){
+
+		fprintf (stderr, "%s: Error in getResponseCode(): Empty string in msg parameter.\n",
+						           progName);
+		return ztEmptyString;
+	}
+
+	/* msg must include startMarker AND expectedStr strings */
+	subStr1 = strstr (msg, startMarker);
+
+	if ( ! subStr1 || (subStr1 != msg)){
+
+		fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
+				                progName, msg);
+		return ztInvalidArg;
+	}
+
+	subStr2 = strstr (msg, expectedStr);
+
+	if ( ! subStr2 || (strcmp(subStr2, expectedStr) != 0)){
+
+		fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
+				                progName, msg);
+		return ztInvalidArg;
+	}
+
+	myMsg = strdup(msg);
+
+	if ( ! myMsg ){
+
+		fprintf (stderr, "%s: Error in getResponseCode(): memory allocation.\n", progName);
+		return ztMemoryAllocate;
+	}
+
+	/* find the start of received code string */
+	codeStr = strpbrk(myMsg, startDigit);
+
+	if ( ! codeStr ){
+
+		fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
+				                progName, msg);
+		return ztInvalidArg;
+	}
+
+	codeToken = strtok(codeStr, spaceDel);
+
+	codeNum = (int) strtol (codeToken, &endPtr, 10);
+
+	if ( *endPtr != '\0' ){ /* may have something other than digits */
+
+		fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
+				                progName, msg);
+		return ztBadResponse;
+	}
+
+	*code = codeNum;
+
+	if (codeNum > 599)
+
+		return ztHighResponse;
+
+	return ztSuccess;
+}
+
+void logUnseen(SETTINGS *settings, char *msg, char *lastPart) {
+
+	char *unseenName = "UNSEEN_RESPONSE.txt";
+	FILE *unseenFilePtr;
+	char *myTime;
+	pid_t myPid;
+	char *text;
+	char tmpBuf[PATH_MAX];
+
+	ASSERTARGS(settings);
+
+	errno = 0;
+
+	sprintf(tmpBuf, "%s/%s", settings->workDir, unseenName);
+	unseenFilePtr = fopen(tmpBuf, "a");
+	if (unseenFilePtr == NULL) {
+		fprintf(stderr,
+				"%s: Error could not open UNSEEN_RESPONSE log file! <%s>\n",
+				progName, tmpBuf);
+		fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+		// return ztOpenFileError;
+	} else { /* we have opened file */
+
+		myTime = formatC_Time();
+		fprintf(unseenFilePtr, "%s: UNSEEN ERROR started at: %s\n", progName,
+				myTime);
+
+		myPid = getpid();
+		myTime = formatMsgHeadTime();
+
+		if (msg) {
+
+			text = "Received error message from script: ";
+			fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
+			fprintf(unseenFilePtr, "   <%s>\n\n", msg);
+
+			if (lastPart) {
+
+				text = "lastPart was: ";
+				fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid,
+						text);
+				fprintf(unseenFilePtr, "   <%s>\n\n", lastPart);
+			} else { /* no lastPart */
+
+				text = "Could NOT get lastPart from error message text.";
+				fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid,
+						text);
+			}
+		} else { /* empty msg */
+
+			text = "EMPTY error message from script! EMPTY. ";
+			fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
+		}
+
+		text = "Current program settings below:";
+		fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
+
+		printSettings(unseenFilePtr, settings);
+
+		fprintf(unseenFilePtr, "++++++++++++++ Done Unseen ++++++++++++\n\n");
+
+		fflush(unseenFilePtr);
+		fclose(unseenFilePtr);
+	}
+
+	return;
+}
+
+/* getCookieRetry ():
+ *
+ * short wait  --> sleep 3 seconds
+ * normal wait --> sleep 10 seconds
+ *
+ * Returns:
+ *  ztSuccess,
+ *  ztPyExecNotFound,
+ *  ztOutResource,
+ *  ztUnknownError,
+ *  ztUnrecognizedMsg,
+ *  ztHighResponse,
+ *  ztResponse403,
+ *  ztResponse429,
+ *  ztResponse500,
+ *
+ *
+ */
+
+int getCookieRetry (SETTINGS *settings){
+
+	int	result, retryResult;
+	int	receivedCode;
+
+	result = getCookieFile(settings);
+
+	receivedCode = serverResponse;
+
+	switch (result) {
+
+	case ztSuccess:
+
+		return ztSuccess;
+		break;
+
+	case ztPyExecNotFound:
+
+		fprintf(stderr, "%s: Error could not find 'python3' executable in default path '/usr/bin/python3'\n"
+				" Please see program requirements.\n", progName);
+		return ztPyExecNotFound;
+		break;
+
+	case ztCreateFileErr:
+	case ztWriteError:
+	case ztMemoryAllocate:
+	case ztFailedSysCall:
+
+		fprintf (stderr, "%s: Error out of resource like memory, disk space or failed system call.\n", progName);
+		return ztOutResource;
+		break;
+
+	case ztGotNull:
+	case ztEmptyString:
+	case ztBadResponse:
+
+		/* errors should not happen! maybe lost data? RETRY */
+		sleep(3);
+
+		retryResult = getCookieFile(settings);
+		if (retryResult == ztSuccess)
+
+			return ztSuccess;
+
+		else {
+
+			fprintf (stderr, "%s: Error unknown error returned from getCookieFile().\n", progName);
+			return ztUnknownError;
+		}
+
+		break;
+
+	case ztUnrecognizedMsg:
+
+		fprintf (stderr, "%s: Error unrecognized error message received from server.\n", progName);
+		return ztUnrecognizedMsg;
+
+		break;
+
+	case ztHighResponse:
+
+		fprintf (stderr, "%s: Error high response code received from server. Response Code > 599.\n", progName);
+		return ztHighResponse;
+
+		break;
+
+
+	case ztChildProcessFailed:
+
+		switch (receivedCode) {
+
+		case 403:
+
+			fprintf(stderr, "%s: Error invalid credentials received from server;\n"
+					"wrong user name or password for your OSM account.\n", progName);
+
+			return ztResponse403;
+			break;
+
+		case 429:
+
+			fprintf(stderr, "%s: Error \"too many requests error\" received from server.\n"
+					"Please do not use this program for some time - 2 hours at least.\n\n"
+					"This program has a maximum of 30 change files and their state files per session.\n"
+					"That is a total of 60 files per session which should not exceed Geofabrik.de limits.\n"
+					"Geofabrik provide this free service to you and I, please do not abuse their server\n"
+					"with too many requests in a short period of time. This maximum is set to avoid server\n"
+					"abuse in the first place. Geofabrik free services - like a lot of free services - have rules\n"
+					"and consequences for abuse.\n"
+					"Again please do not abuse this free service.\n", progName);
+
+			return ztResponse429;
+			break;
+
+		case 500:
+
+			sleep (10);
+
+			retryResult = getCookieFile(settings);
+			if (retryResult == ztSuccess)
+
+				return ztSuccess;
+
+			else {
+
+				fprintf (stderr, "%s: Error failed on retry from 'internal server error'. Please try later.\n", progName);
+				if (serverResponse == 500)
+
+					return ztResponse500;
+
+				else
+
+					return ztUnknownError;
+			}
+
+			break;
+
+		default:
+
+			fprintf (stderr, "%s: Error script failed to retrieve login cookie with unknown error.\n", progName);
+			return ztUnknownError;
+
+			break;
+
+		} /* end switch (receivedCode) */
+
+		break;
+
+	default:
+
+		return ztUnknownError;
+
+		break;
+
+	} /* end switch (result) */
+
+	/* we do not get here! */
+	return ztSuccess;
+}
