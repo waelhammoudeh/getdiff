@@ -13,7 +13,11 @@
 #endif
 
 #include "dList.h"
-#include "getdiff.h"
+
+/* exported variables */
+extern int curlResponseCode;
+extern int downloadSize;
+extern char  *recErrorMsg;
 
 /* To parse URL we use curl_url() which is available since version 7.62.0
  * and curl_url_strerror() which is available since 7.80.0
@@ -54,10 +58,10 @@ CURLcode setBasicOptions (CURL *qH, CURLU *serverUrl);
 
 CURL *initialSecure (CURLU *srcUrl, char *secToken);
 
-int performSecureGet (FILE *toFilePtr, CURL *handle);
-
 CURL *initialDownload (CURLU *srcUrl, char *secToken);
 
-int performDownload (FILE *toFilePtr, CURL *handle);
+int download2File (FILE *toFilePtr, CURL *handle);
+
+int performDownload (CURL *handle);
 
 #endif /* CURL_FUNC_H_ */

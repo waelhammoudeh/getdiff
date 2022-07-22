@@ -1164,8 +1164,8 @@ int deffList1Not2 (DL_LIST *dst, DL_LIST *list1, DL_LIST *list2){
  * Caller should guard against negative double.
  * Function returns ztSuccess - zero - on success and errors as follow:
  * ztOutOfRangePara : if srcDouble is negative or larger than LONG_MAX.
- * ztInvalidArg : if srcDouble has fraction or has any character other than
- * digits and period.
+ * ztInvalidArg : if srcDouble has fraction.
+ *
  *****************************************************************************/
 
 int convDouble2Long (long *dstL, double srcDouble){
@@ -1176,51 +1176,61 @@ int convDouble2Long (long *dstL, double srcDouble){
 	*/
 
 	char		buf[512] = {0};
-	char		*str, *fraction, *whole;
+	char		*fraction, *whole;
 	char		*allowed = "0",
 			    *digits = "1234567890",
+				*periodDel = ".",
+				*tabDel = "\t",
 				*endPtr = NULL;
 
 	long	numL;
 
-
 	ASSERTARGS (dstL);
 
 	if (srcDouble < 0.0) {
-		fprintf(stderr, "convDouble2Long(): Error parameter srcDouble is "
-						"larger than LONG_MAX.\n");
+		fprintf(stderr, "convDouble2Long(): Error parameter srcDouble is negative\n");
 		return ztOutOfRangePara;
 	}
 
-	/* in strtol() we trust.
-	if (srcDouble > LONG_MAX){
-		fprintf(stderr, "convDouble2Long(): Error parameter srcDouble is "
-				"larger than LONG_MAX.\n");
-		return ztOutOfRangePara;
-	}
-	*/
+	/* place number in a string with 17 decimal points + tab character */
+	sprintf (buf, "%64.17f\t", srcDouble);
 
-	sprintf (buf, "%32.15f\t", srcDouble);
-	str = strdup (buf);
+	whole = strtok(buf, periodDel);
+	fraction = strtok(NULL, tabDel);
 
-	whole = strtok(str, ".\040");
-	fraction = strtok(NULL, "\040\t");
+	/*
+printf ("convDouble2Long(): whole is <%s> @@@@\n", whole);
+printf ("convDouble2Long(): fraction is <%s> @@@@\n", fraction);
+*/
 
-	if (strspn(whole, digits) != strlen(whole)){
-		fprintf(stderr, "convDouble2Long(): Error whole part of double "
-				"has something other than digits.\n");
-		return ztInvalidArg;
-	}
-
+	/* number can not have fraction */
 	if (strspn(fraction, allowed) != strlen(fraction)){
 		fprintf(stderr, "convDouble2Long(): Error argument double has fraction.\n");
 		return ztInvalidArg;
 	}
 
+	removeSpaces(&whole);
+
+	/* this should not happen! */
+	if (strspn(whole, digits) != strlen(whole)){
+		fprintf(stderr, "convDouble2Long(): Error whole part of double "
+				"has something other than digits.\n");
+		return ztInvalidArg;
+	}
+	/* now this means *endPtr below is always '\0' - checked below for completion only! */
+
+	/*  from man strtol :
+	RETURN VALUE
+	       The strtol() function returns the result of the conversion, unless the value would underflow or  overflow.
+	       If  an  underflow  occurs,  strtol()  returns LONG_MIN.   If  an  overflow  occurs,  strtol()  returns  LONG_MAX.
+	       In both cases, errno is set to ERANGE.  Precisely the same holds for strtoll() (with
+	       LLONG_MIN and LLONG_MAX instead of LONG_MIN and LONG_MAX).
+	 *** end from man strtol : NOTE it has been reformatted */
+
 	/* set errno */
 	errno = 0;
-	numL = strtol (whole, &endPtr, 10);
-	if ( *endPtr != '\0' || errno != 0){
+	numL = (long) strtol (whole, &endPtr, 10);
+	if ( *endPtr != '\0' || errno != 0){ /* ERANGE */
 
 		fprintf(stderr, "convDouble2Long() Error failed strtol() call for <%s> !!\n"
 				"with system error message : %s\n", whole, strerror(errno));

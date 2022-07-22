@@ -70,7 +70,7 @@ static char *errorString[] = {
 		"Error: Failed to create file for writing.",
 		"Error: Pointer to function compare not set with initialDL().",
 		"Error: Small hard coded buffer size.",
-		"Error: Invalid response from remote server. May contain server error message",
+		"Error: Invalid HTTP response code from remote server. Server may provide error message",
 		"Error: Argument file was not found.",
 		"Error: Empty string; string length is zero.",
 		"Error: Unrecognized error message by parse function.",
@@ -82,6 +82,9 @@ static char *errorString[] = {
 		"Error: Received server response code 403; invalid credential",
 		"Error: Received server response code 429; too many requests",
 		"Error: Received server response code 500; internal server error",
+		"Error: Unhandled HTTP response code by program",
+		"Error: Unknown response code; response was not received."
+
 		"Error: Unknown error.",
 		"Error: Unknown error CODE specified!"
 };

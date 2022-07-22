@@ -461,7 +461,6 @@ int main(int argc, char *argv[]){
 			if (mySettings->verbose)
 				fprintf (stdout, "%s: No cookie file was found, retrieving new cookie.\n", progName);
 
-			// result = getCookieFile(mySettings);
 			result = getCookieRetry(mySettings);
 			if (result != ztSuccess){
 
@@ -527,7 +526,7 @@ int main(int argc, char *argv[]){
 	/* download index.html page */
 
     errno = 0;
-    indexFilePtr = fopen(mySettings->htmlFile, "w+"); /* writing + reading : verify HTML without another open call. skipped! */
+    indexFilePtr = fopen(mySettings->htmlFile, "w"); /* writing only. */
     if ( ! indexFilePtr ){
 
     	fprintf (stderr, "%s: Error could not create file! <%s>\n",
@@ -543,18 +542,33 @@ int main(int argc, char *argv[]){
     }
 
     sprintf (tmpBuf, "Getting the HTML index page for source: %s", mySettings->src);
-    fprintf(stdout, "%s\n", tmpBuf);
+    if (mySettings->verbose)
+    	fprintf(stdout, "%s\n", tmpBuf);
+
     logMessage(fLogPtr, tmpBuf);
 
-    result = performDownload (indexFilePtr, myDwnldHandle);
+    result = download2FileRetry (indexFilePtr, myDwnldHandle);
+
+    if (result == ztResponseUnhandled){
+
+    	sprintf(tmpBuf, "UNHANDLED RESPONSE RECIEVED :\n"
+    			" code <%d>\n"
+    			" recErrorMsg <%s>\n"
+    			" URL mySettings->src : <%s>\n",
+				curlResponseCode, recErrorMsg, mySettings->src);
+    	logMessage (fLogPtr, tmpBuf);
+    }
+
     if (result != ztSuccess){
-    	fprintf(stderr, "%s: Error returned from performDownload() for file: <%s>."
+    	fprintf(stderr, "%s: Error returned from download2FileRetry() for file: <%s>."
     			" Please check the source URL.\n", progName, mySettings->htmlFile);
     	return result;
     }
 
     fflush(indexFilePtr);
     fclose(indexFilePtr);
+
+/* FIXME check final file size & compare to received size */
 
     sprintf(tmpBuf, "Wrote HTML page file to: <%s>", mySettings->htmlFile);
     fprintf(stdout, "%s: %s\n", progName, tmpBuf);
@@ -681,15 +695,29 @@ int main(int argc, char *argv[]){
 	    }
 
 	    fprintf(stdout, "Getting file: %s\n", filename);
-	    result = performDownload (filePtr, myDwnldHandle);
+	    result = download2FileRetry (filePtr, myDwnldHandle);
+
+	    if (result == ztResponseUnhandled){
+
+	    	sprintf(tmpBuf, "UNHANDLED RESPONSE RECIEVED :\n"
+	    			" code <%d>\n"
+	    			" recErrorMsg <%s>\n"
+	    			" URL filename : <%s>\n",
+					curlResponseCode, recErrorMsg, filename);
+	    	logMessage (fLogPtr, tmpBuf);
+	    }
+
+
 	    if (result != ztSuccess){
-	    	fprintf(stderr, "%s: Error returned from performDownload() for file: <%s>."
+	    	fprintf(stderr, "%s: Error returned from download2FileRetry() for file: <%s>."
 	    			" Please check the source URL.\n", progName, tmpBuf);
 	    	return result;
 	    }
 
 	    fflush(filePtr);
 	    fclose(filePtr);
+
+/* FIXME check final file size & compare to received size */
 
 	    sprintf(tmpBuf, "downloaded file: %s", filename);
 		fprintf( stdout, "%s: %s\n", progName, tmpBuf);
@@ -1223,5 +1251,117 @@ int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList){
 	fflush (filePtr);
 
 	return ztSuccess;
+
+}
+
+/* download2FileRetry(): calls download2File() function, retries the download
+ * only in case of response code 500; internal server error after 10 seconds.
+ *
+ * returns:
+ *   - CURLE_OK (equals ztSuccess)
+ *   - ztResponseUnknown
+ *   - ztResponse500
+ *   - ztResponse403
+ *   - ztResponse429
+ *   - ztResponseUnhandled
+ *
+ *  Generic Codes:
+ *   302 : Found
+ *   400 : Bad Request
+ *   404 : Not Found
+ *   501 : Not supported
+ */
+
+int download2FileRetry (FILE *toFilePtr, CURL *handle){
+
+	int    result, retryResult;
+	int	delay = 10; /* our sleep time */
+	int	responseCode;
+
+	result = download2File (toFilePtr, handle);
+
+	if (result == CURLE_OK)
+
+		return result;
+
+	responseCode = curlResponseCode; /* set in performDownload() */
+
+	switch (responseCode){
+
+	case 0:
+
+		fprintf(stderr, "download2FileRetry(): Error failed download2File() call and\n"
+				" curlResponseCode = 0. No Response Code was received!\n");
+		return ztResponseUnknown;
+		break;
+
+	case 500: /* internal server error; only case we retry now */
+
+		sleep (delay);
+
+		retryResult = download2File (toFilePtr, handle);
+		if (retryResult == CURLE_OK)
+
+			return retryResult;
+
+		else if (curlResponseCode == 500){
+
+			fprintf(stderr, "download2FileRetry(): Error failed download2File() call with\n"
+					" Response Code = 500; internal server error.\n");
+			return ztResponse500;
+		}
+		else {
+
+			fprintf(stderr, "download2FileRetry(): Error failed download2File() call with\n"
+								" Initial Response Code = 500; but current Response Code is <%d>\n",
+								curlResponseCode);
+			return retryResult;
+		}
+		break;
+
+	case 403: /* forbidden, invalid user name or password,
+	                     getCookie() should catch this!
+	                     did current user change program source code? */
+		fprintf (stderr, "%s: Received response 403; Forbidden from server.\n"
+				"Usually this means invalid user name or password; you should not\n"
+				"receive this code at this point in the program!\n", progName);
+		return ztResponse403;
+		break;
+
+	case 429: /* FIXME message! */
+
+		fprintf(stderr, "%s: Error \"too many requests error\" received from server.\n"
+				"Please do not use this program for some time - 2 hours at least.\n\n"
+				"This program has a maximum of 30 change files and their state files per session.\n"
+				"That is a total of 60 files per session which should not exceed Geofabrik.de limits.\n"
+				"Geofabrik provide this free service to you and I, please do not abuse their server\n"
+				"with too many requests in a short period of time. This maximum is set to avoid server\n"
+				"abuse in the first place. Geofabrik free services - like a lot of free services - have rules\n"
+				"and consequences for abuse.\n"
+				"Again please do not abuse this free service.\n", progName);
+
+		return ztResponse429;
+		break;
+
+	default: /* TODO: log all info to file - I do not know all responses sent by server.
+	                   look at curl error messages, if any -
+	                   let main() do logging, has mySettings structure * */
+
+		char *effectiveURL = NULL;
+		curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &effectiveURL);
+
+		fprintf(stderr, "%s: download2FileRetry(): Curl failed to download file with UNHANDLED Response Code:\n"
+				" Server Response Code: <%d>\n"
+				" Curl Error Message: <%s>\n"
+				" Source URL: <%s>\n",
+				 progName, curlResponseCode, recErrorMsg, effectiveURL);
+
+
+		return ztResponseUnhandled;
+		break;
+	} /* end switch (responseCode) */
+
+
+	return result; /* we do not get here! */
 
 }

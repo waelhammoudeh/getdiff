@@ -81,6 +81,9 @@ typedef enum {
 	ztResponse403,
 	ztResponse429,
 	ztResponse500,
+	ztResponseUnhandled,
+	ztResponseUnknown,
+
 	ztUnknownError,
 	ztUnknownCode /* LAST ERROR */
 

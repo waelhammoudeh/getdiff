@@ -1,3 +1,18 @@
+/* curl_func.c :
+ *
+ * wraps curl library functions I usually use in very few functions.
+ * this needs a lot more work.
+ * the goal is to have two main functions :
+ *   - download2File()
+ *   - preformQuery()
+ * with the fewest function calls possible.
+ *
+ * NOTES:
+ *  - I use curl URL API; to let libcurl do URL parsing for us. See 'man curl_url'.
+ *  - I initial downloads and queries using CURLU *handle.
+ *
+ *******************************************************************/
+
 #include <stdio.h>
 #include <string.h>
 #include <curl/curl.h>
@@ -7,13 +22,15 @@
 #include "util.h"
 #include "ztError.h"
 #include "dList.h"
-#include "getdiff.h"
 
 // global variables
-static  CURL    *curl_handle;
-static  int     sessionFlag = 0; // global initial flag
-static  int     afterPostFlag = 0; // this is ugly! But ...
-
+static  CURL       *curl_handle;
+static  int        sessionFlag = 0; // global initial flag
+static  int        afterPostFlag = 0; // this is ugly! But ...
+int                curlResponseCode; /* remote server response code */
+int                 downloadSize;
+char	           performErrorMsg[CURL_ERROR_SIZE]; /* filled by curl_easy_perform() - can be empty! */
+char               *recErrorMsg = NULL; /* copy of above or curl_easy_strerror() */
 
 int initialCurlSession(void){
 
@@ -351,8 +368,15 @@ CURLcode setBasicOptions (CURL *qH, CURLU *serverUrl){
 		return res;
 	}
 
+	res = curl_easy_setopt (qH, CURLOPT_ERRORBUFFER, performErrorMsg);
+	if(res != CURLE_OK) {
+		fprintf(stderr, "setBasicOptions() Error: failed to set ERRORBUFFER option\n"
+				  " curl_easy_setopt(.., CURLOPT_ERRORBUFFER, ..) failed: %s\n", curl_easy_strerror(res));
+		return res;
+	}
 
-	return ztSuccess;
+	/* ztSuccess = CURLE_OK = 0 */
+	return CURLE_OK;
 
 }
 
@@ -441,76 +465,95 @@ CURL *initialSecure (CURLU *srcUrl, char *secToken){
 
 } /* END initialSecure() */
 
-/* performSecureGet () and performDownload () may get each own function
- * down the road.
+/* download2File():
+ *    - toFilePtr : FILE pointer to an open file.
+ *    - handle : pointer to an initial CURL handle
+ *
+ * returns: CURLcode result from curl_easy_perform(), ztParseError.
+ *
  */
-int performSecureGet (FILE *toFilePtr, CURL *handle){
+int download2File (FILE *toFilePtr, CURL *handle){
 
-	return performDownload (toFilePtr, handle);
-
-}
-
-int performDownload (FILE *toFilePtr, CURL *handle){
-
-	CURLcode	ret;
-	double	contSizeDbl; // content size as double
-	double	rcvdSizeDbl; // received size as double
-	long			contSizeLong = 0L; // content size as long
-	long			rcvdSizeLong = 0L; // received size as long
-	long			responseCode;
-	int			result;
+	CURLcode	result;
 
 	ASSERTARGS (toFilePtr && handle);
 
-	curl_easy_setopt(handle, CURLOPT_WRITEDATA, (void *) toFilePtr);
-
-	ret = curl_easy_perform(handle);
-
-	/* check for errors */
-	if(ret != CURLE_OK) {
-		fprintf(stderr, "performDownload(): error failed curl_easy_perform() call! MSG : %s\n",
-	                 curl_easy_strerror(ret));
-		return ret;
+	result = curl_easy_setopt(handle, CURLOPT_WRITEDATA, (void *) toFilePtr);
+	if (result != CURLE_OK){
+		fprintf(stderr, "download2File(): error failed curl_easy_setopt() CURLOPT_WRITEDATA.\n");
+		return result;
 	}
+
+	/* zero out performErrorMsg on each call before curl_easy_perform()*/
+	performErrorMsg[0] = 0;
+
+	result = performDownload (handle);
+	if (result != CURLE_OK)
+
+		fprintf(stderr, "download2File(): Error returned from performDownload().\n");
+
+	return result;
+}
+
+/* performDownload(): calls curl_easy_perform() and then getinfo() after that.
+ * converts double to long when needed.
+ *
+ * returns : CURLcode returned from curl_easy_peform(), ztParseError.
+ *
+ **************************************************************************/
+
+int performDownload (CURL *handle){
+
+	CURLcode     ret, performResult;
+	double         contSizeDbl; // content size as double
+	double         rcvdSizeDbl; // received size as double
+	long	             contSizeLong = 0L; // content size as long
+	long	             rcvdSizeLong = 0L; // received size as long
+	long             responseCode;
+	int                result;
+
+	ASSERTARGS (handle);
+
+	/* set global curlResponseCode before curl_easy_perform() */
+	curlResponseCode = 0;
+	contSizeDbl = 0.0;
+	rcvdSizeDbl = 0.0;
+	downloadSize = 0;
+
+	performResult = curl_easy_perform(handle);
+
+	/* on failure try to get performErrorMsg */
+	if (performResult != CURLE_OK){
+
+		size_t length = strlen(performErrorMsg);
+		if (length)
+			recErrorMsg = strdup (performErrorMsg);
+		else
+			recErrorMsg = strdup (curl_easy_strerror(performResult));
+	}
+	/* NOTE: FIXME
+	 * recErrorMsg may STILL be NULL - memory allocate not checked above */
+
+	/* getinfo() returns : CURLE_OK or CURLE_UNKNOWN_OPION */
 
 	ret = curl_easy_getinfo (handle, CURLINFO_RESPONSE_CODE, &responseCode);
-	if(ret != CURLE_OK) {
-		fprintf(stderr, "performDownload(): Error: curl_easy_getinfo failed for RESPONSE CODE:\n "
-				"Curl Error Msg: %s\n", curl_easy_strerror(ret));
-		return ret;
+	if ( ret != CURLE_OK && performResult != CURLE_OK){
+		fprintf(stderr, "performDownload(): Error: \n"
+				" failed curl_easy_perform() AND curl_easy_getinfo (.. ,CURLINFO_RESPONSE_CODE, ..) not supported!\n");
+		return performResult;
 	}
 
-/* TODO: write server response code in global variable, to be checked in case of error!? */
+	curlResponseCode = (int) responseCode;
 
-	if (responseCode != OK_RESPONSE_CODE){
-		fprintf(stderr, "performDownload(): Error response code was not OKAY.\n CODE: [%ld]\n",
-				    responseCode);
-		return ztInvalidResponse;
-	}
-
-	/* CURLINFO_CONTENT_LENGTH_DOWNLOAD returns -1 if size is unknown
-	 * CURLINFO_CONTENT_LENGTH_DOWNLOAD_T returns "-nan" if size is unknown
-	 */
-	ret = curl_easy_getinfo (handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contSizeDbl);
-	if(ret != CURLE_OK) {
-		fprintf(stderr, "performDownload(): Error: curl_easy_getinfo() failed for CONTENT LENGTH:\n"
-				"Curl Error Msg: %s\n", curl_easy_strerror(ret));
-		return ret;
-	}
-
-	if (contSizeDbl > 0){
-		result = convDouble2Long(&contSizeLong, contSizeDbl);
-		if (result != ztSuccess){
-			fprintf(stderr, "performDownload(): Error converting double to long for Content size.\n");
-			return ztParseError;
-		}
-	}
+	if (responseCode != OK_RESPONSE_CODE)
+		fprintf(stdout, "performDownload(): WARNING response code was not OKAY.\n "
+				"CODE: [%ld]\n", responseCode);
 
 	ret = curl_easy_getinfo (handle, CURLINFO_SIZE_DOWNLOAD, &rcvdSizeDbl);
-	if(ret != CURLE_OK) {
-		fprintf(stderr, "performDownload(): Error: curl_easy_getinfo() failed for DOWNLOAD SIZE:\n"
-				" Curl Error Msg: %s\n", curl_easy_strerror(ret));
-		return ret;
+	if(ret != CURLE_OK && performResult != CURLE_OK){
+		fprintf(stderr, "performDownload(): Error:\n"
+				"  failed curl_easy_perform() AND curl_easy_getinfo() failed for DOWNLOAD SIZE:\n");
+		return performResult;
 	}
 
 	result = convDouble2Long(&rcvdSizeLong, rcvdSizeDbl);
@@ -519,18 +562,37 @@ int performDownload (FILE *toFilePtr, CURL *handle){
 		return ztParseError;
 	}
 
-	if (contSizeLong != rcvdSizeLong){
+	downloadSize = (int) rcvdSizeLong;
 
-		fprintf(stdout, "performDownload(): Warning different content size <%ld> "
-				"and received size <%ld>.\n", contSizeLong, rcvdSizeLong);
-		fprintf(stdout, "performDownload(): Please note that content size of zero means UNKNOWN from header.\n");
-        /* this is not an error */
+	/* CURLINFO_CONTENT_LENGTH_DOWNLOAD returns -1 if size is unknown
+	 * CURLINFO_CONTENT_LENGTH_DOWNLOAD_T returns "-nan" if size is unknown
+	 ********************************************************************************/
+
+	ret = curl_easy_getinfo (handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contSizeDbl);
+	if(ret != CURLE_OK)
+		fprintf(stdout, "performDownload(): WARNING: "
+				"curl_easy_getinfo(.., CURLINFO_CONTENT_LENGTH_DOWNLOAD, ..) not supported!\n");
+
+	if 	(contSizeDbl < 0.0) {
+		fprintf(stdout, "performDownload(): WARNING: "
+						"curl_easy_getinfo(.., CURLINFO_CONTENT_LENGTH_DOWNLOAD, ..) \n"
+						" reported Unknown Content Size\n");
+	}
+	else {
+		if (contSizeDbl != rcvdSizeDbl) { /* call convert only if not the same */
+			result = convDouble2Long(&contSizeLong, contSizeDbl);
+			if (result != ztSuccess){
+				fprintf(stderr, "performDownload(): Error converting double to long for Content size.\n");
+				return ztParseError;
+			}
+		}
 	}
 
 	fprintf (stdout, "performDownload(): Download completed, received file size : <%ld>\n",
 			   rcvdSizeLong);
 
-	return ztSuccess;
+	//return ztSuccess;
+	return performResult;
 
 } /* END performDownload() */
 
@@ -547,7 +609,7 @@ CURL *initialDownload (CURLU *srcUrl, char *secToken){
 	ASSERTARGS (srcUrl);
 
 	if (sessionFlag == 0){
-		fprintf(stderr, "initialDownload(): Error, session not initialized. You must call\n "
+		fprintf(stderr, "initialDownload(): Error, curl session not initialized. You must call\n "
 				     " initialCurlSession() first and check its return value.\n");
 		return dwnldHandle;
 	}

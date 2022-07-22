@@ -47,6 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cookie.h"
 
 #define LOG_UNSEEN
+//#undef LOG_UNSEEN
 
 int serverResponse = 0;
 

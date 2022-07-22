@@ -10,6 +10,7 @@
 
 #include "dList.h"
 #include "configure.h"
+#include <curl/curl.h>
 
 #define MAX_NAME_LENGTH 64
 
@@ -49,5 +50,7 @@ int writeStart_Id (char *idStr, char *filename);
 int logMessage (FILE *to, char *txt);
 
 int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList);
+
+int download2FileRetry (FILE *toFilePtr, CURL *handle);
 
 #endif /* GETDIFF_H_ */
