@@ -1037,6 +1037,64 @@ int stringToUpper (char **dst, char *str){
 
 }  /* END stringToUpper() */
 
+/* mkOutFile(): make output file name, sets dest to givenName if it has a slash,
+ * else it appends givenName to rootDir and then sets dest to appended string
+ */
+int mkOutputFile (char **dest, char *givenName, char *rootDir){
+
+	char		slash = '/';
+	char		*hasSlash;
+	char		tempBuf[PATH_MAX] = {0};
+
+	ASSERTARGS (dest && givenName && rootDir);
+
+	hasSlash = strchr (givenName, slash);
+
+	if (hasSlash)
+
+		*dest = (char *) strdup (givenName); // strdup() can fail .. check it FIXME
+
+	else {
+
+		if(IsSlashEnding(rootDir))
+
+			snprintf (tempBuf, PATH_MAX -1 , "%s%s", rootDir, givenName);
+		else
+			snprintf (tempBuf, PATH_MAX - 1, "%s/%s", rootDir, givenName);
+
+		*dest = (char *) strdup (&(tempBuf[0]));
+
+	}
+
+	/* mystrdup() ::: check return value of strdup() TODO */
+
+	return ztSuccess;
+}
+
+/* openOutputFile(): opens filename for writing, filename includes path */
+
+FILE* openOutputFile (char *filename){
+
+	FILE		*fPtr = NULL;
+
+	ASSERTARGS (filename);
+
+	errno = 0; //set error number
+
+	//try to open the file for writing
+	fPtr = fopen(filename, "w");
+	if (fPtr == NULL){
+
+		fprintf (stderr, "openOutputFile(): Error opening file: <%s>\n", filename);
+		fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+		//print reason with perror()
+		perror("The call to fopen() failed!");
+	}
+
+	return fPtr;
+
+} // END openOutputFile()
+
 /* getDirList() function to read directory and place entries in sorted list.
  * This function will NOT include the dot OR double dot entries. */
 

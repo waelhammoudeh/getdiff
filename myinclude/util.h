@@ -152,4 +152,8 @@ char* formatMsgHeadTime(void);
 
 int printBold (char *str);
 
+int mkOutputFile (char **dest, char *givenName, char *rootDir);
+
+FILE* openOutputFile (char *filename);
+
 #endif /* UTIL_H_ */
