@@ -440,6 +440,7 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 	/* add "data=" prefix to the encoded query string */
 	sprintf(getBuf, "data=%s", queryEscaped);
 
+	/* replace query part in URL srvrHandle */
 	result = curl_url_set(srvrHandle, CURLUPART_QUERY, getBuf, 0);
 	if(result != CURLE_OK) {
 		fprintf(stderr, "performQuery(): Error failed curl_url_set() call for query part. "
@@ -454,10 +455,15 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 		return result;
 	}
 
-curl_easy_setopt(qHandle, CURLOPT_VERBOSE, 1L);
+	/* uncomment for debug */
+/* curl_easy_setopt(qHandle, CURLOPT_VERBOSE, 1L); */
+
+	clearInfo();
 
 	  /* get it! */
 	result = curl_easy_perform(qHandle);
+
+	getInfo(qHandle, result);
 
 	/* check for errors */
 	if(result != CURLE_OK) {
@@ -465,34 +471,26 @@ curl_easy_setopt(qHandle, CURLOPT_VERBOSE, 1L);
 	                            curl_easy_strerror(result));
 
 		if (strlen(performErrorMsg))
+			fprintf(stderr, "performQuery(): Curl Perform Error Message: %s\n", performErrorMsg);
+	}
 
-			recErrorMsg = strdup(performErrorMsg);
+	else {
 
-		else
-
-	    	recErrorMsg = strdup(curl_easy_strerror(result));
-
-	  }
-
-	  else {
-
-		  printf("performQuery(): Done with success.  "
+		printf("performQuery(): Done with success.  "
 				  	  "%lu bytes retrieved\n\n", (unsigned long) dst->size);
 
-	  }
+	}
 
 	if (queryEscaped)
 		curl_free(queryEscaped);
 
-	//return ztSuccess;
 	return result;
 
 } /* END performQuery() */
 
-/* TODO: clear / set info: set response code, size recieved Error message buffer to 0
- * get info : get post perform info */
-
-/* clearInfo(): sets global info variables to zero */
+/* clearInfo(): sets global info variables to zero,
+ *  call just before curl_easy_perform()
+ * *********************************************************/
 void clearInfo(void){
 
 	curlResponseCode = 0;
@@ -503,17 +501,16 @@ void clearInfo(void){
 	return;
 }
 
+/* getInfo(): gets info from curl on handle,
+ * call immediately after curl_easy_perform()
+ ********************************************************/
 void getInfo (CURL *handle, CURLcode performResult){
 
 	CURLcode     result;
 	int                 myResult;
 
-	double         contSizeDbl; /* content size as double - server header */
 	double         rcvdSizeDbl; /* received size as double - received byte count */
-
-	long	             contSizeLong = 0L; /* content size as long - after conversion */
 	long	             rcvdSizeLong = 0L; /* received size as long - after conversion */
-
 	long             responseCode = 0L;
 
 
@@ -552,45 +549,19 @@ void getInfo (CURL *handle, CURLcode performResult){
 	if(result != CURLE_OK && performResult != CURLE_OK){
 		fprintf(stderr, "getInfo(): Error:\n"
 				"  failed curl_easy_perform() AND curl_easy_getinfo() failed for DOWNLOAD SIZE:\n");
-		// return;
+		/* FIXME: I need to think this over */
+		return;
 	}
 
 	myResult = convDouble2Long(&rcvdSizeLong, rcvdSizeDbl);
 	if (myResult != ztSuccess){
 		fprintf(stderr, "getInfo(): Error converting double to long for Received download."
 				" received size as double: <%f>\n", rcvdSizeDbl);
-		// return ztParseError;
 	}
 
 	if (rcvdSizeLong)
 
 		downloadSize = (int) rcvdSizeLong;
-
-	/* CURLINFO_CONTENT_LENGTH_DOWNLOAD returns -1 if size is unknown
-	 * CURLINFO_CONTENT_LENGTH_DOWNLOAD_T returns "-nan" if size is unknown
-	 ********************************************************************************/
-
-	result = curl_easy_getinfo (handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contSizeDbl);
-	if(result != CURLE_OK)
-		fprintf(stdout, "getInfo(): WARNING: "
-				"curl_easy_getinfo(.., CURLINFO_CONTENT_LENGTH_DOWNLOAD, ..) not supported!\n");
-
-	if 	(contSizeDbl < 0.0) {
-		fprintf(stdout, "getInfo(): WARNING: "
-						"curl_easy_getinfo(.., CURLINFO_CONTENT_LENGTH_DOWNLOAD, ..) \n"
-						" reported Unknown Content Size\n");
-	}
-	else {
-		if (contSizeDbl != rcvdSizeDbl) { /* call convert only if not the same */
-			fprintf(stdout, "getInfo(): header content size is not equal to download size.\n");
-			myResult = convDouble2Long(&contSizeLong, contSizeDbl);
-			if (myResult != ztSuccess){
-				fprintf(stderr, "getInfo(): Error converting double to long for Content size."
-						" Content size double: <%f>\n", contSizeDbl);
-				//return ztParseError;
-			}
-		}
-	}
 
 	return;
 
