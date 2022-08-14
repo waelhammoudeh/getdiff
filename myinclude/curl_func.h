@@ -12,7 +12,6 @@
 #include  <curl/curl.h>
 #endif
 
-#include "dList.h"
 
 /* exported variables */
 extern int curlResponseCode;
@@ -33,6 +32,7 @@ extern char  *recErrorMsg;
 #define urlCleanup(retValue) curl_url_cleanup(retValue)
 
 #define OK_RESPONSE_CODE	200L
+
 // structure from examples/getinmemory.c - added  typedef
 typedef struct MEMORY_STRUCT_  {
 
@@ -49,19 +49,19 @@ int initialCurlSession(void);
 
 void closeCurlSession(void);
 
-int curlMemoryDownload(MEMORY_STRUCT *dst, char *urlPath,
-		                                char *whichData, HTTP_METHOD method);
-
 CURLU * initialURL (char *server);
-
-CURLcode setBasicOptions (CURL *qH, CURLU *serverUrl);
-
-CURL *initialSecure (CURLU *srcUrl, char *secToken);
 
 CURL *initialDownload (CURLU *srcUrl, char *secToken);
 
 int download2File (FILE *toFilePtr, CURL *handle);
 
-int performDownload (CURL *handle);
+CURL * initialQuery (CURLU *serverUrl, char *secToken);
+
+int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrURL);
+
+void clearInfo (void);
+
+void getInfo (CURL *handle, CURLcode performResult);
+
 
 #endif /* CURL_FUNC_H_ */
