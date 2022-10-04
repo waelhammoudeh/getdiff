@@ -84,6 +84,13 @@ static char *errorString[] = {
 		"Error: Received server response code 500; internal server error",
 		"Error: Unhandled HTTP response code by program",
 		"Error: Unknown response code; response was not received."
+		"Error: Failed c library function call."
+		"Error: GPS point not found for structure in query."
+		"Error: Parse function found unrecognized string for a token."
+		"Error: Old libcurl found. Needs upgrade."
+		"Error: Unknown text encountered; not what is expected",
+		"Error: overpass query found zero nodes, no nodes were found.",
+		"Error: overpass query response contains no geometry tag",
 
 		"Error: Unknown error.",
 		"Error: Unknown error CODE specified!"
@@ -103,6 +110,5 @@ char* code2Msg(int code){
 
 	return msg;
 }
-
 
 

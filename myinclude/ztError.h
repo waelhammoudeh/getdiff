@@ -83,6 +83,13 @@ typedef enum {
 	ztResponse500,
 	ztResponseUnhandled,
 	ztResponseUnknown,
+	ztFailedLibraryCall,
+	ztGpsNotFound,
+	ztUnrecognizedToken,
+	ztOldCurl,
+	ztUnknownText,
+	ztNoNodesFound,
+	ztNoGeometryFound,
 
 	ztUnknownError,
 	ztUnknownCode /* LAST ERROR */

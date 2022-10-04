@@ -13,10 +13,15 @@
 #endif
 
 
-/* exported variables */
+/* exported variables - read only */
 extern int curlResponseCode;
 extern int downloadSize;
 extern char  *recErrorMsg;
+
+/* exported variable for raw data file pointer, when set by client raw query
+ * result from remote server is written to that open file.
+ *************************************************************************/
+extern FILE *rawDataFP;
 
 /* To parse URL we use curl_url() which is available since version 7.62.0
  * and curl_url_strerror() which is available since 7.80.0
@@ -63,5 +68,6 @@ void clearInfo (void);
 
 void getInfo (CURL *handle, CURLcode performResult);
 
+int isOkResponse (char *response, char *header);
 
 #endif /* CURL_FUNC_H_ */

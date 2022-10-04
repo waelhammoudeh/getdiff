@@ -136,7 +136,8 @@ char const *script =
 "url = consumer_url + \"?action=request_token\"\n"
 "r = requests.post(url, data={}, headers=CUSTOM_HEADER)\n"
 "if r.status_code != 200:\n"
-"    report_error(\"POST {}, received HTTP status code {} but expected 200\".format(url, r.status_code))\n"
+"    report_error(\"POST {}, received HTTP code {} but expected 200\".format(url, r.status_code))\n"
+"# NOTE: removed the word 'status' from the above line. W.H.\n"
 "json_response = json.loads(r.text)\n"
 "authorize_url = osm_host + \"/oauth/authorize\"\n"
 "try:\n"
@@ -301,6 +302,8 @@ int getCookieFile (SETTINGS *settings){
     argsList[4] = NULL;
 
     pssResult = pipeSpawnScript (pyExec, argsList, &msg);
+    /* script writes error messages to STDERR,
+     * pipeSpawnScript() gets this in msg parameter */
 
     if (pssResult == ztSuccess){
 
@@ -1076,6 +1079,15 @@ int pipeSpawnScript (const char *prog, char * const argList[], char **outputStri
  *  function sets the integer pointed to by code to response code on ztSuccess.
  *  On errors code is set to zero except when error is ztHighResponse.
  *
+ * NOTE: edited script at original line # 67 by removing the word "status" from
+ * error message:
+ * report_error("POST {}, received HTTP status code {} but expected 200".format(url, r.status_code))
+ * became:
+ * report_error("POST {}, received HTTP code {} but expected 200".format(url, r.status_code))
+ * this way ALL error messages now start with the phrase: "received HTTP code".
+ * also added a comment line below as:
+ * # NOTE: removed the word 'status' from the above line. W.H.\n
+ *
  *  returns:
  *  ztInvalidArg : message does not match "received HTTP code ABC but expected 200"
  *  ztMemoryAllocate : could not allocate memory for own message copy
@@ -1239,8 +1251,8 @@ void logUnseen(SETTINGS *settings, char *msg, char *lastPart) {
 
 /* getCookieRetry ():
  *
- * short wait  --> sleep 3 seconds
- * normal wait --> sleep 10 seconds
+ * short wait  --> sleep 10 seconds
+ * normal wait --> sleep 5 minutes
  *
  * Returns:
  *  ztSuccess,
@@ -1264,6 +1276,7 @@ int getCookieRetry (SETTINGS *settings){
 	result = getCookieFile(settings);
 
 	receivedCode = serverResponse;
+	/* getCookieFile() sets serverResponse by calling getResponseCode() */
 
 	switch (result) {
 
@@ -1292,8 +1305,9 @@ int getCookieRetry (SETTINGS *settings){
 	case ztEmptyString:
 	case ztBadResponse:
 
-		/* errors should not happen! maybe lost data? RETRY */
-		sleep(3);
+		/* errors should not happen! maybe lost data? RETRY.
+		 * sleep 10 seconds. TODO: use #define */
+		sleep(10);
 
 		retryResult = getCookieFile(settings);
 		if (retryResult == ztSuccess)
@@ -1310,7 +1324,7 @@ int getCookieRetry (SETTINGS *settings){
 
 	case ztUnrecognizedMsg:
 
-		fprintf (stderr, "%s: Error unrecognized error message received from server.\n", progName);
+		fprintf (stderr, "%s: Error unrecognized error message received from script.\n", progName);
 		return ztUnrecognizedMsg;
 
 		break;
@@ -1352,7 +1366,7 @@ int getCookieRetry (SETTINGS *settings){
 
 		case 500:
 
-			sleep (10);
+			sleep (5 * 60); /* sleep five minutes. TODO: use #define */
 
 			retryResult = getCookieFile(settings);
 			if (retryResult == ztSuccess)
@@ -1363,6 +1377,8 @@ int getCookieRetry (SETTINGS *settings){
 
 				fprintf (stderr, "%s: Error failed on retry from 'internal server error'. Please try later.\n", progName);
 				if (serverResponse == 500)
+					/* this may change on second call to
+				        getCookieFile() which calls getResponseCode() */
 
 					return ztResponse500;
 
@@ -1394,4 +1410,5 @@ int getCookieRetry (SETTINGS *settings){
 
 	/* we do not get here! */
 	return ztSuccess;
-}
+
+} /* END getCookieRetry() */

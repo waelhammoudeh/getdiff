@@ -466,6 +466,14 @@ int main(int argc, char *argv[]){
 
 				fprintf (stderr, "%s: Error we failed to retrieve login cookie. Please see the previous error above.\n", progName);
 				fprintf(stderr, " Failed getCookieRetry() function with error: <%s>\n", code2Msg(result));
+
+		    	sprintf(tmpBuf, "Error: failed getCookieRetry(). Script failed with error: <%s>\n",
+		    			     code2Msg(result));
+		    	logMessage (fLogPtr, tmpBuf);
+
+		    	currentTime = formatC_Time();
+		    	fprintf (fLogPtr, "---------- Exited with ERROR @@@ at: %s ----------\n\n", currentTime);
+
 		        return result;
 			}
 		}
@@ -495,6 +503,14 @@ int main(int argc, char *argv[]){
 
 				fprintf (stderr, "%s: Error we failed to retrieve login cookie. Please see the previous error above.\n", progName);
 				fprintf(stderr, " Failed getCookieRetry() function with error: <%s>\n", code2Msg(result));
+
+		    	sprintf(tmpBuf, "Error: failed getCookieRetry(). Script failed with error: <%s>\n",
+		    			     code2Msg(result));
+		    	logMessage (fLogPtr, tmpBuf);
+
+		    	currentTime = formatC_Time();
+		    	fprintf (fLogPtr, "---------- Exited with ERROR @@@ at: %s ----------\n\n", currentTime);
+
 		        return result;
 			}
 
@@ -1275,7 +1291,7 @@ int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList){
 int download2FileRetry (FILE *toFilePtr, CURL *handle){
 
 	int    result, retryResult;
-	int	delay = 10; /* our sleep time */
+	int	delay = 5 * 60; /* sleep time in seconds (minutes * 60 seconds) */
 	int	responseCode;
 
 	result = download2File (toFilePtr, handle);
@@ -1306,8 +1322,8 @@ int download2FileRetry (FILE *toFilePtr, CURL *handle){
 
 		else if (curlResponseCode == 500){
 
-			fprintf(stderr, "download2FileRetry(): Error failed download2File() call with\n"
-					" Response Code = 500; internal server error.\n");
+			fprintf(stderr, "download2FileRetry(): Error failed download2File() call AGAIN on retry with\n"
+					" Response Code = 500 still; internal server error.\n");
 			return ztResponse500;
 		}
 		else {

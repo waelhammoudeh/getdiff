@@ -25,6 +25,9 @@
 #include "curl_func.h"
 #include "util.h"
 #include "ztError.h"
+//#include "overpass-c.h" /* rawDataFP */
+
+FILE *rawDataFP = NULL;
 
 /* WriteMemoryCallback() function is only available in this file */
 static size_t WriteMemoryCallback (void *contents,
@@ -36,33 +39,35 @@ static size_t WriteMemoryCallback (void *contents,
 
 int         sessionFlag = 0; /* initial flag - private */
 
-int         curlResponseCode; /* remote server response code - exported */
+int         curlResponseCode; /* remote server response code - exported, read only */
 
-int         downloadSize;         /* actual received byte count - exported */
+int         downloadSize;         /* actual received byte count - exported, read only */
 
 char	    performErrorMsg[CURL_ERROR_SIZE + 1];
             /* filled by curl_easy_perform() - can be empty!
                 set with option CURLOPT_ERRORBUFFER - private */
 
-char        *recErrorMsg = NULL; /* copy of above or curl_easy_strerror() - exported */
+char        *recErrorMsg = NULL; /* copy of above or curl_easy_strerror() - exported, read only */
 
 /* initialCurlSession(): calls curl_global_init() after checking version.
  * first function to call, needed only once in a session.
+ * TODO: is libcurl installed?
  *****************************************************************/
 int initialCurlSession(void){
 
 	CURLcode	result;
-	curl_version_info_data *verInfo; /* script or auto tools maybe?? ****/
+	curl_version_info_data *verInfo;
 
-	if (sessionFlag) // call me only once
+	if (sessionFlag) /* call me only once */
 
 		return ztSuccess;
 
 	verInfo = curl_version_info(CURLVERSION_NOW);
 	if (verInfo->version_num < MIN_CURL_VER){
 
-		fprintf (stderr, "ERROR: Required \"libcurl\" minimum version is: 7.80.0. Aborting.\n");
-		return ztInvalidUsage;
+		fprintf (stderr, "ERROR: Old \"libcurl\" version found. Minimum version required is: 7.80.0\n"
+				"Please upgrade your \"libcurl\" installation.\n");
+		return ztOldCurl;
 	}
 
 	result = curl_global_init(CURL_GLOBAL_ALL);
@@ -139,6 +144,9 @@ CURLU * initialURL (char *server){
 /* initialDownload() : initial download, if secToken is not null then we have
  * secure download! function connects CURLU and CURL handles.
  * acquire CURL easy handle and sets basic options on it for download.
+ *
+ * user should call easyCleanup(h) or curl_easy_cleanup(h)
+ *
  * returns CURL * handle on success or NULL on failure.
  ************************************************************************/
 CURL *initialDownload (CURLU *srcUrl, char *secToken){
@@ -350,16 +358,6 @@ CURL * initialQuery (CURLU *serverUrl, char *secToken){
 		return qryHandle;
 	}
 
-	// turn on TRANSFER_ENCODING
-/*	result = curl_easy_setopt (qryHandle, CURLOPT_TRANSFER_ENCODING, 1L);
-	if(result != CURLE_OK) {
-		fprintf(stderr, "initialQuery() failed to set TRANSFER_ENCODING "
-	   				  "{CURLOPT_TRANSFER_ENCODING}: %s\n", curl_easy_strerror(result));
-		easyCleanup(qryHandle);
-		qryHandle = NULL;
-		return qryHandle;
-	}
-*/
 	return qryHandle;
 
 } /* END initialQuery() */
@@ -400,7 +398,7 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 	char				*queryEscaped;
 
 	char				*serverName;
-	char				getBuf[LONG_LINE] = {0};
+	char				getBuf[PATH_MAX] = {0};
 
 	ASSERTARGS (dst && whichData && qHandle && srvrHandle);
 
@@ -473,16 +471,24 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 		if (strlen(performErrorMsg))
 			fprintf(stderr, "performQuery(): Curl Perform Error Message: %s\n", performErrorMsg);
 	}
-
+/*
 	else {
 
 		printf("performQuery(): Done with success.  "
 				  	  "%lu bytes retrieved\n\n", (unsigned long) dst->size);
 
 	}
-
+*/
 	if (queryEscaped)
 		curl_free(queryEscaped);
+
+	/* write received data to client opened file if rawDataFP is set */
+	if (rawDataFP) {
+
+		fprintf(rawDataFP, "%s", dst->memory);
+		fflush(rawDataFP);
+	}
+
 
 	return result;
 
@@ -566,3 +572,37 @@ void getInfo (CURL *handle, CURLcode performResult){
 	return;
 
 } /* END getInfo() */
+
+/* isOkResponse(): remote server response is okay if first line in the
+ * response matches header.
+ * this function compares the first "header" string length characters from
+ * "responseStr" to "header".
+ * Question? : I am hoping this tells me the query was understood by
+ * the server; the query syntax was correct.
+ *
+ *	This should return TRUE or FALSE. FIXME
+ ********************************************************************/
+
+int isOkResponse (char *responseStr, char *header){
+
+	ASSERTARGS (responseStr && header);
+
+	int retCode;
+
+	if (strncmp (responseStr, header, strlen(header)) == 0){
+
+		retCode = ztSuccess;
+	}
+	else {
+
+		fprintf (stderr, "isOkResponse(): Error: Not a valid response. Server may responded "
+				    "with an error message! The server response was:\n\n");
+		fprintf (stderr, " Start server response below >>>>:\n\n");
+		fprintf (stderr, "%s\n\n", responseStr);
+		fprintf (stderr, " >>>> End server response This line is NOT included.\n\n");
+		retCode = ztInvalidResponse;
+	}
+
+	return retCode;
+
+} /* END isOkResponse() */
