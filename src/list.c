@@ -2,19 +2,19 @@
  * dList.c
  *
  *  Created on: Jan 5, 2019
- *      Author: wael
+ *
  *		Source: Mastering Algorithms with C by Kyle Loudon. O'Reilly
  *
  ****************************************************************************/
+#include <list.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "dList.h"
-#include "util.h"
+#include "util.h" /* for ASSERTARGS() */
 #include "ztError.h"
 
 /* initialDL(): initials double linked list, caller allocates memory for list */
-void initialDL (DL_LIST *list,
+void initialDL (DLIST *list,
 				void (*destroy) (void **data),
 				int (*compare) (const char *str1, const char *str2)){
 
@@ -30,7 +30,7 @@ void initialDL (DL_LIST *list,
 
 }  /* END initialDL() */
 
-/* insertNextToDL(): Creates (allocates memory) for new DL_ELEM sets data
+/* insertNextToDL(): Creates (allocates memory) for new ELEM sets data
  * member pointer in the new element to data. The new element is inserted
  * next to element pointed to by nextTo, if nextTo is NULL new element is
  * inserted as head of list. Caller manages storage for data.
@@ -39,9 +39,9 @@ void initialDL (DL_LIST *list,
  *
  *****************************************************************************/
 
-int insertNextDL (DL_LIST *list, DL_ELEM *nextTo, const void *data) {
+int insertNextDL (DLIST *list, ELEM *nextTo, const void *data) {
 
-	DL_ELEM *newElem;
+	ELEM *newElem;
 
 	ASSERTARGS(list && data); // abort() if NULL
 
@@ -54,12 +54,12 @@ int insertNextDL (DL_LIST *list, DL_ELEM *nextTo, const void *data) {
 	}
 
 	/* allocate memory for newElem */
-	newElem = (DL_ELEM *) malloc (sizeof(DL_ELEM));
+	newElem = (ELEM *) malloc (sizeof(ELEM));
 	if (newElem == NULL )
 
 		return ztMemoryAllocate;
 
-	memset(newElem, 0, sizeof(DL_ELEM));
+	memset(newElem, 0, sizeof(ELEM));
 
 	newElem->data = (void *) data; // set data member
 
@@ -90,9 +90,9 @@ int insertNextDL (DL_LIST *list, DL_ELEM *nextTo, const void *data) {
 
 }  // END insertNextDL()
 
-int insertPrevDL (DL_LIST *list, DL_ELEM *before, const void *data) {
+int insertPrevDL (DLIST *list, ELEM *before, const void *data) {
 
-	DL_ELEM *newElem;
+	ELEM *newElem;
 
 	ASSERTARGS (list && data);
 
@@ -105,12 +105,12 @@ int insertPrevDL (DL_LIST *list, DL_ELEM *before, const void *data) {
 	}
 
 	/* allocate memory for newElem */
-	newElem = (DL_ELEM *) malloc (sizeof(DL_ELEM));
+	newElem = (ELEM *) malloc (sizeof(ELEM));
 	if (newElem == NULL )
 
 		return ztMemoryAllocate;
 
-	memset(newElem, 0, sizeof(DL_ELEM));
+	memset(newElem, 0, sizeof(ELEM));
 
 	newElem->data = (void *) data; // set data member
 
@@ -150,7 +150,7 @@ int insertPrevDL (DL_LIST *list, DL_ELEM *before, const void *data) {
  * it returns ztSuccess.
  *****************************************************************************/
 
-int removeDL (DL_LIST *list, DL_ELEM *element, void **data) {
+int removeDL (DLIST *list, ELEM *element, void **data) {
 
 	if (element == NULL || DL_SIZE(list) == 0){
 		printf ("removeDL(): Error NULL element OR empty list.\n");
@@ -181,7 +181,18 @@ int removeDL (DL_LIST *list, DL_ELEM *element, void **data) {
 
 	}
 
-	free(element); //we allocated memory for it when inserting
+/** we should be able to free this! but I get:
+	corrupted size vs. prev_size
+	Aborted
+
+	current GCC v. 10.2.0 & glibc-2.32 FIXME
+
+	free(element);
+	we allocated memory for it when inserting --
+	ADDED back call to free on 1/17/2022 w.h seems okay now!?
+**/
+
+	free(element);
 
 	list->size--;
 
@@ -189,27 +200,21 @@ int removeDL (DL_LIST *list, DL_ELEM *element, void **data) {
 
 }  /*  END removeDL()  */
 
-void destroyDL (DL_LIST *list) {
+void destroyDL (DLIST *list) {
 
-	DL_ELEM *elem;
-	void	*data;
+	void			*data;
 
 	ASSERTARGS (list);
 
-	/* remove each element */
 	while (list->size > 0){
 
-		elem = DL_TAIL (list);
+		if (removeDL (list, DL_TAIL(list),  (void **) &data) == ztSuccess && list->destroy ){
+			if (data)
+				list->destroy ((void**) &data);
+		}
+	}
 
-		removeDL (list, elem, &data);
-
-		if (list->destroy != NULL)
-
-			list->destroy (&data);
-
-	}  /* End while(list->size > 0)  */
-
-	memset (list, 0, sizeof(DL_LIST));
+	memset (list, 0, sizeof(DLIST));
 
 	return;
 
@@ -225,9 +230,9 @@ void destroyDL (DL_LIST *list) {
  * THIS FUNCTION REPLACES ListInsertStr() AND InsertName().
  *
  */
-int ListInsertInOrder (DL_LIST *list, char *str){
+int ListInsertInOrder (DLIST *list, char *str){
 
-	DL_ELEM		*start, *end;
+	ELEM		*start, *end;
 	int  		added = 0;
 	int			result;
 

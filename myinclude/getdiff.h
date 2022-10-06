@@ -8,7 +8,7 @@
 #ifndef GETDIFF_H_
 #define GETDIFF_H_
 
-#include "dList.h"
+#include "list.h"
 #include "configure.h"
 #include <curl/curl.h>
 
@@ -49,7 +49,7 @@ int writeStart_Id (char *idStr, char *filename);
 
 int logMessage (FILE *to, char *txt);
 
-int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList);
+int writeNewerFile (char const *toFile, ELEM *startElem, DLIST *fromList);
 
 int download2FileRetry (FILE *toFilePtr, CURL *handle);
 

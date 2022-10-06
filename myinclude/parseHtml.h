@@ -39,19 +39,19 @@
 #define THEADER_END "</th>"
 
 
-#include "dList.h"
+#include "list.h"
 
-int parseIndexPage (DL_LIST *list, char *filename);
+int parseIndexPage (DLIST *list, char *filename);
 
-int parseListItem(DL_LIST *dst, char	*line);
+int parseListItem(DLIST *dst, char	*line);
 
-int isHtmlFileList (DL_LIST *list);
+int isHtmlFileList (DLIST *list);
 
-int parseByTag (DL_LIST *dstList, DL_ELEM *start,
-		                     int (*parseFunc) (DL_LIST *dstList, char *string));
+int parseByTag (DLIST *dstList, ELEM *start,
+		                     int (*parseFunc) (DLIST *dstList, char *string));
 
-int parseTablerow (DL_LIST *dstList, char *line);
+int parseTablerow (DLIST *dstList, char *line);
 
-int parseLI (DL_LIST *dstList, char *line);
+int parseLI (DLIST *dstList, char *line);
 
 #endif /* PARSEHTML_H_ */

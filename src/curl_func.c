@@ -25,8 +25,12 @@
 #include "curl_func.h"
 #include "util.h"
 #include "ztError.h"
-//#include "overpass-c.h" /* rawDataFP */
 
+/* global and exported variable *rawDataFP,
+ * client may set this to an open file pointer,
+ * if set, performQuery() function will write
+ * query response to that file
+ *******************************************/
 FILE *rawDataFP = NULL;
 
 /* WriteMemoryCallback() function is only available in this file */

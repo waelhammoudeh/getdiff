@@ -13,7 +13,7 @@
 #include "util.h"
 #include "ztError.h"
 #include "fileio.h"
-#include "dList.h"
+#include "list.h"
 // #include "parse.h" //for arg2Boolean()
 
 /* readConfigure(): reads and parse configuration file. File is a text
@@ -40,8 +40,8 @@ int	confLN; // line number with error
 
 int readConfigure(CONF_ENTRY *confEntry, int *numFound, char *infile){
 
-	DL_LIST		*cfList;
-	DL_ELEM		*elem;
+	DLIST		*cfList;
+	ELEM		*elem;
 	LINE_INFO	*lineInfo;
 	char		*entryName;
 	char		*entryValue;
@@ -54,7 +54,7 @@ int readConfigure(CONF_ENTRY *confEntry, int *numFound, char *infile){
 
 	ASSERTARGS (confEntry && numFound && infile); //abort() if we get null
 
-	cfList = (DL_LIST *) malloc(sizeof(DL_LIST));
+	cfList = (DLIST *) malloc(sizeof(DLIST));
 	if (cfList == NULL){
 		printf("readConfigure(): Error allocating memory.\n");
 		return ztMemoryAllocate;

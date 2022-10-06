@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <list.h>
 
 #include "fileio.h"
-#include "dList.h"
 #include "util.h"
 #include "ztError.h"
 
@@ -33,19 +33,20 @@
  *
  *********************************************************************/
 
-int file2List (DL_LIST *list, char *filename){
+int file2List (DLIST *list, char *filename){
 
 	FILE 		*fPtr;
 	LINE_INFO 	*newLine;
 
 	char		line[LONG_LINE + 1];
-	int		myLineNum = 0;
+	int			myLineNum = 0;
 	char		*start;
 	char		SPACE = '\040';
 	char		TAB = '\t';
 	int			result;
 
 	ASSERTARGS(list && filename); //abort() on NULL pointer argument.
+
 
 	if(DL_SIZE(list) != 0){
 		printf("file2List(): Error argument list not empty.\n");
@@ -75,7 +76,6 @@ int file2List (DL_LIST *list, char *filename){
 		 *  is stored after the last character in the buffer. <-from man fgets.
 		 *  maybe check for \n? or line length with strlen()?
 		 *******************************************************************/
-
 		start = line;
 
 		// remove line feed - included by fgets()
@@ -120,10 +120,9 @@ void printLineInfo(LINE_INFO *lineInfo){
 	return;
 }
 
-/* printFileList(): data is LINE_INFO */
-void printFileList(DL_LIST *list){
+void printFileList(DLIST *list){
 
-	DL_ELEM	*start;
+	ELEM	*start;
 	LINE_INFO *lineInfo;
 
 
@@ -142,35 +141,6 @@ void printFileList(DL_LIST *list){
 		lineInfo = start->data;
 
 		printLineInfo(lineInfo);
-
-		start = start->next;
-	}
-}
-
-void printStringList(DL_LIST *list){
-
-	DL_ELEM	*start;
-	char		*string;
-
-
-	ASSERTARGS(list);
-
-	if(DL_SIZE(list) == 0){
-		printf ("printStringList(): Empty list, nothing to do.\n");
-		return;
-	}
-	else
-		printf("printStringList(): List Size is: %d\n", DL_SIZE(list));
-
-	start = DL_HEAD(list);
-	while(start){
-
-		string = (char *) start->data;
-
-		if ( ! string )
-			return;
-
-		printf ("%s\n", string);
 
 		start = start->next;
 	}
@@ -197,17 +167,17 @@ void zapLineInfo(void **data){
 	return;
 }
 
-/* liList2File(): line_info list to file.
- * function creates file dstFile for writing, writes DL_LIST of LINE_INFO to it.
- * DL_LIST contains LINE_INFO structure; ONLY string member is written to file.
+/* liList2File(): line_info list to file. FIXME: neeeeeeds new name
+ * function creates file dstFile for writing, writes DLIST of LINE_INFO to it.
+ * DLIST contains LINE_INFO structure; ONLY string member is written to file.
  * dstFile is created regardless of list size.
  * checked run time error for dstFile to be good file name.
  * Function returns ztBadFileName, ztCreateFileErr or ztSuccess.
  ******************************************************************************/
-int liList2File(char *dstFile, DL_LIST *list){
+int liList2File(char *dstFile, DLIST *list){
 
 	FILE		*filePtr;
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	LINE_INFO	*lineInfo;
 
 	ASSERTARGS (dstFile && list);
@@ -250,10 +220,10 @@ int liList2File(char *dstFile, DL_LIST *list){
 /* just like liList2File() but element data is a pointer to string
  * not LINE_INFO
  */
-int strList2File(char *dstFile, DL_LIST *list){
+int strList2File(char *dstFile, DLIST *list){
 
 	FILE		*filePtr;
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	//LINE_INFO	*lineInfo;
 	char		*string;
 
@@ -277,8 +247,6 @@ int strList2File(char *dstFile, DL_LIST *list){
 		return ztSuccess;
 	}
 
-	fprintf (filePtr, "strList2File(): List Size is: <%d>\n\n", DL_SIZE(list));
-
 	elem = DL_HEAD(list);
 
 	while (elem) {
@@ -295,3 +263,31 @@ int strList2File(char *dstFile, DL_LIST *list){
 
 	return ztSuccess;
 }
+
+/* toFile: file pointer to an open file, can be NULL -> standard output is used
+ * writeFunc() writes specific data type.  */
+void writeDL (FILE *toFile, DLIST *list, void writeFunc (FILE *to, void *data)){
+
+
+	ELEM *elem;
+	void			*data;
+
+	ASSERTARGS (list && writeFunc);
+
+	if (DL_SIZE(list) < 1)
+
+		return;
+
+	elem = DL_HEAD(list);
+	while (elem) {
+
+		data = (void *) DL_DATA(elem);
+		writeFunc (toFile, data);
+
+		elem = DL_NEXT(elem);
+
+	}
+
+	return;
+
+} // END writeDL()

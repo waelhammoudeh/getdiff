@@ -9,7 +9,7 @@
 #define FILEIO_H_
 
 #include <limits.h>
-#include "dList.h"
+#include "list.h"
 
 typedef struct LINE_INFO_ {
 	char		*string;
@@ -20,15 +20,16 @@ typedef struct LINE_INFO_ {
 	#define LONG_LINE PATH_MAX
 #endif
 
-int file2List (DL_LIST *list, char *filename);
+int file2List (DLIST *list, char *filename);
 void printLineInfo(LINE_INFO *lineInfo);
-void printFileList(DL_LIST *list);
+void printFileList(DLIST *list);
 void zapLineInfo(void **data);
 
-int liList2File(char *dstFile, DL_LIST *list);
+int liList2File(char *dstFile, DLIST *list);
 
-int strList2File(char *dstFile, DL_LIST *list);
+int strList2File(char *dstFile, DLIST *list);
 
-void printStringList(DL_LIST *list);
+void writeDL (FILE *toFile, DLIST *list,
+		                void writeFunc (FILE *to, void *data));
 
 #endif /* SOURCE_FILEIO_H_ */

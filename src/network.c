@@ -12,7 +12,7 @@
 #include "util.h"
 #include "ztError.h"
 
-#include "getdiff.h"
+#include "getdiff.h" /* progName */
 
 /* checkURL(): verify url pointed to by name as valid host name, writes ip in ipStr.
  * source for the function: Beej's Guide to Network Programming.

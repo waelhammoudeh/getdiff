@@ -19,11 +19,13 @@
 #include <time.h>
 #include <sys/time.h>   /* gettimeofday() */
 #include <ctype.h>	//toupper()
+#include <list.h>
 #include <sys/wait.h>
 
 #include "util.h"
+#include "fileio.h"
+#include "list.h"
 #include "ztError.h"
-#include "dList.h"
 
 /* function source was: WRITING SOLID CODE by Steve Maguire */
 void AssertArgs (const char *func, char *file, int line){
@@ -172,10 +174,6 @@ int IsGoodDirectoryName(char *name){
 	if (name == NULL)
 
 		return FALSE;
-
-	if (IsSlashEnding(name))
-
-		name[strlen(name) - 1] = '\0';
 
 	return IsGoodFileName(name);
 
@@ -532,7 +530,7 @@ int IsArgUsableFile(char* const name){
 		return ztNoReadPerm;
 
 	/* is it a regular file */
-	if (stat (name, &fileInfo) != 0 || !S_ISREG (fileInfo.st_mode))
+	if (stat (name, &fileInfo) != 0 || ! S_ISREG (fileInfo.st_mode))
 
 		return ztNotRegFile;
 
@@ -544,14 +542,11 @@ int IsArgUsableFile(char* const name){
 
 } // END IsArgUsableFile()
 
+/* IsArgUsableDirectory(): RETURNS ztSuccess when TRUE
+ * BAD NaMe for a function */
 int IsArgUsableDirectory(char* const name){
 
 	struct stat dirInfo;
-
-	// does it exist
-	if(access(name, F_OK) != 0)
-
-		return ztNotFound;
 
 	/* can we access it? */
 	if (access(name, R_OK | W_OK | X_OK) != 0)
@@ -559,7 +554,7 @@ int IsArgUsableDirectory(char* const name){
 		return ztInaccessibleDir;
 
 	/* is it a directory? */
-	if (stat (name, &dirInfo) != 0 || !S_ISDIR (dirInfo.st_mode))
+	if (stat (name, &dirInfo) != 0 || ! S_ISDIR (dirInfo.st_mode))
 
 		return ztPathNotDir;
 
@@ -793,7 +788,7 @@ int spawnWait (char *prog, char **argsList){
  * directory and be accessible.
  * **************************************************************************/
 
-int myGetDirDL (DL_LIST *dstDL, char *dir){
+int myGetDirDL (DLIST *dstDL, char *dir){
 
 	DIR 			*dirPtr;
 	struct 		dirent 	*entry;
@@ -1095,10 +1090,26 @@ FILE* openOutputFile (char *filename){
 
 } // END openOutputFile()
 
+void closeOutputFile(FILE *fPtr){
+
+	/* TODO: check return & use errno &
+	 * should return integer like fclose() does*/
+
+	if ( ! fPtr )
+
+		return;
+
+	//fflush(fPtr);
+	fclose(fPtr); /* calls fflush() */
+
+	return;
+
+} /* END closeOutputFile() */
+
 /* getDirList() function to read directory and place entries in sorted list.
  * This function will NOT include the dot OR double dot entries. */
 
-int getDirList (DL_LIST *list, const char *dir){
+int getDirList (DLIST *list, const char *dir){
 
 	DIR *dirPtr;
 	struct dirent *entry;
@@ -1149,9 +1160,9 @@ int getDirList (DL_LIST *list, const char *dir){
 
 }  /* END getDirList()  */
 
-int isStringInList (DL_LIST *list, const char *str){
+int isStringInList (DLIST *list, const char *str){
 
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	char				*elemStr;
 
 	ASSERTARGS (list && str);
@@ -1182,9 +1193,9 @@ int isStringInList (DL_LIST *list, const char *str){
  * in dst list.
  */
 
-int deffList1Not2 (DL_LIST *dst, DL_LIST *list1, DL_LIST *list2){
+int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
 
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	char				*str;
 	char		*strCpy;
 
@@ -1312,4 +1323,20 @@ int printBold (char *str){
 	printf("%s%s%s", STYLE_BOLD, str, STYLE_NO_BOLD);
 
 	return 0;
+}
+
+int isGoodExecutable(char *file){
+
+	/* TODO : use "errno" for complete test */
+
+	/* does file exist and executable?
+	 * (access(file, F_OK) == 0) --> exist
+	 * (access(file, R_OK | X_OK) == 0) --> user can execute file
+	 */
+	if ((access(file, F_OK) == 0) &&
+		 (access(file, R_OK | X_OK) == 0))
+
+		return TRUE;
+
+	return FALSE;
 }

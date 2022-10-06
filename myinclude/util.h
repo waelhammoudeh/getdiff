@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <stdint.h>
 
-#include "dList.h"
+#include "list.h"
 
 #ifndef FALSE
 	#define FALSE		0
@@ -124,7 +124,7 @@ int mySpawn (char *prgName, char **argLst);
 
 int spawnWait (char *prog, char **argsList);
 
-int myGetDirDL (DL_LIST *dstDL, char *dir);
+int myGetDirDL (DLIST *dstDL, char *dir);
 
 void zapString(void **data);
 
@@ -138,11 +138,11 @@ int isGoodURL (const char *str);
 
 char	  *getParentDir (char	*path);
 
-int getDirList (DL_LIST *list, const char *dir);
+int getDirList (DLIST *list, const char *dir);
 
-int isStringInList (DL_LIST *list, const char *str);
+int isStringInList (DLIST *list, const char *str);
 
-int deffList1Not2 (DL_LIST *dst, DL_LIST *list1, DL_LIST *list2);
+int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2);
 
 int convDouble2Long (long *dstL, double srcDouble);
 
@@ -155,5 +155,9 @@ int printBold (char *str);
 int mkOutputFile (char **dest, char *givenName, char *rootDir);
 
 FILE* openOutputFile (char *filename);
+
+void closeOutputFile(FILE *fPtr);
+
+int isGoodExecutable(char *file);
 
 #endif /* UTIL_H_ */

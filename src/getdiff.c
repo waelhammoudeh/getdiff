@@ -28,7 +28,7 @@ to update overpass database with limited area installation.
 #include "cookie.h"
 #include "network.h"
 #include "curl_func.h"
-#include "dList.h"
+#include "list.h"
 #include "fileio.h"
 #include "parseHtml.h"
 
@@ -45,7 +45,7 @@ to update overpass database with limited area installation.
 #define	TEST_SITE					"www.geofabrik.de"
 
 
-static DL_ELEM* findElemSubstring (DL_LIST *list, char *subStr);
+static ELEM* findElemSubstring (DLIST *list, char *subStr);
 
 /* program name is global, used in error msgs */
 char		*progName = NULL;
@@ -89,8 +89,8 @@ int main(int argc, char *argv[]){
     char		*currentTime;
 
     COOKIE	*myCookie = NULL;
-    DL_LIST	*pageList; // server listing
-    DL_LIST	*sessionDL; // current session downloaded files
+    DLIST	*pageList; // server listing
+    DLIST	*sessionDL; // current session downloaded files
 
     FILE		*indexFilePtr;
 
@@ -104,8 +104,8 @@ int main(int argc, char *argv[]){
 
     char		*startStr = NULL; /* read string by readStart_Id() */
     char		*currentStart;
-    DL_ELEM	*startElem = NULL;
-    DL_ELEM	*elem;
+    ELEM	*startElem = NULL;
+    ELEM	*elem;
     int			iCount;
     char			*filename;
     FILE			*filePtr;
@@ -591,7 +591,7 @@ int main(int argc, char *argv[]){
     logMessage (fLogPtr, tmpBuf);
 
 	/* parse index.html file - result is returned in pageList */
-    pageList = (DL_LIST *) malloc(sizeof(DL_LIST));
+    pageList = (DLIST *) malloc(sizeof(DLIST));
     if ( ! pageList ){
     	fprintf(stdout, "%s: Error allocating memory.\n", progName);
     	return ztMemoryAllocate;
@@ -667,7 +667,7 @@ int main(int argc, char *argv[]){
     }
 
     // initial sessionDL list
-    sessionDL = (DL_LIST *) malloc(sizeof(DL_LIST));
+    sessionDL = (DLIST *) malloc(sizeof(DLIST));
     if ( ! sessionDL ){
     	fprintf(stdout, "%s: Error allocating memory.\n", progName);
     	return ztMemoryAllocate;
@@ -1170,11 +1170,11 @@ int writeStart_Id (char *idStr, char *filename){
 	return ztSuccess;
 }
 
-static DL_ELEM* findElemSubstring (DL_LIST *list, char *subStr){
+static ELEM* findElemSubstring (DLIST *list, char *subStr){
 
-	DL_ELEM	*elem = NULL;
+	ELEM	*elem = NULL;
 
-	DL_ELEM	*mvrElem;
+	ELEM	*mvrElem;
 	char			*elemStr;
 	int			found = 0;
 
@@ -1226,11 +1226,11 @@ int logMessage (FILE *to, char *txt){
 /* opens toFile for appending, fromList is assumed sorted, appends strings
  * in element starting from startElem to end of list - update script should
  * empty or delete this file when done updating successfully */
-int writeNewerFile (char const *toFile, DL_ELEM *startElem, DL_LIST *fromList){
+int writeNewerFile (char const *toFile, ELEM *startElem, DLIST *fromList){
 
 	FILE    *filePtr = NULL;
 	char   *str;
-	DL_ELEM   *elem;
+	ELEM   *elem;
 
 	ASSERTARGS(toFile && startElem && fromList);
 

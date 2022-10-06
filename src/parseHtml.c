@@ -12,18 +12,18 @@
 #include "getdiff.h"
 #include "util.h"
 #include "ztError.h"
-#include "dList.h"
+#include "list.h"
 #include "fileio.h"
 #include "parseHtml.h"
 
-static DL_ELEM *find_strDL (DL_LIST *src, char *string);
+static ELEM *find_strDL (DLIST *src, char *string);
 
 /* dstList is a string list */
-int parseIndexPage (DL_LIST *dstList, char *filename){
+int parseIndexPage (DLIST *dstList, char *filename){
 
 	int	        result;
-	DL_LIST	*srcListLI; /* ending with LI : data pointer in element is for LINE_INFO  */
-	DL_ELEM	*elem, *startElem;
+	DLIST	*srcListLI; /* ending with LI : data pointer in element is for LINE_INFO  */
+	ELEM	*elem, *startElem;
 	LINE_INFO	*lineInfo;
 
 	char		*ul, *table; /* flags what to parse */
@@ -43,7 +43,7 @@ int parseIndexPage (DL_LIST *dstList, char *filename){
 
 		return ztListNotEmpty;
 
-	srcListLI = (DL_LIST *) malloc(sizeof(DL_LIST));
+	srcListLI = (DLIST *) malloc(sizeof(DLIST));
 	if (!srcListLI){
 
 		fprintf (stderr, "%s: Error allocating memory.\n", progName);
@@ -139,7 +139,7 @@ int parseIndexPage (DL_LIST *dstList, char *filename){
 
 } /* END parseIndexPage() */
 
-int parseListItem(DL_LIST *dst, char	*line){
+int parseListItem(DLIST *dst, char	*line){
 
 	char		*startTag, *endTag;
 	char		*attTag, *attEnd;
@@ -214,9 +214,9 @@ int parseListItem(DL_LIST *dst, char	*line){
 /* isHtmlFileList(): is the file list pointed to by list for HTML file?
  * first tag has to be <html> and it has to have closing </html> end tag */
 
-int isHtmlFileList (DL_LIST *list){
+int isHtmlFileList (DLIST *list){
 
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	LINE_INFO	*lineInfo;
 	char		*line;
 	char		*lineLower;
@@ -278,10 +278,10 @@ int isHtmlFileList (DL_LIST *list){
 	return TRUE;
 }
 
-int parseByTag (DL_LIST *dstList, DL_ELEM *start,
-		                     int (*parseFunc) (DL_LIST *dstList, char *string)){
+int parseByTag (DLIST *dstList, ELEM *start,
+		                     int (*parseFunc) (DLIST *dstList, char *string)){
 
-	DL_ELEM		*elem;
+	ELEM		*elem;
 	LINE_INFO	*lineInfo;
 	char	    		*line;
 	int				result;
@@ -329,7 +329,7 @@ int parseByTag (DL_LIST *dstList, DL_ELEM *start,
  * <li><a href="200.osc.gz">200.osc.gz</a></li>
  * <li><a href="../">../</a> (parent directory)</li>            <li><a href="214.osc.gz">214.osc.gz</a></li>
  **************************************************************/
-int parseLI (DL_LIST *dstList, char *line){
+int parseLI (DLIST *dstList, char *line){
 
 	char		*startTag, *endTag;
 	char		*attTag, *attEnd;
@@ -417,7 +417,7 @@ int parseLI (DL_LIST *dstList, char *line){
 <tr><td valign="top"><img src="/icons/compressed.gif" alt="[   ]"></td><td><a href="184.osc.gz">184.osc.gz</a></td><td align="right">2021-12-15 00:53  </td><td align="right">199K</td><td>&nbsp;</td></tr>
 ***********************************************************************************/
 
-int parseTablerow (DL_LIST *dstList, char *line){
+int parseTablerow (DLIST *dstList, char *line){
 
 	char		*startTag, *endTag;
 	char		*attTag, *attEnd;
@@ -507,10 +507,10 @@ int parseTablerow (DL_LIST *dstList, char *line){
 /* find_strDL () : find element in double linked list of LINE_INFO pointer
  * that starts with string */
 
-static DL_ELEM *find_strDL (DL_LIST *src, char *string){
+static ELEM *find_strDL (DLIST *src, char *string){
 
-	DL_ELEM *elem;
-	DL_ELEM *ret = NULL;
+	ELEM *elem;
+	ELEM *ret = NULL;
 	LINE_INFO *lineInfo;
 	char *line;
 	int	found = 0;
