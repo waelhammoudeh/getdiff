@@ -37,7 +37,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     {"begin", 1, NULL, 'b'},
     {"verbose", 0, NULL, 'v'},
     {"new", 1, NULL, 'n'},
-	{"text", 0, NULL, 't'},
+    {"text", 0, NULL, 't'},
     {"help", 0, NULL, 'h'},
     {NULL, 0, NULL, 0}
   };

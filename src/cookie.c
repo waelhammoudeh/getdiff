@@ -263,14 +263,9 @@ int getCookieFile (SETTINGS *settings){
       case 429:
 
 	fprintf(stderr, "%s: Error received server response code 429; \"too many requests error.\"\n"
-		"Please do not use this program for some time - 2 hours at least.\n\n"
-		"This program has a maximum of 30 change files and their state files per session.\n"
-		"That is a total of 60 files per session which should not exceed Geofabrik.de limits.\n"
-		"Geofabrik provide this free service to you and I, please do not abuse their server\n"
-		"with too many requests in a short period of time. This maximum is set to avoid server\n"
-		"abuse in the first place. Geofabrik free services - like a lot of free services - have rules\n"
-		"and consequences for abuse.\n"
-		"Again please do not abuse this free service.\n", progName);
+		"Please do not use this program for some period of time - one hour maybe.\n\n"
+		"This program has a limit for how many requests it sends as not to overwhelm\n"
+		"the server. Please do not abuse this free service Geofabrik.de provides.\n", progName);
 
 	return ztResponse429;
 	break;
