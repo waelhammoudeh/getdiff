@@ -11,25 +11,25 @@
 #include <limits.h>
 #include "list.h"
 
-typedef struct LINE_INFO_ {
-	char		*string;
-	int		originalNum;
-} LINE_INFO;
+#include "configure.h"
 
-#ifndef LONG_LINE
-	#define LONG_LINE PATH_MAX
-#endif
+int writeScript(char *fileName);
 
-int file2List (DLIST *list, char *filename);
-void printLineInfo(LINE_INFO *lineInfo);
-void printFileList(DLIST *list);
-void zapLineInfo(void **data);
+int writeJSONfile(char *filename, char *usr, char *pswd);
 
-int liList2File(char *dstFile, DLIST *list);
+int removeFile(const char *filename);
 
-int strList2File(char *dstFile, DLIST *list);
+int file2StringList(STRING_LIST *strList, const char *filename);
 
-void writeDL (FILE *toFile, DLIST *list,
-		                void writeFunc (FILE *to, void *data));
+int stringList2File(const char *filename, STRING_LIST *list);
 
-#endif /* SOURCE_FILEIO_H_ */
+void printStringList(STRING_LIST *list);
+
+void fprintStringList(FILE *tofile, STRING_LIST *list);
+
+ELEM* findElemSubString (STRING_LIST *list, char *subString);
+
+int renameFile(const char *oldName, const char *newName);
+
+
+#endif /* FILEIO_H_ */

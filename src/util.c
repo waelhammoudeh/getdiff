@@ -4,6 +4,7 @@
  *  Created on: Jun 23, 2017
  *      Author: wael
  *  small functions ... system calls ... strings functions
+ *  I use LINUX system, some of the functions here use Linux system calls.
  */
 
 #include <stdio.h>
@@ -19,247 +20,937 @@
 #include <time.h>
 #include <sys/time.h>   /* gettimeofday() */
 #include <ctype.h>	//toupper()
-#include <list.h>
 #include <sys/wait.h>
 
 #include "util.h"
-#include "fileio.h"
-#include "list.h"
 #include "ztError.h"
+
 
 /* function source was: WRITING SOLID CODE by Steve Maguire */
 void AssertArgs (const char *func, char *file, int line){
 
-	fflush(NULL);
-	fprintf (stderr, "\nArgument(s) Assertion failed [NULL]! "
-			"In Function: %s()\n", func);
-	fprintf (stderr, "   File: < %s > , At Line: %d\n", file, line);
-	fflush(stderr);
-	abort();
+  fflush(NULL);
+
+  fprintf (stderr, "\nAssertArgs: Assertion failed! "
+	   "Function: <%s> : File: %s : Line: %d\n", func, file, line);
+
+  fflush(stderr);
+  abort();
 
 }  /* END AssertArgs()  */
 
-/* IsEntryDir(): function to test if the specified entry is a directory or not.
- * Argument: entry : entry to test for.
- * Return: TRUE if entry is a directory, FALSE otherwise.
+/* safer strdup() function; on failure prints error message with file name and
+ * line number of its caller, and calls abort().
+ * Use the defined macro STRDUP(x) to get correct file name and line number.
+ *
+ **************************************************************/
+char *myStrdup(const char *src, char *filename, unsigned uLine){
+
+  char   *duplicate;
+
+  ASSERTARGS(src && filename);
+
+  duplicate = strdup(src);
+
+  if( ! duplicate ){
+    fflush(NULL);
+    fprintf(stderr, "myStrdup(): Error failed strdup() in file: <%s> at line number: <%d> ... aborting!\n",
+	    filename, uLine);
+    fflush(stderr);
+    abort();
+  }
+
+  return duplicate;
+
+} /* END myStrdup() **/
+
+/* isGoodPathPart(): is 'part' a good filename?
+ * man pathchk program from core utilities.
+ * see isGoodFilename() below.
+ *
+ ***********************************************/
+int isGoodPathPart(const char *part){
+
+  char   *allowed =
+		  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          "abcdefghijklmnopqrstuvwxyz"
+          "0123456789-_.";
+
+  char   dash = '-';
+  char   underscore = '_';
+  char   period = '.';
+
+  if(strlen(part) > FNAME_MAX)
+
+    return ztFnameLong;
+
+  if(strspn(part, allowed) != strlen(part))
+
+    return ztFnameDisallowed;
+
+  if(strchr(part, dash) && (part[0] == dash || part[strlen(part) - 1] == dash))
+
+    return ztFnameHyphen; /* miss placed dash **/
+
+  if(strchr(part, underscore) &&
+     (part[0] == underscore|| part[strlen(part) - 1] == underscore))
+
+    return ztFnameUnderscore;
+
+  /* no relative paths are allowed including single and double dots. **/
+  if(strchr(part, period) && (strlen(part) == 2) &&
+     ((part[0] == period) && (part[1] == period)) )
+
+    return ztNoRelativePath;
+
+  if(strchr(part, period) && (strlen(part) == 1))
+
+    return ztNoRelativePath;
+
+  /* period can not be the last character **/
+  if(strchr(part, period) && (strlen(part) > 1) && (part[strlen(part) - 1] == period))
+
+    return ztFnamePeriod;
+
+  return ztSuccess;
+
+} /* END isGoodPathPart() **/
+
+/* isGoodFilename(): is good PATH + FILENAME.
+ * name must start with slash since it is a path; we do not do path expansion
+ * or substitution. Note that we get absolute path from the command line; because
+ * the shell does path expansion and substitution for us.
+ *
+ * allowed set: [alphabets (upper & lower) plus / -_. ]
+ *  - the slash character is only delimiter between consecutive entries
+ *    it is an error for path to have multiple consecutive slashes.
+ *  - hyphen & underscore can not be the first or the last character.
+ *  - period can not be the last character.
+ *
+ *  - maximum filename length is defined by FNAME_MAX = 255
+ *    name is assumed to be path + filename,
+ *  - maximum string length for path is PATH_MAX,
+ *    [PATH_MAX == 4096] in GNU C Library.
+ *
+ * NOTE1: any path part can be a real or link to directory / filename.
+ * NOTE2: to check just the filename by itself use 'isGoodPathPart()'.
+ *
+ *******************************************************/
+int isGoodFilename(const char *name){
+
+  char    slash = '/';
+  char    period = '.';
+  char    *hasSlash;
+  char    tmpBuf[PATH_MAX + 1] = {0};
+  char    *mover;
+
+  ASSERTARGS(name);
+
+  if(strlen(name) > PATH_MAX)
+
+    return ztFnameLong;
+
+  if( ! strchr(name, slash) )
+
+    return ztStrNotPath;
+
+  if (name[0] == period) /* allow period to be first character **/
+
+    name++;
+
+  if(name[0] != slash)
+
+    return ztStrNotPath;
+
+  if(name[strlen(name) - 1] == slash)
+
+    return ztFnameSlashEnd;
+
+  strcpy(tmpBuf, name);
+
+  hasSlash = strchr(tmpBuf, slash);
+
+  if ( ! hasSlash )
+
+    return isGoodPathPart(tmpBuf);
+
+  /* check for double - multiple slashes **/
+
+  while(hasSlash){
+
+    mover = hasSlash + 1;
+
+    if(mover[0] == slash)
+
+      return ztFnameMultiSlashes;
+
+    hasSlash = strchr(mover, slash);
+  }
+
+  /* check each part **/
+  char  *part;
+  int   result;
+
+  part = strtok (tmpBuf, "/");
+
+  while(part){
+
+    result = isGoodPathPart(part);
+
+    if(result != ztSuccess)
+
+      return result;
+
+    part = strtok(NULL, "/");
+
+  }
+
+  return ztSuccess;
+
+} /* END isGoodFilename() **/
+
+/* isGoodDirName():
+ *
+ *
+ *  isGoodFilename()
+ *
+ *
+ *
+ *******************************************************/
+int isGoodDirName(const char *path){
+
+  char   *myCopy;
+  int    result;
+
+  if( ! path )
+
+    return ztInvalidArg;
+
+  myCopy = STRDUP(path);
+
+  if(SLASH_ENDING(myCopy))
+
+    myCopy[strlen(myCopy) - 1] = '\0';
+
+  if(SLASH_ENDING(myCopy)){
+
+    free(myCopy);
+    return ztFnameMultiSlashes;
+  }
+
+  /* we still need slash to make good directory name **/
+  if( ! strchr(myCopy, '/') ){
+
+    free(myCopy);
+    return ztStrNotPath;
+  }
+
+  result = isGoodFilename(myCopy);
+
+  free(myCopy);
+
+  return result;
+
+} /* END isGoodDirName() **/
+
+/* getParentDir(): function returns a pointer to parent directory of its argument.
+ * parent directory is the path just before last slash.
+ *
+ * function calls abort() if its 'path' argument is NULL.
+ *
+ * function returns NULL on error as follows:
+ *   - if string length of 'path' is more than PATH_MAX
+ *   - if 'path' has no slash
+ *   - if 'path' is only one single character -- including root directory only
+ *   - if its argument 'path' is not a good filename or directory name
+ *
+ ****************************************************************/
+
+char *getParentDir(char const *path){
+
+  char   *retCh = NULL;
+  char   *lastSlash;
+  char 	 tempBuf[PATH_MAX] = {0};
+  char   slash = '/';
+
+  ASSERTARGS(path);
+
+  if(strlen(path) > PATH_MAX)
+
+    return retCh;
+
+  /* get our own copy **/
+  strcpy(tempBuf, path);
+
+  /* if it ends with a slash, remove it **/
+  if(SLASH_ENDING(tempBuf))
+
+    tempBuf[strlen(tempBuf) - 1] = '\0';
+
+  if (isGoodFilename(tempBuf) != ztSuccess)
+
+    return retCh;
+
+  lastSlash = strrchr(tempBuf, slash);
+
+  lastSlash[0] = '\0';
+
+  retCh = STRDUP(tempBuf);
+
+  return retCh;
+
+} /* END getParentDir() */
+
+/* lastOfPath() : Function allocates memory for last entry in its 'path' parameter,
+ * copies it and return a pointer for the copied string. Function returns empty
+ * string if 'path' has only the slash character.
+ *
+ * Function aborts program if 'path' parameter is NULL.
+ *
+ * Function returns NULL on error as follows:
+ *
+ *  - if string length of 'path' parameter is > PATH_MAX.
+ *  - if 'path' parameter is empty string - its string length == zero.
+ *
+ * ***************************************************************** */
+
+char* lastOfPath (const char *path){
+
+  char  *pointer = NULL;
+
+  char  slash = '/';
+  char  *lastSlash;
+  char  lastEntry[FNAME_MAX + 1] = {0};
+
+  char  myPath[PATH_MAX] = {0};
+
+  ASSERTARGS(path);
+
+  if ( (strlen(path) > (PATH_MAX)) || (strlen(path) == 0) )
+
+    return pointer;
+
+  char    *PS = "./";
+
+  /* if period + slash; point AT the slash **/
+  if(strncmp(path, PS, 2) == 0){
+
+    path++;
+
+  }
+
+  /* get our own copy **/
+  strcpy(myPath, path);
+
+  /* if it ends with slash; remove it **/
+  if(SLASH_ENDING(myPath))
+
+    myPath[strlen(myPath) - 1] = '\0';
+
+  if(isGoodFilename(myPath) != ztSuccess)
+
+    return pointer;
+
+  lastSlash = strrchr(myPath, slash);
+
+  if ( ! lastSlash ) /* just to be sure **/
+
+    return pointer;
+
+  strcpy(lastEntry, lastSlash + 1);
+
+  pointer = (char *)malloc((strlen(lastEntry)  + 1) * sizeof(char));
+  if( pointer )
+
+    strcpy(pointer, lastEntry);
+
+  return pointer;
+
+} /* END lastOfPath() **/
+
+/* doDummyDir(): function creates then removes a directory under specified parent
+ *
+ * returns: ztSuccess or ztFailedSysCall on error.
+ *
+ *******************************************************************/
+int doDummyDir(const char *parent){
+
+  char   *dummyName = "getdiff_dummy";
+  char   myDir[PATH_MAX + 1] = {0};
+  int    result;
+
+  ASSERTARGS(parent);
+
+  if(SLASH_ENDING(parent))
+    sprintf(myDir, "%s%s", parent, dummyName);
+  else
+    sprintf(myDir, "%s/%s", parent, dummyName);
+
+  errno = 0;
+  result = mkdir (myDir, MK_DIR_MODE);
+
+  if (result !=  0){
+    perror("Failed mkdir system call:");
+    return ztFailedSysCall;
+  }
+
+  /* sleep(1); **/
+
+  result = rmdir(myDir);
+  if (result !=  0){
+    perror("Failed rmdir system call:");
+    return ztFailedSysCall;
+  }
+
+  return ztSuccess;
+
+} /* END doDummyDir() **/
+
+/* isDirUsable():
+ * return ztSuccess when it is usable
+ */
+int isDirUsable(const char* const path){
+
+  int    result;
+  struct stat status;
+
+  ASSERTARGS(path);
+
+  /* path must be good directory name **/
+  result = isGoodDirName(path);
+  if(result != ztSuccess)
+
+    return result;
+
+  /* fill struct stat with lstat system call **/
+  result = stat(path, &status);
+  if(result != 0){
+
+    /* return false regardless of the error - maybe comment out perror()? **/
+    perror("stat() system call failure:");
+    return ztFailedSysCall;
+  }
+
+  if ( ! (S_ISDIR (status.st_mode)) )
+
+    return ztPathNotDir;
+
+  /* if ( ! (status.st_mode & S_IRUSR)) -- avoid for
+   *  THIS IS OWNING USER NOT effective / current user
+   *********************************************/
+
+  /* can we access it? we need READ, WRITE and EXECUTE permissions **/
+  if (access(path, R_OK | W_OK | X_OK) != 0)
+
+    return ztInaccessibleDir;
+
+  /* run test function: makes & removes a directory
+   *  doDummyDir() appends a new entry to 'path'
+   *  temporary directory is created under 'path' then removed.  **/
+
+  result = doDummyDir(path);
+  if(result != ztSuccess)
+
+    return result;
+
+
+  return ztSuccess;
+
+} /* END isDirUsable() **/
+
+/* isFileUsable(): are we able to change file? **/
+
+int isFileUsable(const char *path2File){
+
+  int    result;
+  char   *parent;
+
+  struct stat status;
+
+  ASSERTARGS(path2File);
+
+  /* path2File must be good filename **/
+  result = isGoodFilename(path2File);
+  if(result != ztSuccess)
+
+    return result;
+
+  /* we need full access to its parent directory **/
+  parent = getParentDir(path2File);
+  if( ! parent )
+
+    return ztMemoryAllocate; /* most likely reason since filename was okay **/
+
+  result = isDirUsable(parent);
+  if (result != ztSuccess)
+
+    return result;
+
+  /* set errno & call lstat() **/
+
+  errno = 0;
+  result = stat(path2File, &status);
+  if(result == -1){
+
+    if(errno == ENOENT)
+
+      return ztFileNotFound; /* full access to parent directory **/
+
+    else
+
+      return ztFailedSysCall;
+  }
+
+  if ( ! S_ISREG (status.st_mode))
+
+    return ztNotRegFile;
+
+  if (status.st_size == 0)
+
+    return ztFileEmpty;
+
+  /* need to be able to read and write it **/
+  if (access(path2File, R_OK | W_OK) != 0)
+
+    return ztInaccessibleFile;
+
+  return ztSuccess;
+
+} /* END isFileUsable() **/
+
+/* isFileReadable(): can we read file? **/
+int isFileReadable(const char *path2File){
+
+  int    result;
+//  char   *parent;
+
+  struct stat status;
+
+  ASSERTARGS(path2File);
+
+  /* path2File must be good filename **/
+  result = isGoodFilename(path2File);
+  if(result != ztSuccess)
+
+    return result;
+
+  errno = 0;
+  result = stat(path2File, &status);
+  if(result == -1){
+
+    if(errno == ENOENT)
+
+      return ztFileNotFound;
+
+    else
+
+      return ztFailedSysCall;
+  }
+
+  if ( ! S_ISREG (status.st_mode))
+
+    return ztNotRegFile;
+
+  if (status.st_size == 0)
+
+    return ztFileEmpty;
+
+  /* need to be able to read and write it **/
+  if (access(path2File, R_OK) != 0)
+
+    return ztInaccessibleFile;
+
+  return ztSuccess;
+
+} /* END isFileReadable() **/
+
+int isExecutableUsable(const char *name){
+
+  int    result;
+
+  struct stat status;
+
+  ASSERTARGS(name);
+
+  result = isGoodFilename(name);
+  if(result != ztSuccess)
+
+	return result;
+
+  errno = 0;
+  result = stat(name, &status);
+  if(result == -1){
+
+    if(errno == ENOENT)
+
+      return ztFileNotFound;
+
+    else
+
+      return ztFailedSysCall;
+  }
+
+  if( ! (status.st_mode & S_IXOTH) ) //S_IXOTH is executable for other group
+
+	return ztNotExecutableFile;
+
+/*
+  if (access(name, X_OK) != 0)
+
+    return ztNotExecutableFile;
+
+** commented out, same as above **/
+
+
+  return ztSuccess;
+
+} /* END isExecutableUsable() **/
+
+int getFileSize(long *size, const char *filename){
+
+  int    result;
+  struct stat status;
+
+  ASSERTARGS(filename && size);
+
+  *size = 0; /* set size to zero **/
+
+  result = isGoodFilename(filename);
+  if(result != ztSuccess)
+
+	return result;
+
+  errno = 0;
+  result = stat(filename, &status);
+  if(result == -1){
+
+	if(errno == ENOENT)
+
+	  return ztFileNotFound;
+
+	else
+
+	  return ztFailedSysCall;
+  }
+
+  /* ensure it is a regular file **/
+  if(! S_ISREG(status.st_mode))
+
+	return ztNotRegFile;
+
+  *size = (long) status.st_size;
+
+  return ztSuccess;
+
+} /* END getFileSize() **/
+
+/* getHome(): function gets home directory for effective user.
+ *
+ * The simple method is to pull the environment variable "HOME"
+ * The slightly more complex method is to read it from the system user database.
+ *
+ * Note: function may return NULL ... ALWAYS check return.
+ *
+ * FIXME: use errno for getuid() and getpwuid() system functions.
+ *
+ ************************************************************************/
+
+char* getHome(){
+
+  char	*resultDir = NULL;
+
+  char	*homeDir = getenv("HOME");
+
+  if (homeDir && (isDirUsable(homeDir) == ztSuccess) ){
+
+    resultDir = STRDUP(homeDir);
+    return resultDir;
+  }
+
+  uid_t uid = getuid();
+  struct passwd *pw = getpwuid(uid);
+
+  if ( ! (pw && pw->pw_dir) )
+
+    return NULL;
+
+  homeDir = pw->pw_dir;
+
+  if (homeDir && (isDirUsable(homeDir) == ztSuccess) )
+
+    resultDir = STRDUP(homeDir);
+
+  return resultDir;
+
+} /* END getHome() **/
+
+/* getUserName(): returns effective user name, abort()s if unsuccessful */
+
+char *getUserName(){
+
+  char *user = NULL;
+
+  user = getenv("USER");
+
+  if (user)
+
+    return user;
+
+  uid_t uid = getuid();
+  struct passwd *pw = getpwuid(uid);
+
+  if ( ! (pw && pw->pw_dir) )
+
+    abort();
+
+  user = pw->pw_name;
+
+  if ( ! user )
+
+    abort();
+
+  return user;
+
+} /* END getUser() **/
+
+/* removeSpaces(): removes leading and trailing space from its argument.
+ *
+ * NOTE: the argument 'str' is a POINTER to POINTER. str should be dynamically
+ * allocated to have it cleaned in place, call removeSpaces2() below if this is not
+ * the case with your string.
+ *********************************************************************/
+int removeSpaces(char **str){
+
+  char    *cleanStr;
+  char    *end;
+
+  ASSERTARGS(str && *str);
+
+  cleanStr = *str;
+
+  /* remove leading spaces **/
+  while (isspace( (unsigned char) *cleanStr))
+
+    cleanStr++;
+
+  if(cleanStr[0] == 0)
+
+    return ztSuccess;
+
+  /* remove trailing space - let 'end' point at last character **/
+  end = cleanStr + strlen(cleanStr) - 1;
+  while(end > cleanStr && isspace((unsigned char) *end))
+
+    end--;
+
+  /* terminate the string AFTER end. (*end == end[0]) **/
+  end[1] = '\0';
+
+  /* set caller pointer **/
+  *str = cleanStr;
+
+  return ztSuccess;
+
+} /* END removeSpaces() **/
+
+/* removeSpaces(): function removes leading and trailing spaces from its argument.
+ * Spaces are as defined by 'isspace() : space, form feed, newline, carriage return,
+ * vertical tab and horizontal tab.
+ *
+ * Function allocates memory for new clean string and returns pointer to it. Returns
+ * NULL on memory allocation failure.
+ *
+ * NOTE: argument 'str' does NOT need to be dynamically allocated.
+ *
+ *************************************************************************/
+
+char  *removeSpaces2(char *str){
+
+  char    *end;
+  char    *myStr;
+
+  ASSERTARGS(str);
+
+  /* get our own copy of string **/
+  myStr = strdup(str);
+  if ( ! myStr )
+
+    return NULL;
+
+  /* remove leading space **/
+  while (isspace( (unsigned char) *myStr))
+
+    myStr++;
+
+  if(myStr[0] == 0)  /* all spaces? **/
+
+    return myStr;
+
+  /* remove trailing space **/
+  end = myStr + strlen(myStr) - 1;
+  while(end > myStr && isspace((unsigned char) *end))
+
+    end--;
+
+  /* terminate the string AFTER end. (*end == end[0]) **/
+  end[1] = '\0';
+
+  return myStr;
+
+} /* END removeSpaces2(char *str) **/
+
+int isGoodPortString (const char *port){
+
+  long    num;
+  char    *end;
+
+  uint MAX_PORT = 65535;
+
+  ASSERTARGS(port);
+
+  num = strtol (port, &end, 10);
+
+  if (*end != '\0') /* non-digit in string port **/
+
+    return ztInvalidArg;
+
+  if (num < 1 || num > MAX_PORT)
+
+    return ztInvalidArg;
+
+  return ztSuccess;
+
+} /* END isGoodPortString() **/
+
+/* isOkayFormat4HTTPS(): is the URL string pointed to by 'source' argument
+ * in good format for "HTTPS" protocol (scheme) URL?
+ *   - string must start with 'https://'
+ *   - the rest of the string with last slash from 'https://' included; must be
+ *     good path name; that is "goodDirName()".
+ *
+ * returns TRUE for good format or FALSE for bad format.
+ *
+ *****************************************************************************/
+int isOkayFormat4HTTPS(char const *source){
+
+  char   *mySource;
+  char   *protocol = "https://";
+  char   *head, *tail;
+  int    result;
+
+
+  ASSERTARGS(source);
+
+  mySource = STRDUP(source);
+
+  removeSpaces(&mySource);
+
+  head = strstr(mySource, protocol);
+
+  if(! (head && (head == mySource)) )
+
+	return FALSE;
+
+  tail = mySource + strlen(protocol) - 1; /* path MUST start with a slash **/
+
+  result = isGoodDirName(tail);
+  if(result != ztSuccess){
+    fprintf(stderr, "isOkayFormat4HTTPS: Error source string failed isGoodDirName() function.\n");
+    return FALSE;
+  }
+
+  return TRUE;
+
+} /* END isOkayFormat4HTTPS() **/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* isGoodURL():
+ *   - can contain any of declared "allowed" character set below.
+ *   - does NOT contain any of those characters between < and > below:
+ *   < []{}<> !@#$%^&*()+=,;:'"|` \040\t >
+ *   - string length must be less than PATH_MAX
+ *   - an entry can not start with dash '-' or underscore '_'
+ *
+ * Return TRUE or FALSE.
+ * NOTE: May return FALSE on memory allocation error.
  *
  */
-
-int IsEntryDir (char const *entry) {
-
-	struct stat status;
-
-	if (entry == NULL)
-		return FALSE;
-
-	errno = 0;
-
-	if (lstat (entry, &status) !=  0){
-		/* fill status structure, lstat returns zero on success */
-		fprintf (stderr, "IsEntryDir(): Could NOT lstat entry:  %s . "
-				"System says: %s\n",
-				entry, strerror(errno));
-		return FALSE;
-	}
-
-	 if (S_ISDIR (status.st_mode))
-
-		 return TRUE;
-
-	 return FALSE;
-
-}  /* END IsEntryDir()  */
 
 int isGoodURL (const char *str){
 
 
-	char		*allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-								   "abcdefghijklmnopqrstuvwxyz"
-								   "0123456789:./-_~";
-	char		dash = '-';
-	char		underscore = '_';
-	char		*myStr;
-	int		hasDisallowed;
-	char		*del = "/";
-	char		*token;
+  char		*allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789:./-_~";
+  char		dash = '-';
+  char		underscore = '_';
+  char		*myStr;
+  int		hasDisallowed;
+  char		*del = "/";
+  char		*token;
 
-	if ( str == NULL )
+  if ( str == NULL )
 
-		return FALSE;
+    return FALSE;
 
-	if (strlen (str) > PATH_MAX)
+  if (strlen (str) > PATH_MAX)
 
-		return FALSE;
+    return FALSE;
 
-	hasDisallowed = ( strspn(str, allowed) != strlen(str) );
-	if (hasDisallowed)
+  hasDisallowed = ( strspn(str, allowed) != strlen(str) );
+  if (hasDisallowed)
 
-		return FALSE;
+    return FALSE;
 
-	myStr = strdup(str);
-	if ( ! myStr ){
-		fprintf(stderr, "isGoodURL(): error memory allocation; failed strdup() call.\n");
-		abort();
-	}
+  myStr = strdup(str);
+  if ( ! myStr ){
+    fprintf(stderr, "isGoodURL(): error memory allocation; failed strdup() call.\n");
+    //abort();
+    return FALSE;
+  }
 
-	token = strtok (myStr, del);
-	while (token){
-//printf("isGoodURL(): token is <%s>\n", token);
+  /* entry can not start or end with dash or underscore character **/
+  token = strtok (myStr, del);
+  while (token){
 
-		if (token[0] == dash || token[0] == underscore)
+	  if(strchr(token, dash) &&
+	     (token[0] == dash || token[strlen(token) - 1] == dash))
 
-			return FALSE;
+		  return FALSE;
 
-		token = strtok (NULL, del);
-	}
+	  if(strchr(token, underscore) &&
+	     (token[0] == underscore|| token[strlen(token) - 1] == underscore))
 
-	return TRUE;
-}
+		  return FALSE;
 
-/* file name can not start with a digit or hyphen,
- * no funny characters including space and tab.
-   path and file name should be less than 255 characters long.
-   Returns FALSE for bad name and TRUE for good name.
-   NEED TO ADD ERRRRRRRRRORRRRRRR COOOODES @@@@@@@@@@@@@@@@@@@@@@@
-   TO DO: we should check each part of path at a time!!!
-   returns TRUE or FALSE
-******************************************************************/
+    token = strtok (NULL, del);
+  }
 
-int IsGoodFileName (char *name){
+  return TRUE;
 
-	char *digits = "0123456789";
-	char *disallowed = "/`<>|,:()&;?*!@#$%^+=\040\t";
-                   /* bad characters in file name, space and tab included */
-	char hyphen = '-';
+} /* END isGoodURL() **/
 
-	char tmpBuffer[PATH_MAX]= {0};
-	char *part;
 
-	if (name == NULL)
 
-		return FALSE;
-
-	if (name[0] == hyphen) //file name can not start with hyphen
-
-		return FALSE;
-
-	if ( strlen(name) > PATH_MAX )  /* path + name */
-
-		return FALSE;
-
-	strcpy (tmpBuffer, name);
-
-	part = strtok (tmpBuffer, "/");
-
-	while (part){
-		/* printf ("IsGoodFileName(): part is %s\n", part); */
-
-		if ( strpbrk(part, digits) == part ) // do not start with digit
-
-			return FALSE;
-
-		if ( strpbrk(part, disallowed) )
-
-			return FALSE;
-
-		part = strtok (NULL, "/");
-	}
-
-	return TRUE;
-
-}   /* END IsGoodFileName() */
-
-int IsGoodDirectoryName(char *name){
-
-	if (name == NULL)
-
-		return FALSE;
-
-	return IsGoodFileName(name);
-
-}
-
-/* LastOfPath() : function to extract last entry of its path argument.
- * path should be less than or equal to PATH_MAX, can end with a slash,
- * in that case it is removed and entry before it is returned.
- * This function allocates memory for buffer and returns its pointer.
- *  @@@@@
- * Modified on 9/10/15
- * Still need work to streamline and simplify. This function is called
- * by many many other functions. It should work like BASH basename
- * function.
- * ***************************************************************** */
-
-char* lastOfPath (char *path){
-
-	char  *lastSlash;
-	char  *ret;
-	char  buf[PATH_MAX + 1] = {0};
-	/* char  first; */
-	char  bkSlash = '/';
-
-	ASSERTARGS(path);
-
-	if (strlen(path) > (PATH_MAX))
-
-		return NULL;
-
-	if ((strlen(path) == 1) && (path[0] == '/')) { /* if only back slash */
-		printf ("LastOfPath(): Error: strlen(path) is one AND it is (/).\n");
-		return NULL;
-	}
-
-	if ( ! IsGoodFileName(path)){
-		printf ("LastOfPath(): Error: argument path or part of it is NOT good file name.\n");
-		return NULL;
-	}
-
-	/* if path has NO back slash, just return a copy of path */
-	if (strchr(path, bkSlash) == NULL){
-
-		ret = (char*) malloc (strlen(path) + 1);
-		if (ret == NULL){
-			printf ("LastOfPath(): Error allocating memory.\n");
-			return NULL;
-		}
-		strcpy (ret, path);
-		//printf ("LastOfPath(): no bkSlash in path, returning copy ret: %s\n", ret);
-		return ret;
-	}
-
-	/**
-	first = path[0];
-
-	if (first != '/'){
-		printf ("LastOfPath(): Error: Not a path; first is NOT a slash.\n");
-		return NULL;
-	}
-	**/
-
-	/* copy path to buf, if path ends with back slash then do NOT include it in copy */
-	if ( *(path + strlen(path) - 1) == '/')
-		strncpy (buf, path, strlen(path) - 1);
-	else
-		strcpy (buf, path);
-
-	lastSlash = strrchr (buf, '/');
-
-	if (lastSlash == NULL)
-		return NULL;
-
-	lastSlash++;
-
-	ret = (char*) malloc (strlen(lastSlash) + 1);
-	if (ret == NULL){
-		printf ("LastOfPath(): Error allocating memory.\n");
-		return NULL;
-	}
-
-	strcpy (ret, lastSlash);
-
-	return ret;
-
-}  /*  END LastOfPath()  */
 
 /* DropExtension(): drops extension from str in; anything after a right period.
  * allocates memory for return pointer. returns NULL if str > PATH_MAX or
@@ -267,81 +958,38 @@ char* lastOfPath (char *path){
  **************************************************************************/
 char* DropExtension(char *str){
 
-	char		*retCh = NULL;
-	int	 	period = '.';
-	char		*periodCh;
-	char 	temp[PATH_MAX] = {0};
+  char		*retCh = NULL;
+  int	 	period = '.';
+  char		*periodCh;
+  char 	temp[PATH_MAX] = {0};
 
-	ASSERTARGS(str);
+  ASSERTARGS(str);
 
-	if(strlen(str) > PATH_MAX)
+  if(strlen(str) > PATH_MAX)
 
-		return retCh;
+    return retCh;
 
-	periodCh = strrchr(str, period);
+  periodCh = strrchr(str, period);
 
-	if(periodCh)
+  if(periodCh)
 
-		strncpy(temp, str, strlen(str) - strlen(periodCh));
+    strncpy(temp, str, strlen(str) - strlen(periodCh));
 
-	else
+  else
 
-		strcpy(temp, str);
+    strcpy(temp, str);
 
-	retCh = (char *)malloc(sizeof(char) * (strlen(temp) + 1));
-	if(! retCh)
+  retCh = (char *)malloc(sizeof(char) * (strlen(temp) + 1));
+  if(! retCh)
 
-		return retCh;
+    return retCh;
 
-	strcpy(retCh, temp);
+  strcpy(retCh, temp);
 
-	return retCh;
+  return retCh;
 
 }
 
-char		*getParentDir (char	*path){
-
-	char		*retCh = NULL;
-	char		*myPath;
-	char		*rootDir = "/";
-	char		*lastSlash;
-	char 	temp[PATH_MAX] = {0};
-
-	if (path == NULL)
-
-		return retCh;
-
-	if (strcmp(path, rootDir) == 0)
-
-		return rootDir;
-
-	if (strlen(path) < 2)
-
-		return retCh;
-
-	myPath = strdup(path);
-
-	if (IsSlashEnding(myPath))
-
-		myPath[strlen(myPath) - 1] = '\0';
-
-	lastSlash = strrchr(myPath, '/');
-
-	if (lastSlash == myPath)
-
-		return rootDir;
-
-	strncpy(temp, myPath, strlen(myPath) - strlen(lastSlash));
-
-	retCh = (char *)malloc(sizeof(char) * (strlen(temp) + 1));
-	if(! retCh)
-
-		return retCh;
-
-	strcpy(retCh, temp);
-
-	return retCh;
-}
 
 /* allocate2x2(): allocates memory for 2 dimensional array,
  * array is with dimension row x col, and element size is elemSize
@@ -351,216 +999,102 @@ char		*getParentDir (char	*path){
 
 void** allocate2Dim (int row, int col, size_t elemSize){
 
-	void		**array = NULL;
-	void 	**mover;
-	int 		iRow, jCol;
+  void		**array = NULL;
+  void 	**mover;
+  int 		iRow, jCol;
 
-	if(row < 1 || col < 1 || elemSize < 1){
-		printf("allocate2Dim(): ERROR at least one parameter is less than 1\n"
-				"returning NULL\n");
-		return array;
-	}
+  if(row < 1 || col < 1 || elemSize < 1){
+    printf("allocate2Dim(): ERROR at least one parameter is less than 1\n"
+	   "returning NULL\n");
+    return array;
+  }
 
-	array = (void**) malloc(sizeof(void*) * (row * col) + 1);
-	if(array == NULL)
-		return array;
+  array = (void**) malloc(sizeof(void*) * (row * col) + 1);
+  if(array == NULL)
+    return array;
 
-	mover = array;
-	for (iRow = 0; iRow < row; iRow++){
-		for (jCol = 0; jCol < col; jCol++){
-			*mover = (void*) malloc (elemSize);
-			if (*mover == NULL){
-				array = NULL;
-				return array;
-			}
-			memset(*mover, 0, elemSize);
-			mover++;
-		}
-	}
-	*mover = NULL;  /* set last one to NULL. */
-
-//printf("allocate2x2(): returning array :: bottom of function\n\n");
-
+  mover = array;
+  for (iRow = 0; iRow < row; iRow++){
+    for (jCol = 0; jCol < col; jCol++){
+      *mover = (void*) malloc (elemSize);
+      if (*mover == NULL){
+	array = NULL;
 	return array;
+      }
+      memset(*mover, 0, elemSize);
+      mover++;
+    }
+  }
+  *mover = NULL;  /* set last one to NULL. */
+
+  //printf("allocate2x2(): returning array :: bottom of function\n\n");
+
+  return array;
 }
 
 /* free2Dim(): call only to free allocate2Dim() */
 void free2Dim (void **array, size_t elemSize){
 
-	void **mover;
+  void **mover;
 
-	ASSERTARGS (array); // abort if not array!!
+  ASSERTARGS (array); // abort if not array!!
 
-	mover = array;
+  mover = array;
 
-	while(*mover){
+  while(*mover){
 
-		memset (*mover, 0, elemSize);
-		free(*mover);
-		mover++;
-	}
+    memset (*mover, 0, elemSize);
+    free(*mover);
+    mover++;
+  }
 
-	free(array);
+  free(array);
 
 } // END free2Dim()
 
-/* removeSpaces(): removes leading and trailing space (space and tabs)
- * from str. returns 0 on success - almost always.
- * returns 1 and does nothing to str if it is all white space.
- *********************************************************************/
-int removeSpaces(char **str){
-
-	char		SPACE = '\040';
-	char		TAB = '\t';
-	char		*SPACESET = "\040\t";
-	char		*tmp;
-	int		iCount;
-
-	ASSERTARGS(str);
-
-	tmp = *str;
-
-	// return 1 if str is all spaces
-	if(strspn(tmp, SPACESET) == strlen(tmp))
-
-		return 1;
-
-	if (strlen(tmp) == 1) // passed above test, single character is not space
-
-		return ztSuccess;
-
-	while (tmp[strlen(tmp) - 1] == SPACE || tmp[strlen(tmp) - 1] == TAB){
-
-		tmp[strlen(tmp) - 1] = '\0';
-
-	}
-
-	while (tmp[0] == SPACE || tmp[0] == TAB){
-
-		for (iCount = 0; iCount < strlen(tmp); iCount++)
-
-			tmp[iCount] = tmp[iCount + 1];
-
-	}
-
-	//*str = tmp;
-	strcpy (*str, tmp);
-
-	return ztSuccess;
-
-} // END removeSpaces()
 
 /* from Advanced-Linux Programming --- still needs work */
 char* get_self_executable_directory (){
 
-	int 		rval;
-	char 	link_target[1024];
-	char		*last_slash;
-	size_t 	result_length;
-	char		*result;
+  int 		rval;
+  char 	link_target[1024];
+  char		*last_slash;
+  size_t 	result_length;
+  char		*result;
 
-	/* Read the target of the symbolic link /proc/self/exe. */
-	rval = readlink ("/proc/self/exe", link_target, sizeof (link_target));
-	if (rval == -1)
-		/* The call to readlink failed, so bail. */
-		return NULL; //abort ();
-	else
-		/* NUL-terminate the target. */
-		link_target[rval] = '\0';
+  /* Read the target of the symbolic link /proc/self/exe. */
+  rval = readlink ("/proc/self/exe", link_target, sizeof (link_target));
+  if (rval == -1)
+    /* The call to readlink failed, so bail. */
+    return NULL; //abort ();
+  else
+    /* NULL-terminate the target. */
+    link_target[rval] = '\0';
 
-	/* We want to trim the name of the executable file, to obtain the
-	   directory that contains it. Find the rightmost slash. */
-	last_slash = strrchr (link_target, '/');
-	if (last_slash == NULL || last_slash == link_target)
-		/* Something strange is going on. */
-		abort ();
+  /* We want to trim the name of the executable file, to obtain the
+     directory that contains it. Find the rightmost slash. */
+  last_slash = strrchr (link_target, '/');
+  if (last_slash == NULL || last_slash == link_target)
+    /* Something strange is going on. */
+    abort ();
 
-	/* Allocate a buffer to hold the resulting path. */
-	result_length = last_slash - link_target;
-	result = (char*) malloc (result_length + 1);
-	if(result == NULL){
+  /* Allocate a buffer to hold the resulting path. */
+  result_length = last_slash - link_target;
+  result = (char*) malloc (result_length + 1);
+  if(result == NULL){
 
-		return NULL;
-	}
+    return NULL;
+  }
 
-	/* Copy the result. */
-	strncpy (result, link_target, result_length);
-	result[result_length] = '\0';
+  /* Copy the result. */
+  strncpy (result, link_target, result_length);
+  result[result_length] = '\0';
 
-	return result;
+  return result;
 
 }
-/* IsArgUsableFile(): is argument a usable input file?
- *   tests its argument pointed to by name for the following:
- * 1) is it a good file name
- * 2) does it exist
- * 3) is it readable
- * 4) is it a regular file
- * function returns ztSuccess if all tests are ok, or one of the
- * following error codes:
- *   ztBadFileName
- *   ztNotFound
- *   ztNoReadPerm
- *   ztNotRegFile
- *   ztNullArg
- *   ztFileEmpty
- *
- * function is usually used to test input file argument.
- */
-int IsArgUsableFile(char* const name){
 
-	struct stat fileInfo;
 
-	if (name == NULL)
-
-		return ztNullArg;
-
-	if (!IsGoodFileName(name))
-
-		return ztBadFileName;
-
-	// does it exist
-	if(access(name, F_OK) != 0)
-
-		return ztNotFound;
-
-	/* can we read it? */
-	if (access(name, R_OK) != 0)
-
-		return ztNoReadPerm;
-
-	/* is it a regular file */
-	if (stat (name, &fileInfo) != 0 || ! S_ISREG (fileInfo.st_mode))
-
-		return ztNotRegFile;
-
-	if (fileInfo.st_size == 0)
-
-		return ztFileEmpty;
-
-	return ztSuccess;
-
-} // END IsArgUsableFile()
-
-/* IsArgUsableDirectory(): RETURNS ztSuccess when TRUE
- * BAD NaMe for a function */
-int IsArgUsableDirectory(char* const name){
-
-	struct stat dirInfo;
-
-	/* can we access it? */
-	if (access(name, R_OK | W_OK | X_OK) != 0)
-
-		return ztInaccessibleDir;
-
-	/* is it a directory? */
-	if (stat (name, &dirInfo) != 0 || ! S_ISDIR (dirInfo.st_mode))
-
-		return ztPathNotDir;
-
-	return ztSuccess;
-
-} // END IsArgUsableDirectory()
 
 /* MyMkDir(): function to create the argument specified directory using the
  * permission defined (in util.h), if the directory exist this function will
@@ -569,216 +1103,157 @@ int IsArgUsableDirectory(char* const name){
  */
 int myMkDir (char *name){
 
-	int result;
+  int result;
 
-	errno = 0;
-	result = mkdir (name, PERMISSION);
+  errno = 0;
+  result = mkdir (name, MK_DIR_MODE);
 
-	if ( (result ==  -1) && (errno == EEXIST) )
+  if ( (result ==  -1) && (errno == EEXIST) )
 
-		return ztSuccess;
+    return ztSuccess;
 
-	else if (result == -1){
+  else if (result == -1){
 
-		fprintf (stderr, "MyMkDir(): Error mkdir <%s>, system error says: %s\n",
-				name, strerror(errno));
+    fprintf (stderr, "MyMkDir(): Error mkdir <%s>, system error says: %s\n",
+	     name, strerror(errno));
 
-		return ztFailedSysCall;
-	}
+    return ztFailedSysCall;
+  }
 
-	return ztSuccess;
+  return ztSuccess;
 
 }   /* END MyMkDir()  */
-
-/* myFgets(): works like fgets() except it skips comments and blank lines
- * and increments lineNum.
- * comment line: first non-white character is <; or #>
- * TODO document function!
- ************************************************************************/
-char* myFgets(char *strDest, int count, FILE *fPtr, int *lineNum){
-
-	char		*whiteSpace = "\040\t\n\r";  /* white space is made of:
-																space, tab, line feed
-																and carriage return. */
-	char 	SPACE = '\040';
-	char 	TAB   = '\t';
-	//char *rvalue;
-	char 	*str;
-
-	str = (char *) malloc(sizeof(char) * LONG_LINE);
-	memset (str, 0, LONG_LINE);
-
-
-	/* read one line at a time, if we fail, then file ends prematurely */
-	while(fgets(str, count, fPtr)) {
-
-		(*lineNum)++; // increment line count
-
-		// ignore blank lines
-		if (strspn(str, whiteSpace) == strlen(str))
-
-			continue;
-
-		/* move str/line pointer to first non-white character */
-		while(str[0] == SPACE || str[0] == TAB)
-
-			str++;
-
-		/* ignore comments lines, comment char is ';' *
-		* if ((strchr(str, COMMENT_CHAR) == str))
-		* added COMMENT_SET on 12/18/2018 to include # plus ;
-		* COMMENT_SET is defined in util.h file w.h */
-
-		if ((strpbrk(str, COMMENT_SET) == str))
-
-			continue;
-
-		if (strlen(str)) // has something still - other than blank or comments
-
-			break; // we can return here - it is much clearer in the bottom
-	}
-
-	/* IMPORTANT ****:
-	 * fgets() returns NULL on EOF and on File Error, do the same */
-	if(feof(fPtr) || ferror(fPtr))
-
-		return NULL;
-
-/* operating system sets last line to \n
-	if((strlen(str) == 1) && (str[0] == '\n')){
-		printf("myFgets(): strlen(str) IS One AND is line feed ...\n");
-		return NULL;
-	}
-*****************************************************************/
-
-	strcpy (strDest, str);
-
-	return strDest;
-
-} // END myFgets()
 
 /* is string good double string? all digits, plus, minus and period */
 int isStrGoodDouble(char *str){
 
-	char *allowed = "-+.0123456789";
+  char *allowed = "-+.0123456789";
 
-	if (strspn(str, allowed) != strlen(str))
+  if (strspn(str, allowed) != strlen(str))
 
-		return FALSE;
+    return FALSE;
 
-	return TRUE;
+  return TRUE;
 }
 
-/* getHome(): function gets home directory for effective user.
- *
- * The simple method is to pull the environment variable "HOME"
- * The slightly more complex method is to read it from the system user database.
- *
- */
-
-char* getHome(){
-
-	char		*resultDir = NULL;
-
-	char		*homeDir = getenv("HOME");
-
-	if (homeDir != NULL && IsArgUsableDirectory(homeDir)){
-
-		resultDir = strdup(homeDir);
-		return resultDir;
-	}
-
-	uid_t uid = getuid();
-	struct passwd *pw = getpwuid(uid);
-
-	ASSERTARGS(pw && pw->pw_dir);
-
-	homeDir = pw->pw_dir;
-
-	if (IsEntryDir(homeDir))
-		resultDir = strdup(homeDir);
-
-	return resultDir;
-
-}
-
-/* getUserName(): returns effective user name, abort()s if unsuccessful */
-
-char *getUserName(){
-
-	char *user = NULL;
-
-	user = getenv("USER");
-
-	if (user)
-
-		return user;
-
-	uid_t uid = getuid();
-	struct passwd *pw = getpwuid(uid);
-
-	ASSERTARGS(pw && pw->pw_dir);
-
-	user = pw->pw_name;
-
-	ASSERTARGS(user);
-
-	return user;
-}
 
 int mySpawn (char *prgName, char **argLst){
 
-	pid_t		childPID;
+  pid_t		childPID;
 
-	ASSERTARGS(prgName && argLst);
+  ASSERTARGS(prgName && argLst);
 
-	childPID = fork();
+  childPID = fork();
 
-	if (childPID == 0){   /* this is the child process */
-	/*	prototype from man page:
-	 * int execv(const char *path, char *const argv[]); */
+  if (childPID == 0){   /* this is the child process */
+    /*	prototype from man page:
+     * int execv(const char *path, char *const argv[]); */
 
-		execv (prgName, argLst);
+    execv (prgName, argLst);
 
-		/* The execv function returns only if an error occurs. */
-		printf ("mySpawn(): I am the CHILD!!!\n"
-				    "If you see this then there was an error in execv\n");
-		fprintf (stderr, "mySpawn(): an error occurred in execv\n");
-		abort();
-	}
-	else
+    /* The execv function returns only if an error occurs. */
+    printf ("mySpawn(): I am the CHILD!!!\n"
+	    "If you see this then there was an error in execv\n");
+    fprintf (stderr, "mySpawn(): an error occurred in execv\n");
+    abort();
+  }
+  else
 
-		return childPID;
+    return childPID;
 }
 
 int spawnWait (char *prog, char **argsList){
 
-	/* wait() : caller (parent) waits for child process to finish */
-	//pid_t		childPid;
-	int		childStatus;
+  /* wait() : caller (parent) waits for child process to finish */
+  //pid_t		childPid;
+  int		childStatus;
 
-	// don't allow nulls
-	ASSERTARGS(prog && argsList);
+  // don't allow nulls
+  ASSERTARGS(prog && argsList);
 
-	// ignore child PID returned by mySpawn()
-	mySpawn(prog, argsList);
+  // ignore child PID returned by mySpawn()
+  mySpawn(prog, argsList);
 
-	// wait for the child to finish
-	wait(&childStatus);
+  // wait for the child to finish
+  wait(&childStatus);
 
-	//if (WIFEXITED(childStatus)) ??? normal exit
-	if (WEXITSTATUS(childStatus) == EXIT_SUCCESS)
+  //if (WIFEXITED(childStatus)) ??? normal exit
+  if (WEXITSTATUS(childStatus) == EXIT_SUCCESS)
 
-		return ztSuccess;
+    return ztSuccess;
 
-	else {
+  else {
 
-		fprintf(stderr, "spawnWait(): Error child process exited abnormally! With exit code: %d\n",
-				   WEXITSTATUS(childStatus));
-		// TODO: maybe get system error; careful what you wish for, is that a system error?
-		return ztChildProcessFailed;
-	}
-}
+    fprintf(stderr, "spawnWait(): Error child process exited abnormally! With exit code: %d\n",
+	    WEXITSTATUS(childStatus));
+    // TODO: maybe get system error; careful what you wish for, is that a system error?
+    return ztChildProcessFailed;
+  }
+
+} /* END "spawnWait() **/
+
+
+
+
+
+/* IsEntryDir(): function to test if the specified entry is a directory or not.
+ * Argument: entry : entry to test for.
+ * Return: TRUE if entry is a directory, FALSE otherwise.
+ *
+ */
+
+int IsEntryDir (char const *entry) {
+
+  struct stat status;
+
+  if (entry == NULL)
+    return FALSE;
+
+  errno = 0;
+
+  if (lstat (entry, &status) !=  0){
+    /* fill status structure, lstat returns zero on success */
+    fprintf (stderr, "IsEntryDir(): Could NOT lstat entry:  %s . "
+	     "System says: %s\n",
+	     entry, strerror(errno));
+    return FALSE;
+  }
+
+  if (S_ISDIR (status.st_mode))
+
+    return TRUE;
+
+  return FALSE;
+
+}  /* END IsEntryDir()  */
+
+/* isPathDirectory() function to replace old IsEntryDir()
+ *
+ */
+int isPathDirectory(const char* const path){
+
+  struct stat status;
+  int    result;
+
+  ASSERTARGS(path);
+
+  errno = 0;
+
+  result = lstat(path, &status);
+  if(result != 0){
+
+    /* return false regardless of the error **/
+    perror("stat() system call failure:");
+    return FALSE;
+  }
+
+  if (S_ISDIR (status.st_mode))
+
+    return TRUE;
+
+  return FALSE;
+
+} /* END isDirectory() **/
 
 /* myGetDirDL() function to read directory and place entries in sorted list.
  * The returned list WILL INCLUDE the full entry path.
@@ -790,140 +1265,141 @@ int spawnWait (char *prog, char **argsList){
 
 int myGetDirDL (DLIST *dstDL, char *dir){
 
-	DIR 			*dirPtr;
-	struct 		dirent 	*entry;
-	char 		dirPath[PATH_MAX + 1];
-	char			tempBuf[PATH_MAX + 1];
-	char 		*fullPath;
-	int	 		result;
+  DIR 			*dirPtr;
+  struct 		dirent 	*entry;
+  char 		dirPath[PATH_MAX + 1];
+  char			tempBuf[PATH_MAX + 1];
+  char 		*fullPath;
+  int	 		result;
 
-	ASSERTARGS (dstDL && dir);
+  ASSERTARGS (dstDL && dir);
 
-	if (DL_SIZE(dstDL) != 0){
-		printf("myGetDirDL(): Error list not empty.\n");
-		return ztListNotEmpty;
-	}
+  if (DL_SIZE(dstDL) != 0){
+    printf("myGetDirDL(): Error list not empty.\n");
+    return ztListNotEmpty;
+  }
 
-	if ( ! IsEntryDir(dir)){
-		printf ("myGetDirDL(): Error specified argument is not a directory.\n");
-		return ztPathNotDir;
-	}
+  if ( ! IsEntryDir(dir)){
+    printf ("myGetDirDL(): Error specified argument is not a directory.\n");
+    return ztPathNotDir;
+  }
 
-	if (IsArgUsableDirectory(dir) != ztSuccess){
-		printf ("myGetDirDL(): Error specified directory not usable.\n");
-		return ztInaccessibleDir;
-	}
+  if (isDirUsable(dir) != ztSuccess){
+    printf ("myGetDirDL(): Error specified directory not usable.\n");
+    return ztInaccessibleDir;
+  }
 
-	errno = 0;
-	dirPtr = opendir (dir);
-	if (dirPtr == NULL){  		/* tell user why it failed */
-		printf ("myGetDirDL(): Error opening directory %s, system says: %s\n",
-				dir, strerror(errno));
-		return ztFailedSysCall;
-	}
+  errno = 0;
+  dirPtr = opendir (dir);
+  if (dirPtr == NULL){  		/* tell user why it failed */
+    printf ("myGetDirDL(): Error opening directory %s, system says: %s\n",
+	    dir, strerror(errno));
+    return ztFailedSysCall;
+  }
 
-	/* append a slash if it is not there. */
-	if ( dir[ strlen(dir) - 1 ] == '/' )
-		sprintf (dirPath, "%s", dir);
-	else
-		sprintf (dirPath, "%s/", dir);
+  /* append a slash if it is not there. */
+  if ( dir[ strlen(dir) - 1 ] == '/' )
+    sprintf (dirPath, "%s", dir);
+  else
+    sprintf (dirPath, "%s/", dir);
 
-	while ( (entry = readdir (dirPtr)) ){
+  while ( (entry = readdir (dirPtr)) ){
 
-		if ( (strcmp(entry->d_name, ".") == 0) ||
-			 (strcmp(entry->d_name, "..") == 0) )
+    if ( (strcmp(entry->d_name, ".") == 0) ||
+	 (strcmp(entry->d_name, "..") == 0) )
 
-			continue;
+      continue;
 
-		ASSERTARGS (snprintf (tempBuf, PATH_MAX, "%s%s",
-				    dirPath, entry->d_name) < PATH_MAX);
+    ASSERTARGS (snprintf (tempBuf, PATH_MAX, "%s%s",
+			  dirPath, entry->d_name) < PATH_MAX);
 
-		fullPath = (char *)malloc(strlen(tempBuf) + 1);
-		if( ! fullPath){
-			printf("myGetDirDL(): error allocating memory.\n");
-			return ztMemoryAllocate;
-		}
-		strcpy(fullPath, tempBuf);
-		result = ListInsertInOrder (dstDL, fullPath);
-		if (result != ztSuccess){
-			printf("myGetDirDL(): Error returned by ListInsertInOrder().\n");
-			printf(" Message: %s\n\n", code2Msg(result));
-			return result;
-		}
-	}
+    fullPath = (char *)malloc(strlen(tempBuf) + 1);
+    if( ! fullPath){
+      printf("myGetDirDL(): error allocating memory.\n");
+      return ztMemoryAllocate;
+    }
+    strcpy(fullPath, tempBuf);
+    result = ListInsertInOrder (dstDL, fullPath);
+    if (result != ztSuccess){
+      printf("myGetDirDL(): Error returned by ListInsertInOrder().\n");
+      printf(" Message: %s\n\n", ztCode2Msg(result));
+      return result;
+    }
+  }
 
-	closedir(dirPtr);
+  closedir(dirPtr);
 
-	return ztSuccess;
+  return ztSuccess;
 
 }  /* END myGetDirDL()  */
 
 void zapString(void **data){ //free allocated string as in myGetDirDL()
 
-	char *str;
+  char *str;
 
-	ASSERTARGS (data);
+  ASSERTARGS (data);
 
-	str = *data;
-	if(str)
+  str = *data;
+  if(str)
 
-		free(str);
+    free(str);
 
-	return;
+  return;
 }
 /* GetFormatTime(): formats current time in a string buffer, allocates buffer
  * and return buffer address.  */
 
 char* getFormatTime (void){
 
-	char		*ret = NULL;
-	char		buffer[1024];
-	char  	timeBuf[80];
-	long    milliSeconds;
-	struct    timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
-	struct    tm *timePtr;
+  char		*ret = NULL;
+  char		buffer[1024];
+  char  	timeBuf[80];
+  long    milliSeconds;
+  struct    timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
+  struct    tm *timePtr;
 
-	gettimeofday (&startTV, NULL);
-	timePtr = localtime (&startTV.tv_sec);
-	strftime (timeBuf, 80, "%a, %b %d, %Y %I:%M:%S %p", timePtr);
-	milliSeconds = startTV.tv_usec / 1000;
+  gettimeofday (&startTV, NULL);
+  timePtr = localtime (&startTV.tv_sec);
+  strftime (timeBuf, 80, "%a, %b %d, %Y %I:%M:%S %p", timePtr);
+  milliSeconds = startTV.tv_usec / 1000;
 
-	sprintf (buffer, "%s :milliseconds: %03ld", timeBuf, milliSeconds);
+  sprintf (buffer, "%s :milliseconds: %03ld", timeBuf, milliSeconds);
 
-	ret = (char *) malloc ((strlen(buffer) + 1) * sizeof(char));
-	if (ret == NULL){
-		printf ("getFormatTime(): Error allocating memory.\n");
-		return ret;
-	}
+  ret = (char *) malloc ((strlen(buffer) + 1) * sizeof(char));
+  if (ret == NULL){
+    printf ("getFormatTime(): Error allocating memory.\n");
+    return ret;
+  }
 
-	strcpy (ret, buffer);
+  strcpy (ret, buffer);
 
-	return ret;
+  return ret;
 
 } /* END GetFormatTime() */
 
 char	 *formatC_Time(void){
 
-	char		*ret = NULL;
-	char  	tmpBuf[80];
+  char		*ret = NULL;
+  char  	tmpBuf[80];
 
-	struct		tm *timePtr;
-	time_t		timeValue;
+  struct		tm *timePtr;
+  time_t		timeValue;
 
-	time(&timeValue);
-	timePtr = localtime(&timeValue);
+  time(&timeValue);
+  timePtr = localtime(&timeValue);
 
-	strftime(tmpBuf, 80, "%c", timePtr);
+  /* %c is current locale time format for strftime() **/
+  strftime(tmpBuf, 80, "%c", timePtr);
 
-	ret = (char *) malloc ((strlen(tmpBuf) + 1) * sizeof(char));
-	if (ret == NULL){
-		fprintf (stderr, "formatC_Time(): Error allocating memory.\n");
-		return ret;
-	}
+  ret = (char *) malloc ((strlen(tmpBuf) + 1) * sizeof(char));
+  if (ret == NULL){
+    fprintf (stderr, "formatC_Time(): Error allocating memory.\n");
+    return ret;
+  }
 
-	strcpy (ret, tmpBuf);
+  strcpy (ret, tmpBuf);
 
-	return ret;
+  return ret;
 }
 
 /* formatMsgHeadTime(): compact time format used as line beginning of
@@ -933,26 +1409,26 @@ char	 *formatC_Time(void){
  * ***********************************************************************/
 char* formatMsgHeadTime(void){
 
-	char		*ret = NULL;
-	char  	tmpBuf[80];
+  char		*ret = NULL;
+  char  	tmpBuf[80];
 
-	struct		tm *timePtr;
-	time_t		timeValue;
+  struct		tm *timePtr;
+  time_t		timeValue;
 
-	time(&timeValue);
-	timePtr = localtime(&timeValue);
+  time(&timeValue);
+  timePtr = localtime(&timeValue);
 
-	strftime(tmpBuf, 80, "%Y-%b-%d %H:%M:%S", timePtr);
+  strftime(tmpBuf, 80, "%Y-%b-%d %H:%M:%S", timePtr);
 
-	ret = (char *) malloc ((strlen(tmpBuf) + 1) * sizeof(char));
-	if (ret == NULL){
-		fprintf (stderr, "formatC_Time(): Error allocating memory.\n");
-		return ret;
-	}
+  ret = (char *) malloc ((strlen(tmpBuf) + 1) * sizeof(char));
+  if (ret == NULL){
+    fprintf (stderr, "formatC_Time(): Error allocating memory.\n");
+    return ret;
+  }
 
-	strcpy (ret, tmpBuf);
+  strcpy (ret, tmpBuf);
 
-	return ret;
+  return ret;
 
 }
 
@@ -973,14 +1449,14 @@ int stringToLower (char **dest, char *str){
   ASSERTARGS (dest && str);
 
   if (strlen(str) == 0){
-	  printf("stringToLower(): Error empty str argument! Length of zero.\n");
-	  return ztInvalidArg;
+    printf("stringToLower(): Error empty str argument! Length of zero.\n");
+    return ztInvalidArg;
   }
 
   *dest = (char *) malloc (sizeof(char) * (strlen(str) + 1));
   if (dest == NULL){
-	  printf("stringToLower(): Error allocating memory.\n");
-	  return ztMemoryAllocate;
+    printf("stringToLower(): Error allocating memory.\n");
+    return ztMemoryAllocate;
   }
 
   strcpy (*dest, str);
@@ -998,37 +1474,37 @@ int stringToLower (char **dest, char *str){
 
 int stringToUpper (char **dst, char *str){
 
-	char 	*mover;
+  char 	*mover;
 
-	ASSERTARGS (dst && str);
+  ASSERTARGS (dst && str);
 
-	if (strlen(str) == 0){
-		printf("stringToUpper(): Error empty str argument! Length of zero.\n");
-		return ztInvalidArg;
-	}
+  if (strlen(str) == 0){
+    printf("stringToUpper(): Error empty str argument! Length of zero.\n");
+    return ztInvalidArg;
+  }
 
-	*dst = (char *) malloc (sizeof(char) * (strlen(str) + 1));
-	if (dst == NULL){
-		printf ("stringToUpper(): Error, allocating memory.\n");
-		return ztMemoryAllocate;
-	}
+  *dst = (char *) malloc (sizeof(char) * (strlen(str) + 1));
+  if (dst == NULL){
+    printf ("stringToUpper(): Error, allocating memory.\n");
+    return ztMemoryAllocate;
+  }
 
-	strcpy (*dst, str);
+  strcpy (*dst, str);
 
-	mover = *dst;
+  mover = *dst;
 
-	while ( *mover ){
-		if (*mover > 127){
-			printf ("stringToUpper(): Error!! A character is larger than largest ASCII 127 decimal.\n");
-			printf ("stringToUpper(): character is: <%c>, ASCII value: <%d>. String is: <%s>\n\n",
-					*mover, *mover, str);
-			return ztInvalidArg;
-		}
-		*mover = toupper(*mover);
-		mover++;
-	}
+  while ( *mover ){
+    if (*mover > 127){
+      printf ("stringToUpper(): Error!! A character is larger than largest ASCII 127 decimal.\n");
+      printf ("stringToUpper(): character is: <%c>, ASCII value: <%d>. String is: <%s>\n\n",
+	      *mover, *mover, str);
+      return ztInvalidArg;
+    }
+    *mover = toupper(*mover);
+    mover++;
+  }
 
-	return ztSuccess;
+  return ztSuccess;
 
 }  /* END stringToUpper() */
 
@@ -1037,155 +1513,158 @@ int stringToUpper (char **dst, char *str){
  */
 int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
-	char		slash = '/';
-	char		*hasSlash;
-	char		tempBuf[PATH_MAX] = {0};
+  char		slash = '/';
+  char		*hasSlash;
+  char		tempBuf[PATH_MAX] = {0};
 
-	ASSERTARGS (dest && givenName && rootDir);
+  ASSERTARGS (dest && givenName && rootDir);
 
-	hasSlash = strchr (givenName, slash);
+  hasSlash = strchr (givenName, slash);
 
-	if (hasSlash)
+  if (hasSlash)
 
-		*dest = (char *) strdup (givenName); // strdup() can fail .. check it FIXME
+    *dest = (char *) strdup (givenName); // strdup() can fail .. check it FIXME
 
-	else {
+  else {
 
-		if(IsSlashEnding(rootDir))
+    if(IsSlashEnding(rootDir))
 
-			snprintf (tempBuf, PATH_MAX -1 , "%s%s", rootDir, givenName);
-		else
-			snprintf (tempBuf, PATH_MAX - 1, "%s/%s", rootDir, givenName);
+      snprintf (tempBuf, PATH_MAX -1 , "%s%s", rootDir, givenName);
+    else
+      snprintf (tempBuf, PATH_MAX - 1, "%s/%s", rootDir, givenName);
 
-		*dest = (char *) strdup (&(tempBuf[0]));
+    *dest = (char *) strdup (&(tempBuf[0]));
 
-	}
+  }
 
-	/* mystrdup() ::: check return value of strdup() TODO */
-
-	return ztSuccess;
+  return ztSuccess;
 }
 
 /* openOutputFile(): opens filename for writing, filename includes path */
 
 FILE* openOutputFile (char *filename){
 
-	FILE		*fPtr = NULL;
+  FILE		*fPtr = NULL;
 
-	ASSERTARGS (filename);
+  ASSERTARGS (filename);
 
-	errno = 0; //set error number
+  errno = 0; //set error number
 
-	//try to open the file for writing
-	fPtr = fopen(filename, "w");
-	if (fPtr == NULL){
+  //try to open the file for writing
+  fPtr = fopen(filename, "w");
+  if (fPtr == NULL){
 
-		fprintf (stderr, "openOutputFile(): Error opening file: <%s>\n", filename);
-		fprintf(stderr, "System error message: %s\n\n", strerror(errno));
-		//print reason with perror()
-		perror("The call to fopen() failed!");
-	}
+    fprintf (stderr, "openOutputFile(): Error opening file: <%s>\n", filename);
+    fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+    perror("The call to fopen() failed!");
+  }
 
-	return fPtr;
+  return fPtr;
 
 } // END openOutputFile()
 
-void closeOutputFile(FILE *fPtr){
+int closeFile(FILE *fPtr){
 
-	/* TODO: check return & use errno &
-	 * should return integer like fclose() does*/
+  int    result;
 
-	if ( ! fPtr )
+  ASSERTARGS(fPtr);
 
-		return;
+  errno = 0; /* set error number */
 
-	//fflush(fPtr);
-	fclose(fPtr); /* calls fflush() */
+  result = fclose(fPtr); /* calls fflush() */
 
-	return;
+  if (result != ztSuccess){
 
-} /* END closeOutputFile() */
+    fprintf (stderr, "closeFile(): Error failed fclose() system call.\n");
+    fprintf(stderr, "  System error message: <%s>\n", strerror(errno));
+    perror("The call to fclose() failed!");
+  }
+
+  return result;
+
+} /* END closeFile() */
 
 /* getDirList() function to read directory and place entries in sorted list.
  * This function will NOT include the dot OR double dot entries. */
 
 int getDirList (DLIST *list, const char *dir){
 
-	DIR *dirPtr;
-	struct dirent *entry;
-//	char dirPath[PATH_MAX + 1];
-	char *name;
+  DIR *dirPtr;
+  struct dirent *entry;
+  //	char dirPath[PATH_MAX + 1];
+  char *name;
 
-	ASSERTARGS (dir && list);
+  ASSERTARGS (dir && list);
 
-	if ( ! IsEntryDir(dir)){
-		fprintf (stderr, "getDirList(): Error specified argument is not a directory.\n");
-		return ztInvalidArg;
-	}
+  if ( ! IsEntryDir(dir)){
+    fprintf (stderr, "getDirList(): Error specified argument is not a directory.\n");
+    return ztInvalidArg;
+  }
 
-	/* append a slash if it is not there. */
-/*	if (IsSlashEnding(dir))
-		sprintf (dirPath, "%s", dir);
+  /* append a slash if it is not there. */
+  /*	if (IsSlashEnding(dir))
+	sprintf (dirPath, "%s", dir);
 	else
-		sprintf (dirPath, "%s/", dir);
-*/
-	errno = 0;
-	dirPtr = opendir (dir);
-	if (dirPtr == NULL){  		/* tell user why it failed */
-		fprintf (stderr, "getDirList(): Error opening directory %s, system says: %s\n",
-				dir, strerror(errno));
-	return ztFailedSysCall ;
-	}
+	sprintf (dirPath, "%s/", dir);
+  */
+  errno = 0;
+  dirPtr = opendir (dir);
+  if (dirPtr == NULL){  		/* tell user why it failed */
+    fprintf (stderr, "getDirList(): Error opening directory %s, system says: %s\n",
+	     dir, strerror(errno));
+    return ztFailedSysCall ;
+  }
 
-	while ( (entry = readdir (dirPtr)) ){
+  while ( (entry = readdir (dirPtr)) ){
 
-		if ( (strcmp(entry->d_name, ".") == 0) ||
-			(strcmp(entry->d_name, "..") == 0) )
-				continue;
+    if ( (strcmp(entry->d_name, ".") == 0) ||
+	 (strcmp(entry->d_name, "..") == 0) )
+      continue;
 
-		name = (char *) malloc ((strlen(entry->d_name) + 1) * sizeof(char));
-		if ( ! name ){
-			fprintf(stderr, "getDirList(): Error allocating memory.\n");
-			return ztMemoryAllocate;
-		}
+    name = (char *) malloc ((strlen(entry->d_name) + 1) * sizeof(char));
+    if ( ! name ){
+      fprintf(stderr, "getDirList(): Error allocating memory.\n");
+      return ztMemoryAllocate;
+    }
 
-		sprintf (name, "%s", entry->d_name);
-		ListInsertInOrder (list, name);
+    sprintf (name, "%s", entry->d_name);
+    ListInsertInOrder (list, name);
 
-	}
+  }
 
-	closedir(dirPtr);
+  closedir(dirPtr);
 
-	return ztSuccess;
+  return ztSuccess;
 
 }  /* END getDirList()  */
 
+/* I think there is find string function somewhere - it returns (ELEM*) too I think. **/
 int isStringInList (DLIST *list, const char *str){
 
-	ELEM		*elem;
-	char				*elemStr;
+  ELEM   *elem;
+  char   *elemStr;
 
-	ASSERTARGS (list && str);
+  ASSERTARGS (list && str);
 
-	if (DL_SIZE(list) < 1)
+  if (DL_SIZE(list) < 1)
 
-		return FALSE;
+    return FALSE;
 
-	elem = DL_HEAD(list);
+  elem = DL_HEAD(list);
 
-	while(elem){
+  while(elem){
 
-		elemStr = (char *) DL_DATA(elem);
+    elemStr = (char *) DL_DATA(elem);
 
-		if (strcmp(elemStr, str) == 0)
+    if (strcmp(elemStr, str) == 0)
 
-			return TRUE;
+      return TRUE;
 
-		elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
 
-	}
+  }
 
-	return FALSE;
+  return FALSE;
 
 }
 
@@ -1195,37 +1674,41 @@ int isStringInList (DLIST *list, const char *str){
 
 int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
 
-	ELEM		*elem;
-	char				*str;
-	char		*strCpy;
+  ELEM		*elem;
+  char				*str;
+  char		*strCpy;
 
 
-	ASSERTARGS (dst && list1 && list2);
+  ASSERTARGS (dst && list1 && list2);
 
-	// ignoring list size today only
+  // ignoring list size today only
 
-	elem = DL_HEAD(list1);
-	while(elem){
+  elem = DL_HEAD(list1);
+  while(elem){
 
-		str = (char *) DL_DATA(elem);
+    str = (char *) DL_DATA(elem);
 
-		if ( ! isStringInList(list2, str)){ // not in list2, we added it to dst
+    if ( ! isStringInList(list2, str)){ // not in list2, we added it to dst
 
-			strCpy = strdup(str);
-			if ( ! strCpy)
-				return ztMemoryAllocate;
+      strCpy = strdup(str);
+      if ( ! strCpy)
+	return ztMemoryAllocate;
 
-			ListInsertInOrder (dst, strCpy);
+      ListInsertInOrder (dst, strCpy);
 
-		}
+    }
 
-		elem = DL_NEXT(elem);
-	}
+    elem = DL_NEXT(elem);
+  }
 
-	return ztSuccess;
+  return ztSuccess;
 }
 
-/* convDouble2Long(): function converts double parameter srcDouble to
+/* NOTE .. NOTE
+ * Curl Library uses doubles for sizes sent, received & maybe codes!!!
+ * This function is for that ONLY.
+ *
+ * convDouble2Long(): function converts double parameter srcDouble to
  * long, value is stored in the pointer parameter dstL.
  * srcDouble can NOT have any fraction and is in the range of zero and less
  * than LONG_MAX. On my system with glibc version 2.33 LONG_MAX is defined
@@ -1239,76 +1722,86 @@ int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
 
 int convDouble2Long (long *dstL, double srcDouble){
 
-	/*
-	printf ("LONG_MAX is: %ld\n", LONG_MAX);
-	printf ("ULONG_MAX is: %lu\n", ULONG_MAX);
-	*/
+  /*
+    printf ("LONG_MAX is: %ld\n", LONG_MAX);
+    printf ("ULONG_MAX is: %lu\n", ULONG_MAX);
+  */
 
-	char		buf[512] = {0};
-	char		*fraction, *whole;
-	char		*allowed = "0",
-			    *digits = "1234567890",
-				*periodDel = ".",
-				*tabDel = "\t",
-				*endPtr = NULL;
+  char		buf[512] = {0};
+  char		*fraction, *whole;
+  char		*allowed = "0",
+    *digits = "1234567890",
+    *periodDel = ".",
+    *tabDel = "\t",
+    *endPtr = NULL;
 
-	long	numL;
+  long	numL;
+  int    result;
 
-	ASSERTARGS (dstL);
+  ASSERTARGS (dstL);
 
-	if (srcDouble < 0.0) {
-		fprintf(stderr, "convDouble2Long(): Error parameter srcDouble is negative\n");
-		return ztOutOfRangePara;
-	}
+  if (srcDouble < 0.0) {
+    fprintf(stderr, "convDouble2Long(): Error parameter srcDouble is negative\n");
+    return ztInvalidArg;
+  }
 
-	/* place number in a string with 17 decimal points + tab character */
-	sprintf (buf, "%64.17f\t", srcDouble);
+  /* place number in a string with 17 decimal points + tab character */
+  sprintf (buf, "%64.17f\t", srcDouble);
 
-	whole = strtok(buf, periodDel);
-	fraction = strtok(NULL, tabDel);
+  whole = strtok(buf, periodDel);
+  fraction = strtok(NULL, tabDel);
 
-	/*
-printf ("convDouble2Long(): whole is <%s> @@@@\n", whole);
-printf ("convDouble2Long(): fraction is <%s> @@@@\n", fraction);
-*/
+  result = removeSpaces(&fraction);
+  if(result != ztSuccess){
+    fprintf(stderr, "convDouble2Long(): Error failed removeSpaces() function for fraction.\n");
+    return result;
+  }
 
-	/* number can not have fraction */
-	if (strspn(fraction, allowed) != strlen(fraction)){
-		fprintf(stderr, "convDouble2Long(): Error argument double has fraction.\n");
-		return ztInvalidArg;
-	}
+  // printf ("convDouble2Long(): fraction AFTER removeSpaces() call is: <%s> +++\n", fraction);
 
-	removeSpaces(&whole);
+  result = removeSpaces(&whole);
+  if(result != ztSuccess){
+    fprintf(stderr, "convDouble2Long(): Error failed removeSpaces() function for whole.\n");
+    return result;
+  }
 
-	/* this should not happen! */
-	if (strspn(whole, digits) != strlen(whole)){
-		fprintf(stderr, "convDouble2Long(): Error whole part of double "
-				"has something other than digits.\n");
-		return ztInvalidArg;
-	}
-	/* now this means *endPtr below is always '\0' - checked below for completion only! */
+  // printf ("convDouble2Long(): whole AFTER removeSpaces() call is: <%s> +++\n", whole);
 
-	/*  from man strtol :
-	RETURN VALUE
-	       The strtol() function returns the result of the conversion, unless the value would underflow or  overflow.
-	       If  an  underflow  occurs,  strtol()  returns LONG_MIN.   If  an  overflow  occurs,  strtol()  returns  LONG_MAX.
-	       In both cases, errno is set to ERANGE.  Precisely the same holds for strtoll() (with
-	       LLONG_MIN and LLONG_MAX instead of LONG_MIN and LONG_MAX).
-	 *** end from man strtol : NOTE it has been reformatted */
+  /* number can not have fraction - all must be ZEROS **/
+  if (strspn(fraction, allowed) != strlen(fraction)){
+    fprintf(stderr, "convDouble2Long(): Error argument double has fraction.\n");
+    return ztInvalidArg;
+  }
 
-	/* set errno */
-	errno = 0;
-	numL = (long) strtol (whole, &endPtr, 10);
-	if ( *endPtr != '\0' || errno != 0){ /* ERANGE */
+  /* this should not happen! */
+  if (strspn(whole, digits) != strlen(whole)){
+    fprintf(stderr, "convDouble2Long(): Error myWhole part of double "
+	    "has something other than digits.\n");
+    return ztInvalidArg;
+  }
+  /* now this means *endPtr below is always '\0' - checked below for completion only! */
 
-		fprintf(stderr, "convDouble2Long() Error failed strtol() call for <%s> !!\n"
-				"with system error message : %s\n", whole, strerror(errno));
-		return ztOutOfRangePara;
-	}
+  /*  from man strtol :
+      RETURN VALUE
+      The strtol() function returns the result of the conversion, unless the value would underflow or  overflow.
+      If  an  underflow  occurs,  strtol()  returns LONG_MIN.   If  an  overflow  occurs,  strtol()  returns  LONG_MAX.
+      In both cases, errno is set to ERANGE.  Precisely the same holds for strtoll() (with
+      LLONG_MIN and LLONG_MAX instead of LONG_MIN and LONG_MAX).
+      *** end from man strtol : NOTE it has been reformatted */
 
-	*dstL = numL;
+  /* set errno */
+  errno = 0;
+  numL = (long) strtol (whole, &endPtr, 10);
+  if ( *endPtr != '\0' || errno != 0){ /* ERANGE */
 
-	return ztSuccess;
+    fprintf(stderr, "convDouble2Long() Error failed strtol() call for <%s> !!\n"
+	    "with system error message : %s\n", whole, strerror(errno));
+    return ztInvalidArg;
+  }
+
+  *dstL = numL;
+
+  return ztSuccess;
 }
 
 int printBold (char *str){
@@ -1316,27 +1809,30 @@ int printBold (char *str){
 #define STYLE_BOLD         "\033[1m"
 #define STYLE_NO_BOLD   "\033[22m"
 
-	printf(STYLE_BOLD);
-	printf("%s", str);
-	printf(STYLE_NO_BOLD);
+  printf(STYLE_BOLD);
+  printf("%s", str);
+  printf(STYLE_NO_BOLD);
 
-	printf("%s%s%s", STYLE_BOLD, str, STYLE_NO_BOLD);
+  printf("%s%s%s", STYLE_BOLD, str, STYLE_NO_BOLD);
 
-	return 0;
-}
+  return 0;
+
+} /* END printBold (char *str) **/
 
 int isGoodExecutable(char *file){
 
-	/* TODO : use "errno" for complete test */
+  /* TODO : use "errno" for complete test */
 
-	/* does file exist and executable?
-	 * (access(file, F_OK) == 0) --> exist
-	 * (access(file, R_OK | X_OK) == 0) --> user can execute file
-	 */
-	if ((access(file, F_OK) == 0) &&
-		 (access(file, R_OK | X_OK) == 0))
+  /* does file exist and executable?
+   * (access(file, F_OK) == 0) --> exist
+   * (access(file, R_OK | X_OK) == 0) --> user can execute file
+   */
+  if ((access(file, F_OK) == 0) &&
+      (access(file, R_OK | X_OK) == 0))
 
-		return TRUE;
+    return TRUE;
 
-	return FALSE;
-}
+  return FALSE;
+
+} /* END isGoodExecutable() **/
+

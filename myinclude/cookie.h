@@ -8,42 +8,45 @@
 #ifndef COOKIE_H_
 #define COOKIE_H_
 
+
+#include <time.h>
+
 extern int serverResponse;
 
-/* geofabric cookie file NOW has only one single line - they may change this format */
-#define MAX_COOKIE_LINES		1
+/* geofabrik cookie file has only one single line - they may change this format */
+#define MAX_COOKIE_LINES 1
 
 typedef struct	COOKIE_ {
 
-	char		*token;
-	char		*expYear;
-	int		year;
-	char		*expMonth;
-	int		month; // Jan = 0 - Dec = 11
-	char		*expDayMonth;
-	int		dayMonth; // 1 - 31
-	char		*expDayWeek;	// day of the week Sun, Mon
-	int		dayWeek; // Sun = 0, Mon = 1 ...
-	char		*expHour;
-	int		hour;
-	char		*expMinute;
-	int		minute;
-	char		*expSecond;
-	int		second;
-	char		*format;
-	char		*path;
-	char		*sFlag;
-	char		*expireTimeStr;
+/* members we use are included here. Filled in 2 functions:
+ *
+ *  Filling function           Member
+ *  ----------------           -------
+ *  parseCookieFile()          token
+ *  parseCookieFile()          expitreTimeStr
+ *  parseTimeStr()             expireTM
+ *  parseTimeStr()             expireSeconds
+ *
+ *
+ *********************************************/
+
+  char  *token;
+
+  char	*expireTimeStr;
+
+  struct tm expireTM; /* expire time 'tm' structure, GMT time **/
+
+  time_t expireSeconds; /* time value in seconds - type 'time_t' ;
+                           inverse of 'tm' structure in
+                           expireTM member; calculated using
+                           makeTimeGMT() function. **/
 
 } COOKIE;
 
-int writeScript (char	*fileName);
-
-int writeJSONfile(char *filename, SETTINGS *settings);
 
 int getCookieFile (SETTINGS *settings);
 
-int parseCookieFile (COOKIE *dstCookie, char	*filename);
+int parseCookieFile (COOKIE *dstCookie, const char *filename);
 
 int parseTimeStr (COOKIE *cookie, char const *str);
 
@@ -64,5 +67,14 @@ int getResponseCode (int *code, char *msg);
 void logUnseen(SETTINGS *settings, char *msg, char *lastPart);
 
 int getCookieRetry (SETTINGS *settings);
+
+int initialCookie(SETTINGS *settings);
+
+char *getCookieToken();
+
+void destroyCookie();
+
+time_t makeTimeGMT(struct tm *tm);
+
 
 #endif /* COOKIE_H_ */

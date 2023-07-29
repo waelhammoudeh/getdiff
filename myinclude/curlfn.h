@@ -1,5 +1,5 @@
 /*
- * curl_func.h
+ * curlfn.h renamed from curl_func.h
  *
  *  Created on: Mar 31, 2021
  *      Author: wael
@@ -12,21 +12,36 @@
 #include  <curl/curl.h>
 #endif
 
+#include "ztError.h"
+
+/* DEFAULT_SERVER : use localhost as default server if needed. **/
+#ifndef DEFAULT_SERVER
+#define DEFAULT_SERVER "http://localhost"
+#endif
 
 /* exported variables - read only */
-extern int curlResponseCode;
-extern int downloadSize;
-extern char  *recErrorMsg;
 
-/* exported variable for raw data file pointer, when set by client raw query
- * result from remote server is written to that open file.
+extern FILE *curlRawDataFP;
+
+extern FILE *curlLogtoFP;
+
+extern long   sizeDownload;
+
+extern char  curlErrorMsg[CURL_ERROR_SIZE + 1];
+
+/* curlRawDataFP or curl raw data file pointer:  when set by client query response
+ * data will written to that client open file.
+ * Client opens the file before a call to performQuery() and closes the file after
+ * the function has returned.
+ *
+ * logtoFP: if set by user, writes selected messages to open file.
  *************************************************************************/
-extern FILE *rawDataFP;
 
 /* To parse URL we use curl_url() which is available since version 7.62.0
  * and curl_url_strerror() which is available since 7.80.0
-    see CURL_VERSION_BITS(x,y,z) macro in curlver.h
-#define MIN_CURL_VER 0x073e00u
+ * see CURL_VERSION_BITS(x,y,z) macro in curlver.h
+ * #define MIN_CURL_VER 0x073e00u
+ *
 ***********************************************************************/
 #define MIN_CURL_VER ((uint) CURL_VERSION_BITS(7,80,0))
 
@@ -54,11 +69,15 @@ int initialCurlSession(void);
 
 void closeCurlSession(void);
 
-CURLU * initialURL (char *server);
+CURLU * initialURL (const char *server);
+
+int isConnCurl(const char *server);
 
 CURL *initialDownload (CURLU *srcUrl, char *secToken);
 
-int download2File (FILE *toFilePtr, CURL *handle);
+int download2File (char *filename, CURL *handle);
+
+char *getCurrentURL();
 
 CURL * initialQuery (CURLU *serverUrl, char *secToken);
 
@@ -69,5 +88,12 @@ void clearInfo (void);
 void getInfo (CURL *handle, CURLcode performResult);
 
 int isOkResponse (char *response, char *header);
+
+int writeLogCurl(FILE *to, char *msg);
+
+int download2FileRetry(char *filename, CURL *handle);
+
+ZT_EXIT_CODE getCurlResponseCode(CURL *handle);
+
 
 #endif /* CURL_FUNC_H_ */

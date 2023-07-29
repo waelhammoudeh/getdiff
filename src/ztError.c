@@ -1,114 +1,330 @@
 /*
  * ztError.c
  *
- *  Created on: Jun 26, 2017
+ *  Created on: Apr 15, 2023
  *      Author: wael
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include "ztError.h"
 
+ZT_ERROR_ENTRY    ztErrorTable[] = {
 
-static char *errorString[] = {
-		"Program terminated normally",
-		"Error: no argument provided for program, requires at least one argument.",
-		"Error: system call getcwd() failed!",
-		"Error: Unknown option specified.",
-		"Error: Multiple function specified.",
-		"Error: Missing argument for specified option",
-		"Error: Invalid argument for specified option",
-		"Error: Inaccessible directory, missing at least one permission [R, W, X]",
-		"Error: Invalid usage of option with specified command",
-		"Error: Specified file or directory does not exist.",
-		"Error: Directory entry is required, provided path is not a directory",
-		"Error: Bad file name, has disallowed character, starts with digit or hyphen",
-		"Error: Missing required read permission",
-		"Error: Argument is not a regular file.",
-		"Error: NULL pointer argument - at least one.",
-		"Error: Open text file for reading",
-		"Error: Unexpected end of file; did not read all expected data",
-		"Error: Miss formatted input text file.",
-		"Error: Read row or column dimension is out of range.",
-		"Error: Could not allocate requested memory size.",
-		"Error: Null pointer error, accessing uninitialized pointer.",
-		"Error: Out of range function parameter, usually an integer",
-		"Error: Bad parameter value for function.",
-		"Error: Invalid input file entry, bad data token",
-		"Error: Attempting to remove from an EMPTY list",
-		"Error: Attempting to remove element next to tail",
-		"Error: Miss match row latitude values",
-		"Error: Parameter list is NOT empty; function expects an empty list",
-		"Error: Binary Tree function returned error .. insert operation failed!",
-		"Error: fwrite error, result does not match sizeof buffer",
-		"Error: Bad file header in data file",
-		"Error: List operation failure",
-		"Error: fread error result does not match sizeof buffer",
-		"Error: Specified file is empty",
-		"Error: Failed system call.",
-		"Error: Malformed command line, extra argument(s) found.",
-		"Error: Fatal error, major error ...",
-		"Error: Tree files are not mergeable.",
-		"Error: Parse function failed. Error with string!?",
-		"Error: Could not retrieve IP number for specified server, spelling?",
-		"Error: Unable to connect to server provided.",
-		"Error: Database name or user too long. MaxLength = 16",
-		"Error: Database can not start with digit, - or _.",
-		"Error: Database name has disallowed character.",
-		"Error: Invalid configuration line; extra token, unrecognized entry name or empty setting.",
-		"Error: Bad - unrecognized help argument; valid arg = [zoneinfo | configure]",
-		"Error: updateSettings() miss matched number of array entries",
-		"Error: Invalid argument for boolean value.",
-		"Error: String line length out of checked range",
-		"Error: String has disallowed character - parse error!",
-		"Error: Bad zone info line; out of range number of tokens",
-		"Error: String or line is too long. Function dependent",
-		"Error: String or line is too short. Function dependent",
-		"Error: A library or system function call returned null.",
-		"Error: Parse function encountered invalid token",
-		"Error: Child process from fork() failed.",
-		"Error: Failed to create file for writing.",
-		"Error: Pointer to function compare not set with initialDL().",
-		"Error: Small hard coded buffer size.",
-		"Error: Invalid HTTP response code from remote server. Server may provide error message",
-		"Error: Argument file was not found.",
-		"Error: Empty string; string length is zero.",
-		"Error: Unrecognized error message by parse function.",
-		"Error: Bad response code, not integer, code includes non-digit character.",
-		"Error: High HTTP response code, higher than 599.",
-		"Error: Python3 executable not found",
-		"Error: Named file is unusable file; failed IsArgUsableFile() call.",
-		"Error: system run out of a resource; memory or full disk.",
-		"Error: Received server response code 403; invalid credential",
-		"Error: Received server response code 429; too many requests",
-		"Error: Received server response code 500; internal server error",
-		"Error: Unhandled HTTP response code by program",
-		"Error: Unknown response code; response was not received."
-		"Error: Failed c library function call."
-		"Error: GPS point not found for structure in query."
-		"Error: Parse function found unrecognized string for a token."
-		"Error: Old libcurl found. Needs upgrade."
-		"Error: Unknown text encountered; not what is expected",
-		"Error: overpass query found zero nodes, no nodes were found.",
-		"Error: overpass query response contains no geometry tag",
+  {ztSuccess,
+   "ztSuccess",
+   "Program terminated normally."},
 
-		"Error: Unknown error.",
-		"Error: Unknown error CODE specified!"
+  {ztMissingArg,
+   "ztMissingArg",
+   "Missing required argument."},
+
+  {ztInvalidArg,
+   "ztInvalidArg",
+   "Invalid argument for specified option."},
+
+  {ztUnknownOption,
+   "ztUnknownOption",
+   "Unknown option specified."},
+
+  {ztOptionMissingArg,
+   "ztOptionMissingArg",
+   "specified option missing required argument."},
+
+  {ztMalformedCML,
+   "ztMalformedCML",
+   "Malformed command line, extra argument(s) found. Please check syntax."},
+
+  {ztStringUnknown,
+   "ztStringUnknown",
+   "Unknown string found, did not match what is expected."},
+
+  {ztEmptyString,
+   "ztEmptyString",
+   "String with string length zero"},
+
+  {ztParseError,
+   "ztParseError",
+   "Parse function failed. String was not as expected."},
+
+  {ztDisallowedChar,
+   "ztDisallowedChar",
+   "Parsed string has disallowed character for that operation."},
+
+  {ztConfInvalidKey,
+   "ztConfInvalidKey",
+   "Invalid Key name in configuration file; unrecognized key name."},
+
+  {ztConfDupKey,
+   "ztConfDupKey",
+   "Found duplicate keys; duplicates are not allowed in configuration file."},
+
+  {ztConfUnregonizedKey,
+   "ztConfUnregonizedKey",
+   "Unrecognized key: key in configuration file but NOT in initialed configure array"	},
+
+  {ztConfInvalidValue,
+   "ztConfInvalidValue",
+   "Invalid value for key in configuration file."},
+
+  {ztConfBadKeyString,
+   "ztConfBadKeyString",
+   "Invalid string for key name, see allowed set"},
+
+  {ztConfInvalidArray,
+   "ztConfInvalidArray",
+   "Configure invalid initial array parameter"},
+
+  {ztConfInvalidType,
+   "ztConfInvalidType",
+   "Configure invalid configure type"},
+
+  {ztOpenFileError,
+   "ztOpenFileError",
+   "Failed to open or create file."},
+
+  {ztFileNotFound,
+   "ztFileNotFound",
+   "Specified file or directory does not exist."},
+
+  {ztNotRegFile,
+   "ztNotRegFile",
+   "Argument is not a regular file - on disk or mass storage."},
+
+  {ztFileEmpty,
+   "ztFileEmpty",
+   "Specified file is empty, has size zero."	},
+
+  {ztUnexpectedEOF,
+   "ztUnexpectedEOF",
+   "Unexpected end of file; function did not read all expected data."},
+
+   {ztEndOfFile,
+    "ztEndOfFile",
+	"End of file is set to non-zero value."},
+
+	{ztFileError,
+     "ztFileError",
+	 "File operation error occured; file error is set."},
+
+  {ztNoLinefeed,
+   "ztNoLinefeed",
+   "No linefeed character at end of string"},
+
+   {ztWriteError,
+    "ztWriteError",
+	"Failed write operation, did not write whole string to file."
+   },
+
+   {ztMalformedFile,
+    "ztMalformedFile",
+	"Malformed file format; file contents are not as expected"
+   },
+
+  {ztFnameLong,
+   "ztFnameLong",
+   "Filename is longer than 255 characters or path string is too longer than 4096 characters."},
+
+  {ztFnameDisallowed,
+   "ztFnameDisallowed",
+   "Name has disallowed character; allowed: [alphabets (upper & lower) -_.]"},
+
+  {ztFnameHyphen,
+   "ztFnameHyphen",
+   "Hyphen character '-' can not be first or last in filename or path part."},
+
+  {ztFnameUnderscore,
+   "ztFnameUnderscore",
+   "Underscore character '_' can not be first or last in filename or path part."},
+
+  {ztFnamePeriod,
+   "ztFnamePeriod",
+   "Period character '.' can not be last in filename or path part."},
+
+  {ztFnameMultiSlashes,
+   "ztFnameMultiSlashes",
+   "Double or multiple slashes are not allowed in path."},
+
+  {ztFnameSlashEnd,
+   "ztFnameSlashEnd",
+   "Filename can not end with a slash character"},
+
+  {ztStrNotPath,
+   "ztStrNotPath",
+   "String is not a valid absolute path - must start with a slash; filename is assumed 'absolute path + filename'!"
+  },
+
+  {ztNoRelativePath,
+   "ztNoRelativePath",
+   "Relative paths are not allowed, no path expansion or substitution is done"
+  },
+
+  {ztPathNotDir,
+   "ztPathNotDir",
+   "Specified path is not a directory in the file system."},
+
+  {ztInaccessibleDir,
+   "ztInaccessibleDir",
+   "Inaccessible directory, missing at least one permission [Read, Write, eXecute]"},
+
+  {ztInaccessibleFile,
+   "ztInaccessibleFile",
+   "Inaccessible file, missing at least one permission [Read, Write, eXecute]"},
+
+   {ztNotExecutableFile,
+    "ztNotExecutableFile",
+	"File is NOT executable by the effective user"},
+
+  {ztNoReadPerm,
+   "ztNoReadPerm",
+   "File or directory missing required read permission."},
+
+  {ztFailedSysCall,
+   "ztFailedSysCall",
+   "Failed system call function."},
+
+  {ztChildProcessFailed,
+   "ztChildProcessFailed",
+   "Child process terminated with an error."},
+
+   {ztFailedLibCall,
+    "ztFailedLibCall",
+	"Failed external library call or function."},
+
+   {ztFailedDownload,
+	"ztFailedDownload",
+	"Failed curl_easy_perform() curl library function; (result != CURLE_OK)"},
+
+   {ztBadSizeDownload,
+    "ztBadSizeDownload",
+	"Failed size test for download; file disk size did not match sizeHeader or sizeDownload"},
+
+  {ztMemoryAllocate,
+   "ztMemoryAllocate",
+   "Memory allocation failure. Failed to allocate requested memory."},
+
+  {ztListEmpty,
+   "ztListEmpty",
+   "List is empty - list size is zero - while function expects non-zero size."},
+
+  {ztListNotEmpty,
+   "ztListNotEmpty",
+   "List is NOT empty - list size is NOT zero - while function expects zero size list."},
+
+  {ztNoConnNet,
+   "ztNoConnNet",
+   "No network or internet connection."},
+
+  {ztNoConnDB,
+   "ztNoConnDB",
+   "Failed to connect to database server."},
+
+   {ztResponse301,
+    "ztResponse301",
+	"Server response code 301: Requested resource Moved Permanently"},
+
+  {ztResponse400,
+   "ztResponse400",
+   "Server response code 400: [Bad Request] Server did not understand us, query syntax error."},
+
+  {ztResponse403,
+   "ztResponse403",
+   "Server response code 403: [Forbidden] Invalid credential; wrong user name or password."},
+
+  {ztResponse404,
+   "ztResponse404",
+   "Server response code 404: [Not Found] Requested resource (file) was not found by this server."},
+
+  {ztResponse429,
+   "ztResponse429",
+   "Server response code 429: [Too Many Requests] Too many downloads in short time. DO NOT DO THIS PLEASE."},
+
+  {ztResponse500,
+   "ztResponse500",
+   "Server response code 500: [Internal Server Error] Server is busy or overpass dispatcher is not running."},
+
+  {ztResponse503,
+   "ztResponse503",
+   "Server response code 503: [Server Unavailable Now] Server is not available now; overloaded?"},
+
+  {ztResponseUnknown,
+   "ztResponseUnknown",
+   "Server response code is not known to us. Failed to retrieve server response code!"},
+
+  {ztResponseUnhandled,
+   "ztResponseUnhandled",
+   "Server response code is NOT handled by this program, add a case for it."},
+
+  {ztNotCookieFile,
+   "ztNotCookieFile",
+   "File is not Geofabrik.de cookie file."},
+
+  {ztNoCookieToken,
+   "ztNoCookieToken",
+   "Missing cookie token, failed getCookieToken() with NULL result"},
+
+  {ztNoSession,
+   "ztNoSession",
+   "No session was initialed"},
+
+  {ztOldCurl,
+   "ztOldCurl",
+   "Old curl library version found. Please check minimum required version."},
+
+  {ztQuerySyntax,
+   "ztQuerySyntax",
+   "Query syntax error reported by server with response code 400."},
+
+  {ztNoNodesFound,
+   "ztNoNodesFound",
+   "Function query4Crossing() may return this with zero nodes returned from server."},
+
+  {ztNoGeometryFound,
+   "ztNoGeometryFound",
+   "Function query4Path() may return this value when server response has zero geometry."},
+
+  {ztBadSegment,
+   "ztBadSegment",
+   "Malformed SEGMENT with one single point."},
+
+  {ztUndefinedSlope,
+   "ztUndefinedSlope",
+   "Undefined slope: this IS to avoid division by zero. Check longitude difference between points."},
+
+  {ztFatalError,
+   "ztFatalError",
+   "Program or function encountered a fatal error; could not continue and terminates."	},
+
+  {ztUnknownError,
+   "ztUnknownError",
+   "Error: Unknown error."},
+
+  {ztUnknownCode,
+   "ztUnknownCode",
+   "Error: Unknown error CODE specified!"},
+
+  {-1777,
+   NULL,
+   NULL}
+
 };
 
 
-char* code2Msg(int code){
+char* ztCode2Msg(int code){
 
-	char *msg;
+  static char *msg;
 
-	if (code < 0 || code > MAX_ERR_CODE){
-		msg = errorString[MAX_ERR_CODE];
-		return msg;
-	}
+  if (code < 0 || code > MAX_ERROR_CODE){
 
-	msg = errorString[code];
+    msg = strdup(ztErrorTable[MAX_ERROR_CODE].description);
+    return msg;
+  }
 
-	return msg;
-}
+  msg = strdup(ztErrorTable[code].description);
+
+  return msg;
+
+} /* END ztCode2Msg() **/
 
 

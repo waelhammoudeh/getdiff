@@ -1,7 +1,7 @@
 /*
  * parse.h
  *
- *  Created on: Feb 7, 2022
+ *  Created on: Apr 14, 2023
  *      Author: wael
  */
 
@@ -9,5 +9,6 @@
 #define PARSE_H_
 
 int parseCmdLine(SETTINGS *ptrSetting, int argc, char* const argv[]);
+
 
 #endif /* PARSE_H_ */

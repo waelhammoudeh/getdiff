@@ -5,28 +5,30 @@
  *
  *		Source: Mastering Algorithms with C by Kyle Loudon. O'Reilly
  *
+ *		D: is for double-linked list; element has pointers to next & previous element.
+ *
  ****************************************************************************/
-#include <list.h>
+
 #include <stdlib.h>
 #include <string.h>
-
-#include "util.h" /* for ASSERTARGS() */
 #include "ztError.h"
+#include "list.h"
+#include "util.h"
 
 /* initialDL(): initials double linked list, caller allocates memory for list */
 void initialDL (DLIST *list,
-				void (*destroy) (void **data),
-				int (*compare) (const char *str1, const char *str2)){
+		void (*destroy) (void **data),
+		int (*compare) (const char *str1, const char *str2)){
 
-	ASSERTARGS(list); //function pointers (destroy & compare) can be NULL
+  ASSERTARGS(list); //function pointers (destroy & compare) can be NULL
 
-	list->size = 0;
-	list->destroy = destroy;
-	list->compare = compare;
-	list->head = NULL;
-	list->tail = NULL;
+  list->size = 0;
+  list->destroy = destroy;
+  list->compare = compare;
+  list->head = NULL;
+  list->tail = NULL;
 
-	return;
+  return;
 
 }  /* END initialDL() */
 
@@ -41,105 +43,105 @@ void initialDL (DLIST *list,
 
 int insertNextDL (DLIST *list, ELEM *nextTo, const void *data) {
 
-	ELEM *newElem;
+  ELEM *newElem;
 
-	ASSERTARGS(list && data); // abort() if NULL
+  ASSERTARGS(list && data); // abort() if NULL
 
-	/* NULL is not allowed when list is not empty. Will be confusing because
-	 * we have insertPrevDL() function; both functions add new element as
-	 * head when nextTo is NULL only if list is EMPTY. */
-	if (nextTo == NULL && DL_SIZE(list) != 0){
-		printf ("insertNextDL(): Error null nextTo AND empty list not allowed.\n");
-		return ztListNotEmpty;
-	}
+  /* NULL is not allowed when list is not empty. Will be confusing because
+   * we have insertPrevDL() function; both functions add new element as
+   * head when nextTo is NULL only if list is EMPTY. */
+  if (nextTo == NULL && DL_SIZE(list) != 0){
+    printf ("insertNextDL(): Error null nextTo AND empty list not allowed.\n");
+    return ztListNotEmpty;
+  }
 
-	/* allocate memory for newElem */
-	newElem = (ELEM *) malloc (sizeof(ELEM));
-	if (newElem == NULL )
+  /* allocate memory for newElem */
+  newElem = (ELEM *) malloc (sizeof(ELEM));
+  if (newElem == NULL )
 
-		return ztMemoryAllocate;
+    return ztMemoryAllocate;
 
-	memset(newElem, 0, sizeof(ELEM));
+  memset(newElem, 0, sizeof(ELEM));
 
-	newElem->data = (void *) data; // set data member
+  newElem->data = (void *) data; // set data member
 
-	if (DL_SIZE(list) == 0) {   /* empty list, insert as head */
+  if (DL_SIZE(list) == 0) {   /* empty list, insert as head */
 
-		list->head = newElem;
-		list->tail = newElem;
-		list->head->prev = NULL;
-		list->head->next = NULL;
-	}
-	else {                      /* list is NOT empty */
+    list->head = newElem;
+    list->tail = newElem;
+    list->head->prev = NULL;
+    list->head->next = NULL;
+  }
+  else {                      /* list is NOT empty */
 
-		newElem->next = nextTo->next;
-		newElem->prev = nextTo;
+    newElem->next = nextTo->next;
+    newElem->prev = nextTo;
 
-		if (nextTo->next == NULL)  /* adding newElem next to tail  */
-			list->tail = newElem;
-		else
-			nextTo->next->prev = newElem;
+    if (nextTo->next == NULL)  /* adding newElem next to tail  */
+      list->tail = newElem;
+    else
+      nextTo->next->prev = newElem;
 
-		nextTo->next = newElem;
+    nextTo->next = newElem;
 
-	}   /* end else */
+  }   /* end else */
 
-	list->size++;
+  list->size++;
 
-	return ztSuccess;
+  return ztSuccess;
 
 }  // END insertNextDL()
 
 int insertPrevDL (DLIST *list, ELEM *before, const void *data) {
 
-	ELEM *newElem;
+  ELEM *newElem;
 
-	ASSERTARGS (list && data);
+  ASSERTARGS (list && data);
 
-	/* NULL is not allowed when list is not empty. Will be confusing because
-	 * we have insertNextDL() function; both functions add new element as
-	 * head when before is NULL only if list is EMPTY. */
-	if (before == NULL && DL_SIZE(list) != 0){
-		printf ("insertPrevDL(): Error null before AND empty list not allowed.\n");
-		return ztListNotEmpty;
-	}
+  /* NULL is not allowed when list is not empty. Will be confusing because
+   * we have insertNextDL() function; both functions add new element as
+   * head when before is NULL only if list is EMPTY. */
+  if (before == NULL && DL_SIZE(list) != 0){
+    printf ("insertPrevDL(): Error null before AND empty list not allowed.\n");
+    return ztListNotEmpty;
+  }
 
-	/* allocate memory for newElem */
-	newElem = (ELEM *) malloc (sizeof(ELEM));
-	if (newElem == NULL )
+  /* allocate memory for newElem */
+  newElem = (ELEM *) malloc (sizeof(ELEM));
+  if (newElem == NULL )
 
-		return ztMemoryAllocate;
+    return ztMemoryAllocate;
 
-	memset(newElem, 0, sizeof(ELEM));
+  memset(newElem, 0, sizeof(ELEM));
 
-	newElem->data = (void *) data; // set data member
+  newElem->data = (void *) data; // set data member
 
-	// insert new element
-	if (DL_SIZE(list) == 0) {   /* empty list */
+  // insert new element
+  if (DL_SIZE(list) == 0) {   /* empty list */
 
-		list->head = newElem;
-		list->tail = newElem;
-		list->head->prev = NULL;
-		list->head->next = NULL;
-	}
+    list->head = newElem;
+    list->tail = newElem;
+    list->head->prev = NULL;
+    list->head->next = NULL;
+  }
 
-	else {
+  else {
 
-		newElem->next = before;
-		newElem->prev = before->prev;
+    newElem->next = before;
+    newElem->prev = before->prev;
 
-		if (before->prev == NULL)
-			list->head = newElem;
-		else
-			before->prev->next = newElem;
+    if (before->prev == NULL)
+      list->head = newElem;
+    else
+      before->prev->next = newElem;
 
-		before->prev = newElem;
+    before->prev = newElem;
 
-	}   /* end else */
+  }   /* end else */
 
-	list->size++;
+  list->size++;
 
-	return ztSuccess;
+  return ztSuccess;
 
 }  // END insertPrevDL()
 
@@ -152,76 +154,78 @@ int insertPrevDL (DLIST *list, ELEM *before, const void *data) {
 
 int removeDL (DLIST *list, ELEM *element, void **data) {
 
-	if (element == NULL || DL_SIZE(list) == 0){
-		printf ("removeDL(): Error NULL element OR empty list.\n");
-		return ztInvalidArg;
-	}
+  *data = NULL; /* if we fail, this is what you get **/
 
-	*data = element->data; //set pointer
+  if (element == NULL || DL_SIZE(list) == 0){
+    printf ("removeDL(): Error NULL element OR empty list.\n");
+    return ztInvalidArg;
+  }
 
-	if (element == list->head) {  /* remove head */
+  *data = element->data; //set pointer
 
-		list->head = element->next;
+  if (element == list->head) {  /* remove head */
 
-		if (list->head == NULL)
-			list->tail = NULL;
-		else
-			element->next->prev = NULL;
+    list->head = element->next;
 
-	}   /* end if */
+    if (list->head == NULL)
+      list->tail = NULL;
+    else
+      element->next->prev = NULL;
 
-	else { //other than head
+  }   /* end if */
 
-		element->prev->next = element->next;
+  else { //other than head
 
-		if (element->next == NULL)
-			list->tail = element->prev;
-		else
-			element->next->prev = element->prev;
+    element->prev->next = element->next;
 
-	}
+    if (element->next == NULL)
+      list->tail = element->prev;
+    else
+      element->next->prev = element->prev;
 
-/** we should be able to free this! but I get:
-	corrupted size vs. prev_size
-	Aborted
+  }
 
-	current GCC v. 10.2.0 & glibc-2.32 FIXME
+  /** we should be able to free this! but I get:
+      corrupted size vs. prev_size
+      Aborted
 
-	free(element);
-	we allocated memory for it when inserting --
-	ADDED back call to free on 1/17/2022 w.h seems okay now!?
-**/
+      current GCC v. 10.2.0 & glibc-2.32 FIXME
 
-	free(element);
+      free(element);
+      we allocated memory for it when inserting --
+      ADDED back call to free on 1/17/2022 w.h seems okay now!?
+  **/
 
-	list->size--;
+  free(element);
 
-	return ztSuccess;
+  list->size--;
+
+  return ztSuccess;
 
 }  /*  END removeDL()  */
 
 void destroyDL (DLIST *list) {
 
-	void			*data;
+  void			*data;
 
-	ASSERTARGS (list);
+  ASSERTARGS (list);
 
-	while (list->size > 0){
+  while (list->size > 0){
 
-		if (removeDL (list, DL_TAIL(list),  (void **) &data) == ztSuccess && list->destroy ){
-			if (data)
-				list->destroy ((void**) &data);
-		}
-	}
+    if (removeDL (list, DL_TAIL(list),  (void **) &data) == ztSuccess && list->destroy ){
+      if (data)
+	list->destroy ((void**) &data);
+    }
+  }
 
-	memset (list, 0, sizeof(DLIST));
+  memset (list, 0, sizeof(DLIST));
 
-	return;
+  return;
 
 }  /* END destroyDL()  */
 
 /* ListInsertInOrder(): function to insert string in doubly linked list in
- * Alphabetical order.
+ * Alphabetical order - really ASCII character order.
  * We have THREE cases to consider:
  * 1) List is empty; just add string as head.
  * 2) List with one element; add string before or after the only element.
@@ -232,113 +236,242 @@ void destroyDL (DLIST *list) {
  */
 int ListInsertInOrder (DLIST *list, char *str){
 
-	ELEM		*start, *end;
-	int  		added = 0;
-	int			result;
+  ELEM   *start, *end;
+  int    added = 0;
+  int    result;
 
-	ASSERTARGS (list && str);
+  ASSERTARGS (list && str);
 
-	if (strlen(str) == 0)    /* do not allow empty string element */
+  if (strlen(str) == 0)    /* do not allow empty string element */
 
-		return ztSuccess;
+    return ztSuccess;
 
-	if (DL_SIZE(list) == 0){  /* empty list; add str as head and we are done  */
+  if (DL_SIZE(list) == 0){  /* empty list; add str as head and we are done  */
 
-		result = insertNextDL (list, DL_HEAD(list), str);
-		if (result != ztSuccess){
-			printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
-			printf("Message: %s\n\n", code2Msg(result));
-		}
-		return result;
-	}
+    result = insertNextDL (list, DL_HEAD(list), str);
+    if (result != ztSuccess){
+      printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
+      printf("Message: %s\n\n", ztCode2Msg(result));
+    }
+    return result;
+  }
 
-	if ( DL_SIZE(list) == 1 ) {   /* one element list; compare and add, we are done */
+  if ( DL_SIZE(list) == 1 ) {   /* one element list; compare and add, we are done */
 
-		if ( strcmp(list->head->data, str) == 0 )
+    if ( strcmp(list->head->data, str) == 0 )
 
-			return ztSuccess; /* do not allow duplicate */
+      return ztSuccess; /* do not allow duplicate */
 
-		else if ( strcmp(list->head->data, str) < 0 )
+    else if ( strcmp(list->head->data, str) < 0 )
 
-			result = insertNextDL (list, DL_HEAD(list), str);
+      result = insertNextDL (list, DL_HEAD(list), str);
 
-		else
+    else
 
-			result = insertPrevDL (list, DL_HEAD(list), str);
+      result = insertPrevDL (list, DL_HEAD(list), str);
 
-		if (result != ztSuccess){
-			printf("ListInsertInOrder(): Error returned by insert NEXT or PREV().\n");
-			printf("Message: %s\n\n", code2Msg(result));
-		}
+    if (result != ztSuccess){
+      printf("ListInsertInOrder(): Error returned by insert NEXT or PREV().\n");
+      printf("Message: %s\n\n", ztCode2Msg(result));
+    }
 
-		return result;
-	}
+    return result;
+  }
 
-	/* list has multiple elements  */
+  /* list has multiple elements  */
 
-	start = DL_HEAD (list);
-	end = DL_TAIL (list);
+  start = DL_HEAD (list);
+  end = DL_TAIL (list);
 
-	if ( (strcmp (str, start->data) == 0) || (strcmp (str, end->data) == 0) )
+  if ( (strcmp (str, start->data) == 0) || (strcmp (str, end->data) == 0) )
 
-		return ztSuccess; /* do not allow duplicate */
+    return ztSuccess; /* do not allow duplicate */
 
-	/* if str < list head; add it before and we are done */
-	if ( strcmp (str, start->data) < 0 ) {
+  /* if str < list head; add it before and we are done */
+  if ( strcmp (str, start->data) < 0 ) {
 
-		result = insertPrevDL (list, start, str);
-		if (result != ztSuccess){
-			printf("ListInsertInOrder(): Error returned by insertPrevDL().\n");
-			printf("Message: %s\n\n", code2Msg(result));
-		}
-		return result;
-	}
+    result = insertPrevDL (list, start, str);
+    if (result != ztSuccess){
+      printf("ListInsertInOrder(): Error returned by insertPrevDL().\n");
+      printf("Message: %s\n\n", ztCode2Msg(result));
+    }
+    return result;
+  }
 
-	/* if str > list tail; add it after the tail and we are done */
-	else if ( strcmp (str, end->data) > 0) {
+  /* if str > list tail; add it after the tail and we are done */
+  else if ( strcmp (str, end->data) > 0) {
 
-		result = insertNextDL (list, end, str);
-		if (result != ztSuccess){
-			printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
-			printf("Message: %s\n\n", code2Msg(result));
-		}
-		return result;
-	}
+    result = insertNextDL (list, end, str);
+    if (result != ztSuccess){
+      printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
+      printf("Message: %s\n\n", ztCode2Msg(result));
+    }
+    return result;
+  }
 
-	while ( start && start->next ){
+  while ( start && start->next ){
 
-		/* do not insert duplicate */
-		if ( (strcmp (str, start->data) == 0 ) || (strcmp (str, start->next->data) == 0) )
+    /* do not insert duplicate */
+    if ( (strcmp (str, start->data) == 0 ) || (strcmp (str, start->next->data) == 0) )
 
-			return ztSuccess;
+      return ztSuccess;
 
-		/* does str fit between two adjacent element? */
-		if ( (strcmp (str, start->data) > 0 ) && (strcmp(str, start->next->data) < 0) ){
+    /* does str fit between two adjacent element? */
+    if ( (strcmp (str, start->data) > 0 ) && (strcmp(str, start->next->data) < 0) ){
 
-			result = insertNextDL (list, start, str);
-			if (result != ztSuccess){
-				printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
-				printf("Message: %s\n\n", code2Msg(result));
-			}
+      result = insertNextDL (list, start, str);
+      if (result != ztSuccess){
+	printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
+	printf("Message: %s\n\n", ztCode2Msg(result));
+      }
 
-			added = 1;
-			return result;
-		}
+      added = 1;
+      return result;
+    }
 
-		start = DL_NEXT(start);
+    start = DL_NEXT(start);
 
-	}   /* end while */
+  }   /* end while */
 
-	if( ! added ){ // insert next to tail
+  if( ! added ){ // insert next to tail
 
-		result = insertNextDL(list, DL_TAIL(list), str);
-		if (result != ztSuccess){
-			printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
-			printf("Message: %s\n\n", code2Msg(result));
-		}
-		return result;
-	}
+    result = insertNextDL(list, DL_TAIL(list), str);
+    if (result != ztSuccess){
+      printf("ListInsertInOrder(): Error returned by insertNextDL().\n");
+      printf("Message: %s\n\n", ztCode2Msg(result));
+    }
+    return result;
+  }
 
-	return ztSuccess;   /* we never get to this point!!  */
+  return ztSuccess;   /* we never get to this point!!  */
 
 }   /* END ListInsertInOrder() */
+
+STRING_LIST *initialStringList(){
+
+  STRING_LIST *newList;
+
+  newList = (STRING_LIST *) malloc(sizeof(STRING_LIST));
+  if (! newList ){
+    fprintf(stderr, "initialStringList(): Error allocating memory.\n");
+    return newList;
+  }
+
+  initialDL((DLIST *) newList, NULL, NULL);
+  newList->listType = STRING_LT;
+
+  return newList;
+
+} /* END initialStringList() */
+
+GPS_LIST *initialGpsList(){
+
+  GPS_LIST *newGpsList;
+
+  newGpsList = (GPS_LIST *) malloc(sizeof(GPS_LIST));
+  if (! newGpsList ){
+    fprintf(stderr, "initialGpsList(): Error allocating memory.\n");
+    return newGpsList;
+  }
+
+  initialDL((DLIST *) newGpsList, NULL, NULL);
+  newGpsList->listType = GPS_LT;
+
+  return newGpsList;
+
+} /* END initialGpsList() */
+
+void zapGpsList(void **gpsList){
+
+  GPS_LIST    *list;
+
+  ASSERTARGS(gpsList);
+
+  list = (GPS_LIST *) *gpsList;
+
+  if ( ! list )
+
+    return;
+
+  if (list->listType != GPS_LT)
+
+    return;
+
+
+  destroyDL(list);
+  memset(list, 0, sizeof(GPS_LIST));
+  free(list);
+  list = NULL;
+
+  return;
+
+} /* END zapGpsList() */
+
+SEGMENT *initialSegment(){
+
+  SEGMENT *newSeg;
+
+  newSeg = (SEGMENT *)malloc(sizeof(SEGMENT));
+  if (! newSeg){
+    fprintf(stderr, "initialSegment(): Error allocating memory.\n");
+    return newSeg;
+  }
+
+  initialDL(newSeg, NULL, NULL);
+  newSeg->listType = SEGMENT_LT;
+
+  return newSeg;
+
+} /* END initialSegment() */
+
+GEOMETRY *initialGeometry(){
+
+  GEOMETRY *newG;
+
+  newG = (GEOMETRY *)malloc(sizeof(GEOMETRY));
+  if (! newG){
+    fprintf(stderr, "initialGeometry(): Error allocating memory.\n");
+    return newG;
+  }
+
+  initialDL(newG, NULL, NULL);
+  newG->listType = GEOMETRY_LT;
+
+  return newG;
+
+} /* END initialGeometry() */
+
+POLYGON *initialPolygon(){
+
+  POLYGON *newPoly;
+
+  newPoly = (POLYGON *)malloc(sizeof(POLYGON));
+  if (! newPoly){
+    fprintf(stderr, "initialPolygon(): Error allocating memory.\n");
+    return newPoly;
+  }
+
+  initialDL((DLIST *)newPoly, NULL, NULL);
+  newPoly->listType = POLYGON_LT;
+
+  return newPoly;
+
+} /* END initialPolygon() */
+
+FRQNCY_LIST *initialFrqncyList(){
+
+  FRQNCY_LIST *newFL;
+
+  newFL = (FRQNCY_LIST *)malloc(sizeof(FRQNCY_LIST));
+  if (! newFL){
+    fprintf(stderr, "initialFrqncyList(): Error allocating memory.\n");
+    return newFL;
+  }
+
+  initialDL((DLIST *)newFL, NULL, NULL);
+  newFL->listType = FRQNCY_LT;
+
+  return newFL;
+
+} /* END initialFrqncyList() */
+

@@ -1,104 +1,117 @@
 /*
  * ztError.h
  *
- *  Created on: Jun 26, 2017
+ *  Created on: Apr 15, 2023
  *      Author: wael
  */
 
-#ifndef ZTERROR_H_
-#define ZTERROR_H_
+#ifndef ZTERROR_H_INCLUDED
+#define ZTERROR_H_INCLUDED
 
 /* return enumerated types codes */
-typedef enum {
-	ztSuccess,
-	ztMissingArgError,
-	ztSystemGetcwdError,
-	ztUnknownOption,
-	ztMultipleFunctions,
-	ztMissingOptionArg,
-	ztInvalidArg,
-	ztInaccessibleDir,
-	ztInvalidUsage,
-	ztNotFound,
-	ztPathNotDir,
-	ztBadFileName,
-	ztNoReadPerm,
-	ztNotRegFile,
-	ztNullArg,
-	ztOpenFileError,
-	ztUnexpectedEOF,
-	ztMissFormatFile,
-	ztOutOfRangeDim,
-	ztMemoryAllocate,
-	ztNullPointer,
-	ztOutOfRangePara,
-	ztBadParam,
-	ztInvalidFileEntry,
-	ztListEmpty,
-	ztRemoveNextToTail,
-	ztMissMatchRow,
-	ztListNotEmpty,
-	ztErrorTreeFunc,
-	ztWriteError,
-	ztBadFileHeader,
-	ztListOperationFailure,
-	ztReadError,
-	ztFileEmpty,
-	ztFailedSysCall,
-	ztMalformedCmndLine,
-	ztFatalError,
-	ztNonMerge,
-	ztParseError,
-	ztParseNoIP,
-	ztNoConnError,
-	ztDBname2long,
-	ztDBnameStartEr,
-	ztDBnameBadChr,
-	ztInvalidConf,
-	ztBadHelpArg,
-	ztUpdateSettingError,
-	ztInvalidBoolArg,
-	ztLineLengthError,
-	ztDisallowedChar,
-	ztBadLineZI,
-	ztStrTooLong,
-	ztStrTooShort,
-	ztGotNull,
-	ztInvalidToken,
-	ztChildProcessFailed,
-	ztCreateFileErr,
-	ztCompareNotSet,
-	ztSmallBuf,
-	ztInvalidResponse,
-	ztFileNotFound,
-	ztEmptyString,
-	ztUnrecognizedMsg,
-	ztBadResponse,
-	ztHighResponse,
-	ztPyExecNotFound,
-	ztUnusableFile,
-	ztOutResource,
-	ztResponse403,
-	ztResponse429,
-	ztResponse500,
-	ztResponseUnhandled,
-	ztResponseUnknown,
-	ztFailedLibraryCall,
-	ztGpsNotFound,
-	ztUnrecognizedToken,
-	ztOldCurl,
-	ztUnknownText,
-	ztNoNodesFound,
-	ztNoGeometryFound,
+typedef enum ZT_EXIT_CODE_ {
 
-	ztUnknownError,
-	ztUnknownCode /* LAST ERROR */
+  ztSuccess = 0,
+  ztMissingArg,
+  ztInvalidArg,
+  ztUnknownOption,
+  ztOptionMissingArg,
+  ztMalformedCML,
+  ztStringUnknown,
+  ztEmptyString,
 
-} ztExitCodeType;
+  ztParseError,
+  ztDisallowedChar,
 
-#define MAX_ERR_CODE ztUnknownCode
+  ztConfInvalidKey,
+  ztConfDupKey,
+  ztConfUnregonizedKey,
+  ztConfInvalidValue,
+  ztConfBadKeyString,
+  ztConfInvalidArray,
+  ztConfInvalidType,
 
-char* code2Msg(int code);
+  ztOpenFileError,
+  ztFileNotFound,
+  ztNotRegFile,
+  ztFileEmpty,
+  ztUnexpectedEOF,
+  ztEndOfFile,
+  ztFileError,
+  ztNoLinefeed,
+  ztWriteError,
+  ztMalformedFile,
+
+  ztFnameLong,
+  ztFnameDisallowed,
+  ztFnameHyphen,
+  ztFnameUnderscore,
+  ztFnamePeriod,
+  ztFnameMultiSlashes,
+  ztFnameSlashEnd,
+
+  ztStrNotPath,
+  ztNoRelativePath,
+  ztPathNotDir,
+  ztInaccessibleDir,
+  ztInaccessibleFile,
+  ztNotExecutableFile,
+  ztNoReadPerm,
+  ztFailedSysCall,
+  ztChildProcessFailed,
+  ztFailedLibCall,
+
+  ztFailedDownload,
+  ztBadSizeDownload,
+
+  ztMemoryAllocate,
+  ztListEmpty,
+  ztListNotEmpty,
+
+  ztNoConnNet,
+  ztNoConnDB,
+
+  ztResponse301,
+
+  ztResponse400,
+  ztResponse403,
+  ztResponse404,
+  ztResponse429,
+  ztResponse500,
+  ztResponse503,
+  ztResponseUnknown,
+  ztResponseUnhandled,
+
+  ztNotCookieFile,
+  ztNoCookieToken,
+
+  ztNoSession,
+  ztOldCurl,
+  ztQuerySyntax,
+  ztNoNodesFound,
+  ztNoGeometryFound,
+  ztBadSegment,
+  ztUndefinedSlope,
+
+  ztFatalError,
+
+  ztUnknownError,
+  ztUnknownCode /* LAST ERROR */
+
+} ZT_EXIT_CODE;
+
+#define MAX_ERROR_CODE ztUnknownCode
+
+typedef struct ZT_ERROR_ENTRY_{
+
+  ZT_EXIT_CODE    errorCode;
+  char    *errString;
+  char    *description;
+
+} ZT_ERROR_ENTRY;
+
+
+char* ztCode2Msg(int code);
 
 
 #endif /* ZTERROR_H_ */

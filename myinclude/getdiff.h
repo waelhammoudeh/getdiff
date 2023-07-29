@@ -1,56 +1,135 @@
-/*
- * getdiff.h
- *
- *  Created on: Feb 7, 2022
- *      Author: wael
- */
-
 #ifndef GETDIFF_H_
 #define GETDIFF_H_
 
-#include "list.h"
 #include "configure.h"
 #include <curl/curl.h>
+#include <time.h>
 
-#define MAX_NAME_LENGTH 64
+/* version number is a string! **/
+#define VERSION "0.01.0"
 
-extern	 char	*progName;
-extern int		flagVerbose;
+/* maximum allowed number of change files to download per invocation **/
+#define MAX_OSC_DOWNLOAD 61
+#define SLEEP_INTERVAL 1
+
+#ifndef MAX_USER_NAME
+#define MAX_USER_NAME 64
+#endif
+
+#define PATH_PART_LENGTH 1024
+
+extern  char    *progName;
+extern  int     fVerbose;
 
 typedef struct SETTINGS_ {
 
-	char		*usr; // OSM account user name
-	char		*psswd;
-	char		*src;
-	char		*dst;
-	char		*workDir;
-	char		*conf;
-	char		*start;
-	char		*startFile;
-	char		*tstSrvr;
-	char		*scriptFile;
-	char		*jsonFile;
-	char		*cookieFile;
-	char		*logFile;
-	char		*htmlFile;
-	char		*indexListFile;
-	char		*verbose;
-	char		*newerFile;
+  char   *usr;
+  char   *pswd;
+  char   *source;
+  char   *rootWD;
+  char   *workDir;
+  char   *diffDir;
+  char   *confFile;
+  char   *logFile;
+  char   *newDiffersFile;
+
+  char   *scriptFile;
+  char   *jsonFile;
+  char   *cookieFile;
+
+  char   *startNumber;
+
+  char   *prevStateFile;
+  char   *latestStateFile;
+  char   *prevSeqFile;
+
+  char   *htmlFile;
+
+  char   *tstSrvr;
+  int    noNewDiffers;
+  int    verbose;
+  int    textOnly; /* flag, when set download 'state.txt' files only; no change files! **/
 
 } SETTINGS;
 
+
+typedef struct PATH_PARTS_ {
+
+  char   path[13];
+  char   childPath[10];
+  char   parentPath[6];
+
+  char   parentEntry[4];
+  char   childEntry[4];
+  char   file[4];
+
+} PATH_PARTS;
+
+
+typedef struct STATE_INFO_{
+
+  struct tm timestampTM;
+  char      *sequenceNumber;
+  char      *originalSequenceOSM; /* not used **/
+
+  time_t     timeValue;
+  PATH_PARTS *pathParts;
+
+} STATE_INFO;
+
+
 void printSettings(FILE *toFile, SETTINGS *settings);
+
+char *appendName2Path(char const *path, char const *name);
 
 int updateSettings (SETTINGS *settings, CONF_ENTRY confEntries[]);
 
-int readStart_Id (char **dest, char *filename);
+int setFilenames(SETTINGS *settings);
 
-int writeStart_Id (char *idStr, char *filename);
+int isOkaySource(CURLU *curlSourceHandle);
 
-int logMessage (FILE *to, char *txt);
+int logMessage(FILE *to, char *msg);
 
-int writeNewerFile (char const *toFile, ELEM *startElem, DLIST *fromList);
+int stateFile2StateInfo(STATE_INFO *stateInfo, const char *filename);
 
-int download2FileRetry (FILE *toFilePtr, CURL *handle);
+int isStateFileList(STRING_LIST *list);
+
+int parseTimestampLine(struct tm *tmStruct, char *timeString);
+
+int parseSequenceLine(char **sequenceString, const char *line);
+
+int isGoodSequenceString(const char *string);
+
+int readStartID(char **idString, char *filename);
+
+int writeStartID (char *idStr, char *filename);
+
+//int myDownload(CURLU *parseHandle, CURL *downloadHandle, char *remotePathSuffix, char *localFile);
+int myDownload(char *remotePathSuffix, char *localFile);
+
+int seq2PathParts(PATH_PARTS *pathParts, const char *sequenceStr);
+
+void printPathParts(PATH_PARTS *pp);
+
+STATE_INFO *initialStateInfo();
+
+int getNewDiffersList(STRING_LIST *downloadList, PATH_PARTS *startPP,
+		             PATH_PARTS *latestPP, SETTINGS *settings, int includeStartFiles);
+
+int insertFileWithPath(STRING_LIST *toList, ELEM *startElem, char *path);
+
+int downloadFiles(STRING_LIST *completed, STRING_LIST *downloadList, SETTINGS *settings);
+
+int makeOsmDir(PATH_PARTS *startPP, PATH_PARTS *latestPP, const char *rootDir);
+
+void printfWriteMsg(char *msg,FILE *tof);
+
+int writeNewerFiles(char const *toFile, STRING_LIST *list);
+
+int getHeader(const char *tofile, const char *pathSuffix);
+
+int getListHeaders(STRING_LIST *list, SETTINGS *settings);
+
+
 
 #endif /* GETDIFF_H_ */

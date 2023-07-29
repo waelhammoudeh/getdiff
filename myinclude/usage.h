@@ -12,4 +12,5 @@ void showHelp(void);
 
 void shortHelp(void);
 
+
 #endif /* USAGE_H_ */

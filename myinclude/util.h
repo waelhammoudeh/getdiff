@@ -10,76 +10,69 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <limits.h>
-#include <stdint.h>
 
+
+#ifndef DLIST_H_
 #include "list.h"
-
-#ifndef FALSE
-	#define FALSE		0
-	#define TRUE		(! FALSE)
 #endif
 
-/// Determine whether the given signed or unsigned integer is odd.
-#define IS_ODD( num )   ((num) & 1)
+/* commonly used defines **/
 
-/// Determine whether the given signed or unsigned integer is even.
+#ifndef TRUE
+
+#define FALSE		0
+#define TRUE  (! FALSE)
+
+#endif
+
+/* Determine whether the given signed or unsigned integer is odd or even/ **/
+#define IS_ODD( num )   ((num) & 1)
 #define IS_EVEN( num )  (!IS_ODD( (num) ))
 
-/// Return min of two numbers. Commonly used but never defined as part of standard headers
+/* Return minimum or maximum of two numbers. **/
 #ifndef MIN
-#define MIN( n1, n2 )   ((n1) > (n2) ? (n2) : (n1))
+#define MIN(n1, n2) ((n1) > (n2) ? (n2) : (n1))
 #endif
 
-/// Return max of two numbers. Commonly used but never defined as part of standard headers
 #ifndef MAX
-#define MAX( n1, n2 )   ((n1) > (n2) ? (n1) : (n2))
+#define MAX(n1, n2) ((n1) > (n2) ? (n1) : (n2))
 #endif
 
-#ifndef LONG_LINE
+/* maximum string length for one entry in filename & path.
+ * NOTE: ONE entry only string length - one part of path or file name alone.
+ * NOTE: FILENAME_MAX is defined somewhere in GNU library to be PATH_MAX. **/
+#define FNAME_MAX 255
 
-#define LONG_LINE	PATH_MAX
+/* sane mode for making directory */
+#define MK_DIR_MODE   (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
 
-#endif
+/* is slash ending path? **/
+#define SLASH_ENDING(path) (( (path [strlen(path) - 1]) == '/' ) ? 1 : 0)
 
-/* permission for making directory */
-#define DIR_PERMISSION   ( S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH )
-
+/* this to be removed **/
 #define IsSlashEnding(str)    (( (str [strlen(str) - 1]) == '/' ) ? 1 : 0)
-
-/* permission for making directory */
-#define PERMISSION   ( S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH )
-
-#define COMMENT_CHAR ';'
-#define COMMENT_SET "#;"
-
-/* COMMENT_CHAR and COMMENT_SET are used in myFgets() function, lines starting
- * with such characters are ignored. w.h 12/18/2018 added COMMENT_SET.
- */
 
 /* This is from: WRITING SOLID CODE by Steve Maguire
  * ASSERTARGS: is my function arguments assertion macro. If ARGS_ASSERT is
  * defined it expands to call AssertArgs() function with function name, file
  * name and line number as arguments. AssertArgs outputs an error to "stderr"
- * and aborts. Mainly used to assert arguments to functions, can be used to
- * assert any argument. Can not be used in an expression! This is a statement.
- * The reason for ARGS_ASSERT is that I feel that checking function arguments
- * is a must whether it is DEBUG version or RELEASE version; I abort program
- * in this case because it means there is something wrong with the code, which
- * means all data up to that point is wrong.
-*/
+ * and aborts.
+ * ARGS_ASSERT macro is always defined, ASSERTARGS macro is used to trap any
+ * NULL pointers as function arguments.
+ *
+ ****************************************************************************/
 #define ARGS_ASSERT
 
 #ifdef ARGS_ASSERT
 
 void AssertArgs (const char *func, char *file, int line);
 
-#define ASSERTARGS(f)	\
-	if (f)			\
-		{}			\
-	else			\
-		AssertArgs (__func__, __FILE__,  (int)__LINE__)
+#define ASSERTARGS(f)					\
+  if (f)						\
+    {}							\
+  else							\
+    AssertArgs (__func__, __FILE__,  (int)__LINE__)
 
 #else
 
@@ -88,13 +81,52 @@ void AssertArgs (const char *func, char *file, int line);
 #endif   /* #ifdef ARGS_ASSERT */
 
 
+char *myStrdup(const char *src, char *filename, unsigned uLine);
+
+#define STRDUP(x) myStrdup(x, __FILE__, __LINE__)
+
+int isGoodPathPart(const char *part);
+
+int isGoodFilename(const char *name);
+
+int isGoodDirName(const char *path);
+
+char *getParentDir(char const *path);
+
+char* lastOfPath(const char *path);
+
+int doDummyDir(const char *parent);
+
+int isDirUsable(const char* const path);
+
+int isFileUsable(char const *name);
+
+int isFileReadable(const char *path2File);
+
+int isExecutableUsable(const char *name);
+
+int getFileSize(long *size, const char *filename);
+
+char* getHome();
+
+char *getUserName();
+
+int removeSpaces(char **str);
+
+char  *removeSpaces2(char *str);
+
+int isGoodPortString (const char *port);
+
+int isOkayFormat4HTTPS(char const *source);
+
+
+
+
+
+
 int IsEntryDir (char const *entry);
 
-int IsGoodFileName (char *name);
-
-int IsGoodDirectoryName(char *name);
-
-char* lastOfPath (char *path);
+int isPathDirectory(const char* const path);
 
 char* DropExtension(char *str);
 
@@ -102,23 +134,16 @@ void** allocate2Dim (int row, int col, size_t elemSize);
 
 void free2Dim (void **array, size_t elemSize);
 
-int removeSpaces(char **str);
+
 
 char* get_self_executable_directory ();
 
-int IsArgUsableFile(char* const name);
-
-int IsArgUsableDirectory(char* const name);
 
 int myMkDir (char *name);
 
-char* myFgets(char* str, int count, FILE* fPtr, int* lineNum);
-
 int isStrGoodDouble(char *str);
 
-char* getHome();
 
-char *getUserName();
 
 int mySpawn (char *prgName, char **argLst);
 
@@ -135,8 +160,6 @@ int stringToUpper (char **dst, char *str);
 int stringToLower (char **dest, char *str);
 
 int isGoodURL (const char *str);
-
-char	  *getParentDir (char	*path);
 
 int getDirList (DLIST *list, const char *dir);
 
@@ -156,8 +179,10 @@ int mkOutputFile (char **dest, char *givenName, char *rootDir);
 
 FILE* openOutputFile (char *filename);
 
-void closeOutputFile(FILE *fPtr);
+int closeFile(FILE *fPtr);
 
 int isGoodExecutable(char *file);
+
+
 
 #endif /* UTIL_H_ */
