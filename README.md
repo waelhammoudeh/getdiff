@@ -205,6 +205,26 @@ For an updating strategy; automation and implementation, check out my repository
 where "getdiff" is used along with bash scripts to automatically update an initialed and live overpass
 database.
 
+This program can be used with OSM planet servers; **not fully tested here**; try one of following URLs:
+```
+https://planet.osm.org/replication/minute/
+https://planet.osm.org/replication/hour/
+https://planet.osm.org/replication/day/
+
+https://planet.openstreetmap.org/replication/minute/
+https://planet.openstreetmap.org/replication/hour/
+https://planet.openstreetmap.org/replication/day/
+```
+
+#### Limitations:
+"getdiff" limits the number of downloaded change files to avoid overwhelming the
+server. By default, it fetches at most 61 pairs of files; (change and state.txt)
+in one run or session.
+
 ### I need your feedback please:
 
 If you use this program and have any comment or question, please feel free to email me at: w_hammoudeh@hotmail.com
+
+Enjoy
+
+Wael Hammoudeh
