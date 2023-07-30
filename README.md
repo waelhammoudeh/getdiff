@@ -170,7 +170,7 @@ for last included data in the change file.
 The sequence number is 4 to 9 digit unique number for each change file, it is used
 to indetify the change file and also to locate change file within the file system.
 
-Data in OSM data files are data, when data is added or modified it gets time stamped.
+Data in OSM data files are dated, when data is added or modified it gets time stamped.
 
 Your area or region data file has a date for last included data in it, on geofabrik.de
 download page for your region this date is stated in line on top of page; example:
