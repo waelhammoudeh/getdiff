@@ -759,7 +759,61 @@ int hasPath(const char *name){
 
   return FALSE;
 
-}
+} /* END hasPath() **/
+
+/* prependParent():
+ * prepend parent directory only with string starting "../"
+ *
+ ********************************************************/
+
+char *prependParent(const char *name){
+
+  char  *path = NULL;
+  char  buffer[PATH_MAX] = {0};
+  char  cwd[PATH_MAX - 512] = {0};
+  char  *gwdResult;
+  char  *parent;
+
+  char  *foundChar;
+
+  ASSERTARGS(name);
+
+  foundChar = strstr(name, "../");
+
+  if(! foundChar)
+
+	return path;
+
+  if(foundChar != name)
+
+	return path;
+
+  name = name + strlen("../");
+
+  if(isGoodPathPart(name) != ztSuccess)
+
+	return path;
+
+  gwdResult = getcwd(cwd, sizeof(cwd));
+  if(!gwdResult)
+
+	return path;
+
+  parent = getParentDir(cwd);
+  if(!parent)
+
+	return path;
+
+  if(SLASH_ENDING(parent))
+	sprintf(buffer, "%s%s", parent, name);
+  else
+	sprintf(buffer, "%s/%s", parent, name);
+
+  path = STRDUP(buffer);
+
+  return path;
+
+} /* prependParent() **/
 
 /* removeSpaces(): removes leading and trailing space from its argument.
  *

@@ -99,7 +99,11 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
       char  *withPath;
 
-      if(hasPath(optarg) == FALSE)
+      if(strstr(optarg, "../") && strstr(optarg, "../") == optarg)
+
+    	withPath = prependParent(optarg);
+
+      else if(hasPath(optarg) == FALSE)
 
         withPath = prependCWD(optarg);
 
@@ -109,6 +113,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
       if(!withPath){
         fprintf(stderr, "%s: Error 'withPath' variable is NULL in parseCmdLine(); Exiting.\n", progName);
+        fprintf(stderr, "optarg was: <%s> @@\n\n", optarg);
         return ztUnknownError;
       }
 
