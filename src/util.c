@@ -713,6 +713,54 @@ char *getUserName(){
 
 } /* END getUser() **/
 
+/* prependCWD(): parameter name may start with ./
+ *
+ **********************************************/
+char *prependCWD(const char *name){
+
+  char  *path = NULL;
+  char  buffer[PATH_MAX] = {0};
+  char  cwd[PATH_MAX - 512] = {0};
+  char  *gtResult;
+
+  ASSERTARGS(name);
+
+  if(strstr(name, "./") == name)
+
+	name = name + 2;
+
+  if(isGoodPathPart(name) != ztSuccess)
+
+	return path;
+
+  gtResult = getcwd(cwd, sizeof(cwd));
+  if(!gtResult)
+
+	return path;
+
+  if(SLASH_ENDING(cwd))
+	sprintf(buffer, "%s%s", cwd, name);
+  else
+	sprintf(buffer, "%s/%s", cwd, name);
+
+  path = STRDUP(buffer);
+
+  return path;
+
+} /* END prependCWD() **/
+
+int hasPath(const char *name){
+
+  ASSERTARGS(name);
+
+  if((name[0] == '/') && strchr(name+1, '/'))
+
+	return TRUE;
+
+  return FALSE;
+
+}
+
 /* removeSpaces(): removes leading and trailing space from its argument.
  *
  * NOTE: the argument 'str' is a POINTER to POINTER. str should be dynamically

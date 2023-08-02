@@ -111,6 +111,10 @@ char* getHome();
 
 char *getUserName();
 
+int hasPath(const char *name);
+
+char *prependCWD(const char *name);
+
 int removeSpaces(char **str);
 
 char  *removeSpaces2(char *str);

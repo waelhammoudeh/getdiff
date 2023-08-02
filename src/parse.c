@@ -20,6 +20,9 @@
  * parseCmdLine() function fills found settings on the command, could be
  * none, part of or all settings. parseCmdLine() does minimum error checking.
  * Return: ztInvalidArg, calls abort() on memory allocation error.
+ *
+ * TODO : prependCWD(): file name ALONE --> gets appended to CWD
+ * use getcwd() library function.
  ***********************************************************************/
 
 int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
@@ -90,27 +93,40 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     case 'c':
 
       if (confFlag){
-	fprintf(stderr, "%s: Error; duplicate conf option used!\n", progName);
-	return ztMalformedCML;
+        fprintf(stderr, "%s: Error; duplicate conf option used!\n", progName);
+        return ztMalformedCML;
       }
 
-      result = isGoodFilename(optarg);
+      char  *withPath;
+
+      if(hasPath(optarg) == FALSE)
+
+        withPath = prependCWD(optarg);
+
+      else
+
+        withPath = optarg;
+
+      if(!withPath){
+        fprintf(stderr, "%s: Error 'withPath' variable is NULL in parseCmdLine(); Exiting.\n", progName);
+        return ztUnknownError;
+      }
+
+      result = isGoodFilename(withPath);
       if (result != ztSuccess){
-
-	fprintf(stderr, "%s: Error configure filename  <%s> is NOT good filename.\n"
-		" Filename is not good for: <%s> \n", progName, optarg, ztCode2Msg(result));
-	return result;
+        fprintf(stderr, "%s: Error configure filename  <%s> is NOT good filename.\n"
+		" Filename is not good for: <%s> \n", progName, withPath, ztCode2Msg(result));
+        return result;
       }
 
-      result = isFileUsable(optarg); /* full access to parent directory required **/
+      result = isFileUsable(withPath); /* full access to parent directory required **/
       if (result != ztSuccess){
-
-	fprintf(stderr, "%s: Error specified configure file  <%s> is NOT usable file!\n"
-		" File is not usable for: <%s> \n", progName, optarg, ztCode2Msg(result));
-	return result;
+        fprintf(stderr, "%s: Error specified configure file  <%s> is NOT usable file!\n"
+		" File is not usable for: <%s> \n", progName, withPath, ztCode2Msg(result));
+        return result;
       }
 
-      arguments->confFile = STRDUP(optarg);
+      arguments->confFile = STRDUP(withPath);
 
       confFlag = 1;
       break;
@@ -118,15 +134,14 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     case 'u':
 
       if (usrFlag){
-	fprintf(stderr, "%s: Error; duplicate usr option!\n", progName);
-	return ztInvalidArg;
+        fprintf(stderr, "%s: Error; duplicate usr option!\n", progName);
+        return ztInvalidArg;
       }
 
       if (strlen(optarg) > MAX_USER_NAME){
-
-	fprintf(stderr, "%s: Error user name string is too long; maximum allowed length is: <%d> characters.\n"
+        fprintf(stderr, "%s: Error user name string is too long; maximum allowed length is: <%d> characters.\n"
 		" Argument: [%s].\n", progName, MAX_USER_NAME, optarg);
-	return ztInvalidArg;
+        return ztInvalidArg;
       }
       arguments->usr = STRDUP(optarg);
 
@@ -137,15 +152,14 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     case 'p':
 
       if (passwdFlag){
-	fprintf(stderr, "%s: Error; duplicate password option!\n", progName);
-	return ztInvalidArg;
+        fprintf(stderr, "%s: Error; duplicate password option!\n", progName);
+        return ztInvalidArg;
       }
 
       if (strlen(optarg) > MAX_USER_NAME){
-
-	fprintf(stderr, "%s: Error password is too long, maximum length allowed is <%d> characters.\n"
+        fprintf(stderr, "%s: Error password is too long, maximum length allowed is <%d> characters.\n"
 		" Password Length: [%d].\n", progName, MAX_USER_NAME, (int) strlen(optarg));
-	return ztInvalidArg;
+        return ztInvalidArg;
       }
       arguments->pswd = STRDUP(optarg);
 
@@ -240,8 +254,8 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
     case 't':
 
-    	arguments->textOnly = 1;
-    	break;
+      arguments->textOnly = 1;
+      break;
 
     case -1: /* done with options */
 
