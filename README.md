@@ -91,7 +91,11 @@ directive line. KEYS correspond to command line options. Allowed directive KEYS 
 {VERBOSE, USER, PASSWD, DIRECTORY, BEGIN, NEWER_FILE}.
 Unrecognized and duplicate directive 'KEYS' trigger error. You may set values to any
 number of KEYS or none.
-Keep in mind set command line option overrides configuration value.
+Default configuration file is {HOME}/getdiff.conf - user home directory. File is not
+required, not even default; but if specified then it must exist, be accessible and it
+can not be empty with zero byte length or size.
+
+Keep in mind set command line option overrides corresponding configuration value.
 
  VERBOSE : accepted values [on, true, 1] case ignored.
 
@@ -149,9 +153,10 @@ The string length for both NAME and SECTRET can not be longer than 64 characters
 Those arguments are required only for geofabrik.de internal server usage.
 
 FILE for --conf:
-FILE is full path and file name for user specified configuration file, must be in
-a directory with read and write permissions. Program will terminate if specified
-file is not accessible or empty.
+FILE is user specified configuration file, must be in a directory with read and
+write permissions. Program will terminate if specified file is not accessible
+or empty - may have no setting at all; it can NOT have zero length bytes. See
+'Configuration file' section.
 
 ACTION for --new:
 By default each time program downloads new files, it appends the newly downloaded

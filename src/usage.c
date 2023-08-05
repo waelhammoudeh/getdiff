@@ -142,9 +142,10 @@ void showHelp(void){
 
       "FILE for --conf:\n"
 
-      "FILE is full path and file name for user specified configuration file, must be in\n"
-      "a directory with read and write permissions. Program will terminate if specified\n"
-      "file is not accessible or empty.\n\n";
+      "FILE is user specified configuration file, must be in a directory with read and\n"
+      "write permissions. Program will terminate if specified file is not accessible\n"
+      "or empty - may have no setting at all; it can NOT have zero length bytes. See\n"
+      "'Configuration File' section.\n\n";
 
   char   *usageNew =
 
@@ -163,7 +164,7 @@ void showHelp(void){
 
   char   *confDscrp =
 
-      "Configuration file:\n\n"
+      "Configuration File:\n\n"
 
       "Configuration file is a text file with each line providing a directive pair of\n"
       "KEY and VALUE separated by space and an optional equal sign '='.\n"
@@ -172,7 +173,10 @@ void showHelp(void){
       "{VERBOSE, USER, PASSWD, DIRECTORY, BEGIN, NEWER_FILE}.\n"
       "Unrecognized and duplicate directive 'KEYS' trigger error. You may set values to any\n"
       "number of KEYS or none.\n"
-      "Keep in mind set command line option overrides configuration value.\n\n"
+      "Default configuration file is {HOME}/getdiff.conf - user home directory. File is not\n"
+      "required, not even default; but if specified then it must exist, be accessible and it\n"
+      "can not be empty with zero byte length or size.\n\n"
+      "Keep in mind set command line option overrides corresponding configuration value.\n\n"
 
       " VERBOSE : accepted values [on, true, 1] case ignored.\n\n"
 

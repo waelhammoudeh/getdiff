@@ -77,8 +77,6 @@ int boolStr2Integer(int *dest, char const *str);
 
 char* myFgets(char *destStr, int count, FILE *fPtr, int *lineNum);
 
-int file2LI_List (DLIST *list, char const *filename);
-
 void zapLineInfo(void **data);
 
 void fprintLineInfo(FILE *toPtr, LINE_INFO *lineInfo);
@@ -92,7 +90,6 @@ int setConfValue(CONF_ENTRY *entry, char const *value);
 int configureGetValues(CONF_ENTRY *ceArray, int *numFound, char *confFile);
 
 int isOkayBoolValue(const char *value);
-
 
 char *myfgets(char **destStr, int *lineNumber, FILE *filePtr);
 

@@ -46,6 +46,7 @@
 #include "ztError.h"
 #include "cookie.h"
 #include "fileio.h"
+#include "tmpFiles.h"
 
 #define LOG_UNSEEN
 //#undef LOG_UNSEEN

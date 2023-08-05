@@ -25,6 +25,7 @@
 #include "curlfn.h"
 #include "cookie.h"
 #include "fileio.h"
+#include "tmpFiles.h"
 #include "parseAnchor.h"
 
 /* those names should not be changed; I use defines for them **/
