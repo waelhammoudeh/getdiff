@@ -168,23 +168,26 @@ use one of 'None' or 'Off' for action.
 ```
 NUM is the complete sequence number for change file to start download from.
 
-Each change file has a corresponding 'state.txt', the 'state.txt' file has two
+Data in OSM data files are dated, when data is added or modified it gets time stamped.
+Data files are updated by merging newer data; has newer date.
+
+Each change file has a corresponding 'state.txt', this 'state.txt' file has two
 key information; the first is the sequence number and the second is the date
 for last included data in the change file.
 
 The sequence number is 4 to 9 digit unique number for each change file, it is used
 to indetify the change file and also to locate change file within the file system.
 
-Data in OSM data files are dated, when data is added or modified it gets time stamped.
-
 Your area or region data file has a date for last included data in it, on geofabrik.de
-download page for your region this date is stated in line on top of page; example:
+download page for your region, this date is stated next to the download link on the
+same line on top of the page; example:
 
 "last modified 1 day ago and contains all OSM data up to 2022-04-09T20:21:55Z. File size: 195 MB;"
 
-This date can also be retrieved from the OSM data file with "osmium fileinfo"
+This date can also be retrieved from the OSM data file with "osmium fileinfo" command
 using the "--extended" option as:
- osmium fileinfo --extended regionfilename.osm.pbf
+
+ $ osmium fileinfo --extended regionfilename.osm.pbf
 
 note that regionfilename.osm.pbf can be any supported file type by osmium.
 
@@ -229,6 +232,10 @@ in one run or session.
 ### I need your feedback please:
 
 If you use this program and have any comment or question, please feel free to email me at: w_hammoudeh@hotmail.com
+
+#### Known Bugs:
+
+Program does not handle file system paths correctly. When specifying configuration file on the command line please provide full path.
 
 Enjoy
 
