@@ -887,12 +887,9 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
   /* uncomment for debug */
   /* curl_easy_setopt(qHandle, CURLOPT_VERBOSE, 1L); */
 
-  //clearInfo();
 
   /* get it! */
   result = curl_easy_perform(qHandle);
-
-  //getInfo(qHandle, result);
 
   /* check for errors */
   if(result != CURLE_OK) {

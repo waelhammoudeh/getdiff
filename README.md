@@ -235,8 +235,17 @@ If you use this program and have any comment or question, please feel free to em
 
 #### Known Bugs:
 
-Program does not handle file system paths correctly. When specifying configuration file on the command line please provide full path.
+None are known. Does NOT mean it is free of bugs.
+
+#### Fixed:
+
+Ausgut 23/2023
+
+Relative path issue on the command line. Program still counts on the shell to expand paths starting with tilde character '~'.
 
 Enjoy
 
 Wael Hammoudeh
+
+August 23/2023
+

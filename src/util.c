@@ -212,7 +212,7 @@ int isGoodFilename(const char *name){
 /* isGoodDirName():
  *
  *
- *  isGoodFilename()
+ * return result of isGoodFilename()
  *
  *
  *
@@ -422,13 +422,21 @@ int isDirUsable(const char* const path){
 
     return result;
 
-  /* fill struct stat with lstat system call **/
+  errno = 0;
+
+  /* fill struct stat with lstat system call ENOENT ENOTDIR **/
   result = stat(path, &status);
   if(result != 0){
 
-    /* return false regardless of the error - maybe comment out perror()? **/
-    perror("stat() system call failure:");
-    return ztFailedSysCall;
+	if((errno == ENOENT) || (errno == ENOTDIR))
+
+      return ztPathNotDir;
+
+	else if(errno){
+
+      fprintf(stderr, "Failed System call to stat(): %s\n", strerror(errno));
+      return ztFailedSysCall;
+	}
   }
 
   if ( ! (S_ISDIR (status.st_mode)) )
@@ -492,13 +500,10 @@ int isFileUsable(const char *path2File){
   result = stat(path2File, &status);
   if(result == -1){
 
-    if(errno == ENOENT)
+    if(errno)
 
-      return ztFileNotFound; /* full access to parent directory **/
+      return ztFileNotFound;
 
-    else
-
-      return ztFailedSysCall;
   }
 
   if ( ! S_ISREG (status.st_mode))
@@ -713,12 +718,41 @@ char *getUserName(){
 
 } /* END getUser() **/
 
+/* isCwdChild(): is current working directory child
+ *
+ * we refer to files or directories in CWD by:
+ *  - filename or ./filename
+ *  - dirName or ./dirName
+ *
+ * child of CWD does not start with slash or starts with "./"
+ *
+ **************************************************/
+
+int isCwdChild(const char *name){
+
+  char   *cwdStr = "./";
+  char   slash = '/';
+
+  ASSERTARGS(name);
+
+  if(name[0] != slash)
+
+    return TRUE;
+
+  if(strstr(name, cwdStr) && (strstr(name, cwdStr) == name) )
+
+    return TRUE;
+
+  return FALSE;
+
+}
+
 /* prependCWD(): parameter name may start with ./
  *
  **********************************************/
 char *prependCWD(const char *name){
 
-  char  *path = NULL;
+  static char  *path = NULL;
   char  buffer[PATH_MAX] = {0};
   char  cwd[PATH_MAX - 512] = {0};
   char  *gtResult;
@@ -729,14 +763,12 @@ char *prependCWD(const char *name){
 
 	name = name + 2;
 
-  if(isGoodPathPart(name) != ztSuccess)
-
-	return path;
 
   gtResult = getcwd(cwd, sizeof(cwd));
   if(!gtResult)
 
 	return path;
+
 
   if(SLASH_ENDING(cwd))
 	sprintf(buffer, "%s%s", cwd, name);
@@ -768,7 +800,7 @@ int hasPath(const char *name){
 
 char *prependParent(const char *name){
 
-  char  *path = NULL;
+  static char  *path = NULL;
   char  buffer[PATH_MAX] = {0};
   char  cwd[PATH_MAX - 512] = {0};
   char  *gwdResult;
@@ -789,10 +821,6 @@ char *prependParent(const char *name){
 	return path;
 
   name = name + strlen("../");
-
-  if(isGoodPathPart(name) != ztSuccess)
-
-	return path;
 
   gwdResult = getcwd(cwd, sizeof(cwd));
   if(!gwdResult)
