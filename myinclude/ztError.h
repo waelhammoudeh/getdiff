@@ -5,8 +5,8 @@
  *      Author: wael
  */
 
-#ifndef ZTERROR_H_INCLUDED
-#define ZTERROR_H_INCLUDED
+#ifndef ZTERROR_H_
+#define ZTERROR_H_
 
 /* return enumerated types codes */
 typedef enum ZT_EXIT_CODE_ {
@@ -69,31 +69,46 @@ typedef enum ZT_EXIT_CODE_ {
   ztListNotEmpty,
 
   ztNoConnNet,
+  ztNetConnFailed,
+  ztHostResolveFailed,
+
   ztNoConnDB,
 
+  ztResponse200,
+
+  ztResponseFailed2Retrieve, // we set responseCode = -1
+
+  ztResponseNone, // curl library returns zero for response code
+
   ztResponse301,
+  ztResponse302,
 
   ztResponse400,
   ztResponse403,
   ztResponse404,
   ztResponse429,
+
   ztResponse500,
+  ztResponse502,
   ztResponse503,
+  ztResponse504,
+
   ztResponseUnknown,
   ztResponseUnhandled,
 
   ztNotCookieFile,
   ztNoCookieToken,
 
-  ztNoSession,
+  ztNoCurlSession,
   ztOldCurl,
   ztQuerySyntax,
   ztNoNodesFound,
   ztNoGeometryFound,
   ztBadSegment,
   ztUndefinedSlope,
-
   ztFatalError,
+  ztNoQuerySession,
+  ztCurlTimeout,
 
   ztUnknownError,
   ztUnknownCode /* LAST ERROR */
@@ -112,6 +127,8 @@ typedef struct ZT_ERROR_ENTRY_{
 
 
 char* ztCode2Msg(int code);
+
+char* ztCode2ErrorStr(int code);
 
 
 #endif /* ZTERROR_H_ */

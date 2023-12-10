@@ -722,6 +722,7 @@ char *getUserName(){
  *
  * we refer to files or directories in CWD by:
  *  - filename or ./filename
+ *    and for directory:
  *  - dirName or ./dirName
  *
  * child of CWD does not start with slash or starts with "./"
@@ -994,31 +995,16 @@ int isOkayFormat4HTTPS(char const *source){
 } /* END isOkayFormat4HTTPS() **/
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* isGoodURL():
  *   - can contain any of declared "allowed" character set below.
  *   - does NOT contain any of those characters between < and > below:
  *   < []{}<> !@#$%^&*()+=,;:'"|` \040\t >
  *   - string length must be less than PATH_MAX
  *   - an entry can not start with dash '-' or underscore '_'
+ *
+ *   * added on December 9/2023 **
+ *   - string must include at lease 3 parts separated by delimiter '/'
+ *     three parts for (scheme + server_name + path)
  *
  * Return TRUE or FALSE.
  * NOTE: May return FALSE on memory allocation error.
@@ -1059,8 +1045,13 @@ int isGoodURL (const char *str){
   }
 
   /* entry can not start or end with dash or underscore character **/
+
+  int count = 0; /* added 12/9/2023 to count parts **/
+
   token = strtok (myStr, del);
   while (token){
+
+	  count++; /* count tokens **/
 
 	  if(strchr(token, dash) &&
 	     (token[0] == dash || token[strlen(token) - 1] == dash))
@@ -1068,11 +1059,20 @@ int isGoodURL (const char *str){
 		  return FALSE;
 
 	  if(strchr(token, underscore) &&
-	     (token[0] == underscore|| token[strlen(token) - 1] == underscore))
+	     (token[0] == underscore || token[strlen(token) - 1] == underscore))
 
 		  return FALSE;
 
     token = strtok (NULL, del);
+  }
+
+  /* added 12/9/2023 : require at least 3 tokens
+   * assumed for (scheme + server_name + path)
+   * none of them should empty **/
+  if(count < 3){
+	fprintf(stderr, "isGoodURL(): Error parameter token count < 3\n"
+			"  string should include (scheme + server_name + path) at least.\n");
+	return FALSE;
   }
 
   return TRUE;

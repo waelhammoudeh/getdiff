@@ -1,20 +1,54 @@
-/* curlfn.c :
+/* curlfn.c:
  *
- * There are a lot of settings available in libcurl, the functions in this file
- * bundle curl library functions I usually use in very few functions.
- * This is work in progress and may change.
- * The two main functions are:
+ *  Created on: March 31, 2021
+ *  Author: Wael Hammoudeh
  *
- *  1 - download2File()
- *  2 - performQuery()
+ * This file contains two practical functions that leverage the libcurl library.
+ * It aims to consolidate commonly used libcurl functionalities, making them
+ * readily accessible for various applications.
+ *
+ * Minimum required Curl Library version is "7.86".
+ *
+ * The main functions are:
+ *
+ *  1 - download2File() --> download2FileRetry()
+ *  2 - performQuery()  --> performQueryRetry()
  *
  * NOTES:
- *  - I use curl URL API; to let libcurl do URL parsing for us. See 'man curl_url'.
- *  - I initial downloads and queries using CURLU *handle (URL parse handle).
- *  - user gets 2 handles (pointers); CURLU* (URL parse handle) and CURL* (easy handle).
- *    the first with initialURL() and the second with initialDownload() or
- *    initialQuery().
- *  - using CURLU handle, libcurl enables user to change / set URL whole or part.
+ *
+ *  - Utilizes curl URL API for URL parsing by libcurl.
+ *    Refer to 'man curl_url' for details.
+ *
+ *  - Users acquire two handles (pointers):
+ *    CURLU* (URL parse handle) and CURL* (easy handle).
+ *    The former is obtained via initialURL(),
+ *    and the latter through either initialDownload() or initialQuery().
+ *
+ *  - Both handles are connected within the initialDownload() and
+ *    initialQuery() functions.
+ *
+ *  - Using the CURLU parse handle, libcurl enables users to modify/set
+ *    the URL whole or in parts.
+ *
+ * Typical Usage:
+ *
+ *  - call functions in this order:
+ *
+ *    *) initialCurlSession()
+ *    *) initialURL(url_prefix) : url_prefix include (scheme + server_name + path);
+ *                                path can be partial & not empty.
+ *                                Return parseHandle.
+ *    *) initialOperation(parseHandle, securityToken) : parseHandle from above,
+ *                                                      securityToken can be NULL
+ *                                                      Return cHandle
+ *    *) adjust path part in parseHandle before download2FileRetry()
+ *       OR
+ *       set / replace query part in parseHandle before performQueryRetry()
+ *    *) download2FileRetry() or  performQueryRetry()
+ *    *) Repeat (loop) above 2 steps as many times as needed
+ *    *) easyCleanup(cHandle)
+ *    *) urlCleanup(parseHandle)
+ *    *) closeCurlSession()
  *
  *******************************************************************/
 
@@ -29,38 +63,73 @@
 #include "ztError.h"
 
 
-/* global and exported variable *rawDataFP,
- * client may set this to an open file pointer,
- * if set, performQuery() function will write
- * query response to that file
+/* global exported variables:
  *
- * curlLogtoFP: if set; selected - failure - messages are written to open file.
+ *  - FILE *curlRawDataFP;
+ *    client may set this to an open file pointer, when set;
+ *    performQuery() function will write raw query response
+ *    (as received) to that open file.
+ *
+ *  - FILE *curlLogtoFP;
+ *    client may set this to an open file pointer, when set,
+ *    selected - failure - messages are written to open file.
+ *
+ *    Each logged message starts with this line:
+ *
+ *     "- - - - - - - - - - - - Start Curl Functions Log - - - - - - - - - - - - - - -"
+ *
+ *	  And each logged message ends with this line:
+ *
+ *	   "- - - - - - - - - - - - End Curl Functions Log - - - - - - - - - - - - - - - -"
+ *
+ *	  See writeLogCurl() function.
  *
  ******************************************************************************/
 FILE *curlRawDataFP = NULL;
 FILE *curlLogtoFP = NULL;
 
-long   sizeDownload;
-
-char  curlErrorMsg[CURL_ERROR_SIZE + 1];
-
-/* curlErrorMsg buffer is filled ONLY ON FAILURE by curl library.
+/* global READ only variables:
  *
- * set with option CURLOPT_ERRORBUFFER - in initialQuery() & initialDownload().
- **************************************************************************/
+ *  - long sizeDownload;
+ *
+ *  - long responseCode;
+ *
+ *  - char curlErrorMsg[CURL_ERROR_SIZE + 1];
+ *    buffer usually has error message strings from curl library.
+ *    we fill buffer with our own string in few cases (bad me).
+ *    User may retrieve a human readable explanation for error.
+ *    Set with option CURLOPT_ERRORBUFFER - in initialQuery()
+ *    & initialDownload().
+ *
+ ****************************************************************************/
 
-/* WriteMemoryCallback() function is only available in this file */
+long  sizeDownload = 0L;
+long  responseCode = 0L;
+
+char  curlErrorMsg[CURL_ERROR_SIZE + 1] = {0};
+
+/* WriteMemoryCallback() function is only available in this file **/
 static size_t WriteMemoryCallback (void *contents, size_t size, size_t nmemb, void *userp);
 
-/* global variables */
+/* private global variables */
 static int   sessionFlag = 0; /* initial flag - private */
 
-static CURLU   *parseUrlHandle = NULL;
+/* initialCurlSession():
+ *
+ * Function initializes the libcurl session, verifying the libcurl version
+ * and invoking curl_global_init() to set up the environment. It must be called
+ * at the beginning of the session before utilizing other functions in this module.
+ *
+ * Parameters:
+ * None.
+ *
+ * Returns:
+ * ztSuccess on successful initialization.
+ * ztOldCurl if libcurl version is less than 7.86
+ * CURLcode error code if curl_global_init() fails.
+ *
+ *******************************************************************************/
 
-/* initialCurlSession(): calls curl_global_init() after checking version.
- * first function to call, needed only once in a session.
- * TODO: is libcurl installed?
- *****************************************************************/
 int initialCurlSession(void){
 
   CURLcode	result;
@@ -71,17 +140,18 @@ int initialCurlSession(void){
     return ztSuccess;
 
   verInfo = curl_version_info(CURLVERSION_NOW);
+
   if (verInfo->version_num < MIN_CURL_VER){
 
-    fprintf (stderr, "ERROR: Old \"libcurl\" version found. Minimum version required is: 7.80.0\n"
-	     "Please upgrade your \"libcurl\" installation.\n");
+    fprintf (stderr, "ERROR: Old \"libcurl\" version found. Minimum version required is: %u.%u.%u\n"
+	     "Please upgrade your \"libcurl\" installation.\n", MAJOR_REQ, MINOR_REQ, PATCH_REQ);
     return ztOldCurl;
   }
 
   result = curl_global_init(CURL_GLOBAL_ALL);
   if (result != 0){
-    fprintf(stderr, "curl_global_init() failed: %s\n",
-	    curl_easy_strerror(result));
+    fprintf(stderr, "curl_global_init() failed: %s\n", curl_easy_strerror(result));
+
     return result;
 
   }
@@ -93,16 +163,31 @@ int initialCurlSession(void){
 
 /* closeCurlSession(): ends the session, call when done.
  * ****************************************************************/
+
+/* closeCurlSession():
+ *
+ * Function finalizes the libcurl session, performing necessary cleanup and
+ * releasing resources. It should be called at session end.
+ *
+ * Parameters:
+ * None.
+ *
+ * Returns:
+ * Void.
+ *
+ *****************************************************************************/
+
 void closeCurlSession(void){
 
   if (sessionFlag == 0)
 
     return;
 
-  /* cleanup curl stuff - REMOVE: curl_easy_cleanup() is done per handle 12/19/2021 */
-  // curl_easy_cleanup(curl_handle);
+  /* client is responsible to cleanup CURL easy handle
+   * and CURLU parse handle when done. **/
 
-  /* we're done with libcurl, so clean it up */
+
+  /* we're done with libcurl, so clean it up **/
   curl_global_cleanup();
 
   sessionFlag = 0;
@@ -114,12 +199,18 @@ void closeCurlSession(void){
  * parameter 'server' must be null terminated string and pass isGoodURL()
  * function test.
  *
+ * Usually this has (scheme + server_name + path) -- note no empty strings.
+ * The path part might be "partial path", this is adjusted and replaced before
+ * each download call.
+ *
  * Return: CURLU pointer or NULL on error.
- * Caller must call urlCleanup(retValue) when done.
+ * Important Note: caller must call urlCleanup() when done.
+ *
  ****************************************************************************/
+
 CURLU * initialURL (const char *server){
 
-  CURLU   *retHandle = NULL;
+  CURLU       *retHandle = NULL;
   CURLUcode   curlCode;
 
   ASSERTARGS(server);
@@ -131,19 +222,30 @@ CURLU * initialURL (const char *server){
   }
 
   if (isGoodURL(server) != TRUE){
-    fprintf(stderr, "initialURL(): Error invalid URL in parameter 'server'\n");
+    fprintf(stderr, "initialURL(): Error failed isGoodURL() for server: <%s>\n"
+    		" Might has disallowed character or has less than 3 parts;\n"
+    		" server must include (scheme + server_name + path)\n", server);
     return retHandle;
   }
 
   retHandle = curl_url();
 
   if ( ! retHandle){
-    fprintf(stderr, "initialURL(): Error failed curl_url() function.\n");
 
-    sprintf(curlErrorMsg, "Failed curl_url(): Out of Memory"); /* only reason this fails **/
+    fprintf(stderr, "initialURL(): FATAL ERROR failed curl_url() function.\n");
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "curlfn.c: Failed initialURL()\n"
+    		  "initialURL(): FATAL ERROR failed curl_url() function.\n");
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
     return retHandle;
   }
-
 
   /* set parts of server we have **/
   curlCode = curl_url_set(retHandle, CURLUPART_URL, server, 0);
@@ -152,28 +254,254 @@ CURLU * initialURL (const char *server){
     fprintf(stderr, "initialURL(): Error failed curl_url_set() function.\n"
 	    "Curl error message: {%s}.\n", curl_url_strerror(curlCode));
 
-    sprintf(curlErrorMsg, "Failed curl_url_set() CURLUPART_URL: %s",
-    		curl_url_strerror(curlCode));
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "curlfn.c: Failed initialURL()\n"
+    		  "initialURL(): ERROR failed curl_url_set() function for option CURLUPART_URL\n"
+    		  " with 'server' parameter: <%s>\n"
+    		  " Curl error string message: {%s}.\n", server, curl_url_strerror(curlCode));
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
     curl_url_cleanup(retHandle);
+
     retHandle = NULL;
   }
-
-  parseUrlHandle = retHandle;
 
   return retHandle;
 
 } /* END initialURL() */
 
-/* isConnCurl(): is connected curl? function tests net connection to 'server'
- * parameter using CURL library API.
+/* initialOperation():
  *
- * Function DOES NOT require curl session.
+ *  Acquire CURL easy handle and sets common options using curl_easy_setopt(),
+ *  effectively initialing download or query operation.
  *
- * Note: we could check connections to several known servers, if one fails we
- * fail?
+ * Parameters:
+ * srcUrl: A CURLU pointer (parse handle) obtained from initialURL()
+ * representing the source URL.
+ * secToken: A pointer to a secure token for authentication during download.
+ *           Can be NULL for non-secure downloads.
  *
- * Return ztSuccess for okay connection or ztNoConnNet for no connection.
+ * Returns:
+ * A CURL* handle on successful initialization or NULL on failure.
+ *
+ ************************************************************************/
+
+CURL *initialOperation (CURLU *srcUrl, char *secToken){
+
+  CURLcode     result;
+  static CURL  *opHandle = NULL;
+
+  /* allow NULL for secToken **/
+  ASSERTARGS (srcUrl);
+
+  if (sessionFlag == 0){
+    fprintf(stderr, "initialOperation(): Error, curl session not initialized. You must call\n "
+	    " initialCurlSession() first and check its return value.\n");
+    return opHandle;
+  }
+
+  opHandle = easyInitial(); /* from curlfn.h: #define easyInitial() curl_easy_init() **/
+  if ( ! opHandle){
+
+    /* curl library does not know our error buffer yet, so write this in it **/
+    sprintf(curlErrorMsg, "Failed curl_easy_init(): FATAL no 'opHandle' in initialOperation()\n");
+    fprintf(stderr, "initialOperation(): FATAL ERROR curl_easy_init() call failed. Client:: Abort?!\n");
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "initialOperation(): FATAL ERROR curl_easy_init() "
+    		  "call failed. Client:: Abort?!\n");
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    return opHandle;
+  }
+
+  /* set common options **/
+
+  /* tell curl to write human error messages in this buffer "curlErrorMsg" **/
+  result = curl_easy_setopt (opHandle, CURLOPT_ERRORBUFFER, curlErrorMsg);
+  if (result != CURLE_OK) {
+
+    sprintf(curlErrorMsg, "Failed curl_easy_setopt() parameter: CURLOPT_ERRORBUFFER");
+    fprintf(stderr, "initialOperation() Error: failed to set CURLOPT_ERRORBUFFER option.\n"
+	    " Curl string error: %s\n", curl_easy_strerror(result));
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+    return opHandle;
+  }
+
+  /* option was set successfully, now we trust curl library
+   * will write error messages there.
+   ********************************************************/
+
+  /* no progress meter please **/
+  result = curl_easy_setopt(opHandle, CURLOPT_NOPROGRESS, 1L);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_NOPROGRESS.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* request a larger receive buffer from libcurl **/
+  result = curl_easy_setopt(opHandle, CURLOPT_BUFFERSIZE, 102400L);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_BUFFERSIZE.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* this call ties (connects) CURLU * (curl parse handle) with
+   * CURL* (curl easy handle).
+   * obtain curl parse handle with initialURL() function. **/
+  result = curl_easy_setopt(opHandle, CURLOPT_CURLU, srcUrl);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_CURLU.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  result = curl_easy_setopt(opHandle, CURLOPT_USERAGENT, CURL_USER_AGENT);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_USERAGENT.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  result = curl_easy_setopt(opHandle, CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_2TLS);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_HTTP_VERSION.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* secToken might be NULL **/
+  if (secToken){
+    result = curl_easy_setopt(opHandle, CURLOPT_COOKIE, secToken);
+    if(result != CURLE_OK) {
+
+      fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_COOKIE.\n");
+
+      easyCleanup(opHandle);
+      opHandle = NULL;
+
+      return opHandle;
+    }
+  }
+
+  result = curl_easy_setopt(opHandle, CURLOPT_TCP_KEEPALIVE, 1L);
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_TCP_KEEPALIVE.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* curl library default is no compression support;
+   * setting last parameter to empty string ("") in
+   * curl_easy_setopt() enables all supported built-in
+   * compressions.
+   *
+   * NOTE: does not seem to help download speed. tested by
+   * downloading same ten change files with and without this
+   * option.
+   *
+   * maybe because .osc (change files) are already
+   * compressed (gzipped) .gz at geofabrik.de server?
+   *
+   * The "index.html" page file failed size test in my
+   * downlod2File() function, was compressed by server.
+   *
+   * This option may help when downloading large text files
+   * only. Commented out and could be used in future.
+   *
+   ************************************************************/
+
+  /** commented out -- does not help download speed in "getdiff"
+
+  result = curl_easy_setopt(opHandle, CURLOPT_ACCEPT_ENCODING, "");
+  if(result != CURLE_OK) {
+
+    fprintf(stderr, "initialOperation(): Error failed curl_easy_setopt() : CURLOPT_ACCEPT_ENCODING.\n");
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+  *******************************************************************/
+
+  result = curl_easy_setopt (opHandle, CURLOPT_HTTPGET, 1L);
+  if(result != CURLE_OK) {
+    fprintf(stderr, "initialOperation() failed curl_easy_setopt for CURLOPT_HTTPGET\n"
+	    " Curl string error: %s\n", curl_easy_strerror(result));
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* I use default with no timeout; this is here if you want to change **/
+  result = curl_easy_setopt (opHandle, CURLOPT_TIMEOUT, 0L);
+  if(result != CURLE_OK) {
+    fprintf(stderr, "initialOperation() failed curl_easy_setop CURLOPT_TIMEOUT\n"
+	    " Curl string error: %s\n", curl_easy_strerror(result));
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  return opHandle;
+
+} /* END initialOperation() */
+
+/* isConnCurl(): is connected curl?
+ *
+ * Checks network connection to the specified server parameter using the CURL
+ * library API. This function does not require an active libcurl session.
+ *
+ * Parameters:
+ * server: A null-terminated string representing the server to test
+ *         the network connection to.
+ *
+ * Returns:
+ * ztSuccess for a successful network connection.
+ * ztNoConnNet failed to establish a network connection.
  *
  **************************************************************************/
 
@@ -187,7 +515,7 @@ int isConnCurl(const char *server){
   cHandle = curl_easy_init();
   if( ! cHandle){
 
-	fprintf(stderr, "isConnCurl(): Error failed curl_easy_handle() function.\n");
+    fprintf(stderr, "isConnCurl(): Error failed curl_easy_handle() function.\n");
     sprintf(curlErrorMsg, "isConnCurl(): Error failed curl_easy_init(): Something went wrong");
 
     return FALSE;
@@ -196,8 +524,8 @@ int isConnCurl(const char *server){
   result = curl_easy_setopt(cHandle, CURLOPT_URL, server);
   if(result != CURLE_OK){
 
-	sprintf(curlErrorMsg, "isConnCurl(): Error failed setopt() CURLOPT_URL: %s",
-			curl_easy_strerror(result));
+    sprintf(curlErrorMsg, "isConnCurl(): Error failed setopt() CURLOPT_URL: %s",
+	    curl_easy_strerror(result));
     fprintf(stderr, "isConnCurl(): Error failed to set URL option.\n");
     curl_easy_cleanup(cHandle);
     return FALSE;
@@ -206,8 +534,8 @@ int isConnCurl(const char *server){
   result = curl_easy_setopt(cHandle, CURLOPT_CONNECT_ONLY, 1L);
   if(result != CURLE_OK){
 
-	sprintf(curlErrorMsg, "isConnCurl(): Error failed setopt() CURLOPT_CONNECT_ONLY: %s",
-			curl_easy_strerror(result));
+    sprintf(curlErrorMsg, "isConnCurl(): Error failed setopt() CURLOPT_CONNECT_ONLY: %s",
+	    curl_easy_strerror(result));
     fprintf(stderr, "isConnCurl(): Error failed to set CONNECT ONLY option.\n");
     curl_easy_cleanup(cHandle);
     return FALSE;
@@ -224,233 +552,71 @@ int isConnCurl(const char *server){
 
   return ztNoConnNet;
 
-} /* END curlConnected() **/
-
-/* initialDownload() : initial download, if secToken is not null then we have
- * secure download! function connects CURLU and CURL handles.
- * acquire CURL easy handle and sets basic options on it for download.
- *
- * user should call easyCleanup(h) or curl_easy_cleanup(h)
- *
- * returns CURL * handle on success or NULL on failure.
- ************************************************************************/
-CURL *initialDownload (CURLU *srcUrl, char *secToken){
-
-  CURLcode   result;
-  CURL       *dwnldHandle = NULL;
-
-  /* allow NULL for secToken **/
-  ASSERTARGS (srcUrl);
-
-  if (sessionFlag == 0){
-    fprintf(stderr, "initialDownload(): Error, curl session not initialized. You must call\n "
-	    " initialCurlSession() first and check its return value.\n");
-    return dwnldHandle;
-  }
-
-  dwnldHandle = easyInitial();
-  if ( ! dwnldHandle){
-
-    /* curl library does not know our error buffer yet, so write this in it **/
-	sprintf(curlErrorMsg, "Failed curl_easy_init(): Something went wrong");
-    fprintf(stderr, "initialDownload(): curl_easy_init() call failed. Client:: Abort?!\n");
-    return dwnldHandle;
-  }
-
-  /* tell curl to write human error messages in this buffer "curlErrorMsg" **/
-  result = curl_easy_setopt (dwnldHandle, CURLOPT_ERRORBUFFER, curlErrorMsg);
-  if (result != CURLE_OK) {
-
-	sprintf(curlErrorMsg, "Failed curl_easy_setopt() parameter: CURLOPT_ERRORBUFFER");
-    fprintf(stderr, "initialDownload() Error: failed to set ERRORBUFFER option\n"
-	    " curl_easy_setopt(.., CURLOPT_ERRORBUFFER, ..) failed: %s\n",
-		curl_easy_strerror(result));
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* no progress meter please */
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_NOPROGRESS, 1L);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_NOPROGRESS.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* option was set successfully, now we trust curl library
-   * to write error messages there.
-   ********************************************************/
-
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_BUFFERSIZE, 102400L);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_BUFFERSIZE.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* caller initials CURLU (parse handle) with part or complete URL.
-   * this call ties (connects) CURLU * (curl parse handle) with
-   * CURL* (curl easy handle). */
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_CURLU, srcUrl);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_CURLU.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_USERAGENT, CURL_USER_AGENT);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_USERAGENT.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_MAXREDIRS, 50L);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_MAXREDIRS.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_2TLS);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_HTTP_VERSION.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* secToken might be NULL **/
-  if (secToken){
-    result = curl_easy_setopt(dwnldHandle, CURLOPT_COOKIE, secToken);
-    if(result != CURLE_OK) {
-
-      fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_COOKIE.\n");
-      easyCleanup(dwnldHandle);
-      dwnldHandle = NULL;
-      return dwnldHandle;
-    }
-  }
-
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_TCP_KEEPALIVE, 1L);
-  if(result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload(): Error failed setopt() : CURLOPT_TCP_KEEPALIVE.\n");
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* fail when response code >= 400; fail on error **/
-  result = curl_easy_setopt(dwnldHandle, CURLOPT_FAILONERROR, 1L);
-  if (result != CURLE_OK) {
-
-    fprintf(stderr, "initialDownload() Error: failed to set CURLOPT_FAILONERROR option\n"
-	    " curl_easy_setopt(.., CURLOPT_FAILONERROR, ..) failed: %s\n",
-		curl_easy_strerror(result));
-    easyCleanup(dwnldHandle);
-    dwnldHandle = NULL;
-    return dwnldHandle;
-  }
-
-  /* set exported sizeDownload to zero **/
-  sizeDownload = 0;
-
-  return dwnldHandle;
-
-} /* END initialDownload() */
-
-/* This is from curl/system.h header file regarding curl_off_t  ********************
-  *
- * curl_off_t
- * ----------
- *
- * For any given platform/compiler curl_off_t must be typedef'ed to a 64-bit
- * wide signed integral data type. The width of this data type must remain
- * constant and independent of any possible large file support settings.
- *
- * END from curl/system.h file ****************************/
-
- /* given the above note, I believe it is safe to cast curl_off_t into (long)
-  * on a 64-bit linux system
-  *
-  *  sizeHeader is cast on clSize, and sizeDownload is cast on dlSize:
-  *
-  *  sizeHeader = (long) clSize;
-  *  sizeDownload = (long) dlSize;
-  *
-  *  another note: sizeDownload is an exported (global) variable - not local
-  *  to this function; sizeDownload is set to zero in initialDownload().
-  *
-  *******************************************************************/
+} /* END isConnCurl() **/
 
 /* download2File():
- *    - toFilePtr : FILE pointer to an open file. user opens and closes file.
- *    - handle : pointer to an initial CURL handle
+ * function downloads file from remote server to local machine.
+ * remote file URL is setup in parameter CURLU* parseHandle, and
+ * filename parameter is file path and name on local machine.
+ *
+ * Parameters:
+ *  - filename: character pointer to local file; path included.
+ *  - handle  : CURL easy handle; returned from initialOperation()
+ *  - parseHandle: CURLU URL parse handle, returned from initialURL()
+ *                 using URL for remote server; this must including:
+ *                 scheme + server_name + path
  *
  * returns:
+ *  - ztSuccess
+ *  - ztFatalError: bad curl parse handle / pointer
  *  - result from isGoodFilename() on failure.
  *  - result from openOutputFile() on failure.
  *  - result from closeFile() on failure.
  *  - ztFailedLibCall if any curl library function fails.
  *  - ztFailedDownload
  *  - ztBadSizeDownload
- *  - ztResponse{code} - {unknown/unhandled}
- *	- ztSuccess:
- *
- * FILE* openOutputFile (char *filename)
- *
- * int closeFile(FILE *fPtr)
- *
- * Change: first parameter is character pointer to destination file - was
- *         FILE * to an open file.
- *
- * Function test first parameter for good filename only.
- * Function opens destination file using my openOutputFile() function.
- * Function opens file with writing mode; meaning its contents will be replaced
- * if it had any.
- * Function uses my closeFile() to close the file; it does some error checking!
+ *  - ztResponse{code} - {response code including unknown & unhandled response codes}
  *
  ****************************************************************************/
-int download2File (char *filename, CURL *handle){
 
-  CURLcode   result;
+int download2File (char *filename, CURL *handle, CURLU *parseHandle){
+
+  CURLcode   result, performResult; /* normal library curl return code **/
   int        myResult;
   FILE       *toFilePtr = NULL;
 
-  long       responseCode;
 
-  ASSERTARGS (filename && handle);
+  ASSERTARGS (filename && handle && parseHandle);
 
   if (sessionFlag == 0){
     fprintf(stderr, "download2File(): Error, curl session not initialized. You must call\n "
 	    " initialCurlSession() first and check its return value.\n");
-    return ztNoSession;
+    return ztNoCurlSession;
   }
 
   myResult = isGoodFilename(filename);
   if(myResult != ztSuccess){
-	fprintf(stderr, "download2File(): Error parameter 'filename' is not good filename.\n");
-	return myResult;
+    fprintf(stderr, "download2File(): Error parameter 'filename' is not good filename.\n");
+    return myResult;
   }
 
   /* open destination file **/
   toFilePtr = openOutputFile(filename);
   if(!toFilePtr){
-	fprintf(stderr, "download2File(): Error failed openOutputFile() function.\n");
-	return ztOpenFileError;
+    fprintf(stderr, "download2File(): Error failed openOutputFile() "
+    		"function; parameter 'filename': <%s>\n", filename);
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "download2File(): Error failed openOutputFile() "
+      		"function; parameter 'filename': <%s>\n", filename);
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    return ztOpenFileError;
   }
 
   /* tell curl library where to write data **/
@@ -458,77 +624,125 @@ int download2File (char *filename, CURL *handle){
   if (result != CURLE_OK){
 
     fprintf(stderr, "download2File(): Error failed curl_easy_setopt(); Parameter: CURLOPT_WRITEDATA.\n");
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "download2File(): Error failed curl_easy_setopt(); "
+    		  "Parameter: CURLOPT_WRITEDATA.\n");
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
     return ztFailedLibCall;
   }
 
-  /* curl easy handle may get corrupted?! report / get error ASAP **/
-  char   *currentUrl;
+  performResult = curl_easy_perform(handle);
 
-  currentUrl = getCurrentURL();
-  if(!currentUrl)
-	currentUrl = STRDUP("Failed getCurrentURL()");
+  if (performResult == CURLE_COULDNT_CONNECT){
 
-  result = curl_easy_perform(handle);
+	fprintf(stderr, "download2File(): Failed curl_easy_perform() with curl could not connect.\n");
 
-  if(result != CURLE_OK){
+    if(curlLogtoFP){
 
-	fprintf(stderr,"download2File(): Error failed curl_easy_perform() function.\n");
-	fprintf(stderr," Parameter 'filename': <%s>\n", filename);
-	fprintf(stderr," Current Remote URL: <%s>\n", currentUrl);
-	fprintf(stderr, " curl_easy_strerror() for result: <%s>\n", curl_easy_strerror(result));
-	if(strlen(curlErrorMsg))
-	  fprintf(stderr, " curlErrorMsg contents: <%s>\n", curlErrorMsg);
+      char   logBuffer[PATH_MAX] = {0};
 
-	/* try to get Server Response Code **/
-	if(curl_easy_getinfo (handle, CURLINFO_RESPONSE_CODE, &responseCode) != CURLE_OK)
+      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
+    	  " function failed with (performResult == CURLE_COULDNT_CONNECT)\n"
+	      " Parameter 'filename': <%s>\n"
+	      " Remote URL: <%s>\n"
+	      " curlErrorMsg contents: <%s>\n",
+	      filename, getPrefixCURLU(parseHandle), curlErrorMsg);
 
-	  responseCode = -1;
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	fprintf(stderr,"download2File(): Failed download with response code: <%ld>\n", responseCode);
+	return ztNetConnFailed;
 
-	if(curlLogtoFP){
+  }
 
-	  char   logBuffer[PATH_MAX] = {0};
+  if (performResult == CURLE_COULDNT_RESOLVE_HOST){
 
-	  sprintf(logBuffer, "Failed download2File() Failed download2File() Failed download2File()\n"
-			  "download2File(): Error failed curl_easy_perform() function.\n"
-			  " Parameter 'filename': <%s>\n"
-			  " Remote URL: <%s>\n"
-			  " curl_easy_strerror() for result: <%s>\n"
-			  " curlErrorMsg contents: <%s>\n"
-			  "@@@ end log message @@@\n",
-			  filename, currentUrl, curl_easy_strerror(result), curlErrorMsg);
+	fprintf(stderr, "download2File(): Failed curl_easy_perform() with CURLE_COULDNT_RESOLVE_HOST.\n");
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
-	}
+    if(curlLogtoFP){
 
-	if(toFilePtr){
+      char   logBuffer[PATH_MAX] = {0};
 
-	  myResult = closeFile(toFilePtr);
-	  if(myResult != ztSuccess)
-		fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
+      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
+    	  " function failed with (performResult == CURLE_COULDNT_RESOLVE_HOST)\n"
+	      " Parameter 'filename': <%s>\n"
+	      " Remote URL: <%s>\n"
+	      " curlErrorMsg contents: <%s>\n",
+	      filename, getPrefixCURLU(parseHandle), curlErrorMsg);
 
-	  /* we want to return ztFailedDownload; still 2 errors might be related?! **/
-	}
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	//return ztFailedDownload;
-	return getCurlResponseCode(handle);
+	return ztHostResolveFailed;
 
-  } /* end if(result != CURLE_OK) **/
+  }
 
-  /* return error when we fail to close it **/
+  if(performResult != CURLE_OK){
+
+    fprintf(stderr,"download2File(): Error failed curl_easy_perform() function.\n");
+    fprintf(stderr," Parameter 'filename': <%s>\n", filename);
+    fprintf(stderr," Current Remote URL: <%s>\n", getPrefixCURLU(parseHandle));
+    fprintf(stderr, " curl_easy_strerror() for result: <%s>\n", curl_easy_strerror(performResult));
+    if(strlen(curlErrorMsg))
+      fprintf(stderr, " curlErrorMsg contents: <%s>\n", curlErrorMsg);
+
+    /* try to get Server Response Code **/
+    if(curl_easy_getinfo (handle, CURLINFO_RESPONSE_CODE, &responseCode) != CURLE_OK)
+
+      responseCode = -1L;
+
+    fprintf(stderr,"download2File(): Failed download with response code: <%ld>\n"
+    		"Note (-1) value is for curl_easy_getinfo() failed to retrieve response code.", responseCode);
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
+	      " Parameter 'filename': <%s>\n"
+	      " Remote URL: <%s>\n"
+	      " curl_easy_strerror() for result: <%s>\n"
+	      " curlErrorMsg contents: <%s>\n",
+	      filename, getPrefixCURLU(parseHandle), curl_easy_strerror(result), curlErrorMsg);
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    if(toFilePtr){
+
+      myResult = closeFile(toFilePtr);
+      if(myResult != ztSuccess)
+	    fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
+
+      /* we want to return ztFailedDownload; still 2 errors might be related?! **/
+    }
+
+    return responseCode2ztCode(responseCode);
+
+  } /* end if(performResult != CURLE_OK) **/
+
+
+  /* now performResult == CURLE_OK - all good from curl;
+   * return error when we fail to close it **/
   myResult = closeFile(toFilePtr);
   if(myResult != ztSuccess){
-	fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
-	return myResult;
+    fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
+    return myResult;
   }
 
   result = curl_easy_getinfo (handle, CURLINFO_RESPONSE_CODE, &responseCode);
   if (result != CURLE_OK){
 
-	responseCode = -1;
+    responseCode = -1;
 
-	fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for CURLINFO_RESPONSE_CODE.\n");
+    fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for CURLINFO_RESPONSE_CODE.\n");
 
     return ztFailedLibCall;
   }
@@ -544,122 +758,219 @@ int download2File (char *filename, CURL *handle){
   myResult = getFileSize(&sizeDisk, filename);
   if(myResult != ztSuccess){
     fprintf(stderr, "download2File(): Error failed getFileSize() function.\n");
-	return myResult;
+    return myResult;
   }
-
-//fprintf(stdout,"download2File(): File size on disk after download is: <%ld> bytes.\n", sizeDisk);
 
   result = curl_easy_getinfo(handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &clSize);
   if(result != CURLE_OK){
 
-	fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for"
-			" CURLINFO_LENGTH_DOWNLOAD_T.\n");
+    fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for"
+	    " CURLINFO_LENGTH_DOWNLOAD_T.\n");
 
     return ztFailedLibCall;
   }
   else {
 
-	sizeHeader = (long) clSize;
+    sizeHeader = (long) clSize;
   }
 
   result = curl_easy_getinfo(handle, CURLINFO_SIZE_DOWNLOAD_T, &dlSize);
   if(result != CURLE_OK){
 
-	fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for "
-			"CURLINFO_SIZE_DOWNLOAD_T.\n");
+    fprintf(stderr, "download2File(): Error failed curl_easy_getinfo() for "
+	    "CURLINFO_SIZE_DOWNLOAD_T.\n");
 
     return ztFailedLibCall;
   }
   else {
 
-	sizeDownload = (long) dlSize;
+    sizeDownload = (long) dlSize;
   }
 
+  /* do not use size tests for index.html page; with option
+   * CURLOPT_ACCEPT_ENCODING set, download2File() - getting the page - fails
+   * this test.
+   * my thinking is remote server compresses the page before sending, the on
+   * disk file size is not equal to curl download size, I could be wrong.
+   *
+   * removed CURLOPT_ACCEPT_ENCODING setting option
+   * this is wrong, need to use file type 'text' not name?
+   *
+   ******************************************************************/
 
-  if((result == CURLE_OK) && (responseCode == OK_RESPONSE_CODE)){
+  /*
+  if((strcmp(lastOfPath(filename), "index.html") == 0)){
 
-	if((sizeDisk == sizeHeader) || (sizeDisk == sizeDownload)){
+	return responseCode2ztCode(responseCode);
 
-	  /* ALL three numbers should match - for now,
-	   * download is okay when fileSize matches at least
-	   * one of the two numbers.
-	   * Another thing to do is to look inside and verify each
-	   * file:
-	   * state.txt file must have 2 lines timestamp & sequenceNumber
-	   * osc change files -might be compressed- is text XML file
-	   * with first line has:
-	   * <?xml version='1.0' encoding='UTF-8'?>
-	   * <osmChange version="0.6" generator="osmium/1.7.1">
-	   *
-	   **************************************************************/
+  }
+  *******************************************************/
 
-	  if( (sizeHeader != sizeDownload) && (curlLogtoFP) ){
+  if((performResult == CURLE_OK) && (responseCode == OK_RESPONSE_CODE)){
 
-		char   logBuffer[PATH_MAX] = {0};
+    if((sizeDisk == sizeHeader) || (sizeDisk == sizeDownload)){
 
-		sprintf(logBuffer, "WARNING: DIFFERENT SIZES:\n"
-				  "download2File(): Different sizes for sizeHeader and sizeDownload.\n"
-				  " sizeHeader is: <%ld> and sizeDownload is: <%ld>\n"
-				  " File disk size is: <%ld>\n"
-				  " Parameter 'filename': <%s>\n"
-				  " Current Remote URL: <%s>\n"
-				  " Note that non-named page does not have the header size set.\n"
-				  "@@@ end log message @@@\n",
-				  sizeHeader, sizeDownload, sizeDisk, filename, currentUrl);
+      /* ALL three numbers should match;
+       * but for now download is okay when fileSize matches at least
+       * one of the other two numbers.
+       *
+       * Another thing to consider is to look inside and verify each
+       * file:
+       * state.txt file must have 2 lines timestamp & sequenceNumber
+       * osc change files -might be compressed- is text XML file
+       * with first line has:
+       * <?xml version='1.0' encoding='UTF-8'?>
+       * <osmChange version="0.6" generator="osmium/1.7.1">
+       *
+       **************************************************************/
 
-		writeLogCurl(curlLogtoFP, logBuffer);
-	  }
+      if( (sizeHeader != sizeDownload) && (curlLogtoFP) ){
 
-	  return ztSuccess;
-	}
-	else { /* failed fileSize test:  **/
+	char   logBuffer[PATH_MAX] = {0};
 
-	  if(curlLogtoFP){
+	sprintf(logBuffer, "download2File(): Different sizes for sizeHeader and sizeDownload.\n"
+		" sizeHeader is: <%ld> and sizeDownload is: <%ld>\n"
+		" File disk size is: <%ld>\n"
+		" Parameter 'filename': <%s>\n"
+		" Current Remote URL: <%s>\n"
+		" Note that non-named page does not have the header size set.\n",
+		sizeHeader, sizeDownload, sizeDisk, filename, getPrefixCURLU(parseHandle));
 
-		char   logBuffer[PATH_MAX] = {0};
+	writeLogCurl(curlLogtoFP, logBuffer);
+      }
 
-		sprintf(logBuffer, "Failed size test Failed size test Failed size test\n"
-				  "download2File(): SUCCESS curl_easy_perform() function result == CURLE_OK.\n"
-				  " Response Code == 200 (OK_RESPONSE_CODE)\n"
-				  " Parameter filename: <%s>\n"
-				  " Current Remote URL: <%s>\n"
-				  " No function errors to include. But different sizes ...\n"
-				  " sizeHeader is: <%ld> and sizeDownload is: <%ld>\n"
-				  " File disk size is: <%ld>\n"
-				  "@@@ end log message @@@\n",
-				  filename, currentUrl, sizeHeader, sizeDownload, sizeDisk);
+      return ztSuccess;
+    }
+    else { /* failed fileSize test:  **/
 
-		writeLogCurl(curlLogtoFP, logBuffer);
-	  }
+      if(curlLogtoFP){
 
-	  return ztBadSizeDownload;
-	}
+	char   logBuffer[PATH_MAX] = {0};
+
+	sprintf(logBuffer, "download2File(): SUCCESS curl_easy_perform() function result == CURLE_OK.\n"
+		" Response Code == 200 (OK_RESPONSE_CODE)\n"
+		" Parameter filename: <%s>\n"
+		" Current Remote URL: <%s>\n"
+		" No function errors to include. But different sizes ...\n"
+		" sizeHeader is: <%ld> and sizeDownload is: <%ld>\n"
+		" File disk size is: <%ld>\n",
+		filename, getPrefixCURLU(parseHandle), sizeHeader, sizeDownload, sizeDisk);
+
+	writeLogCurl(curlLogtoFP, logBuffer);
+      }
+
+      return ztBadSizeDownload;
+    }
 
   } /* end if((result == CURLE_OK) && (responseCode == OK_RESPONSE_CODE)) **/
 
-  return getCurlResponseCode(handle);
+
+  return responseCode2ztCode(responseCode);
 
 } /* END download2File() **/
 
-char *getCurrentURL(){
+/* Note change to download2File() function above.
+ *
+ * download2FileRetry():
+ * calls download2File(),
+ * retries failed results:
+ *
+ ********************************************************************************/
 
-  CURLUcode  result;
+int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
+
+  ASSERTARGS(destFile && handle);
+
+  if (sessionFlag == 0){
+    fprintf(stderr, "download2FileRetry(): Error, curl session not initialized. You must call\n "
+	    " initialCurlSession() first and check its return value.\n");
+    return ztNoCurlSession;
+  }
+
+  int   result;
+  int   delay = 2 * 30;  /* sleep time in seconds **/
+
+  result = download2File(destFile, handle, parseHandle);
+
+  if(result == ztSuccess)
+
+    return result;
+
+  if( (result == ztResponse500) ||
+      (result == ztResponse502) ||
+      (result == ztResponse503) ||
+      (result == ztResponse504) ||
+      (result == ztNetConnFailed) ||
+      (result == ztHostResolveFailed) )
+
+    sleep(delay);
+
+  /* try again **/
+  result = download2File(destFile, handle, parseHandle);
+  if(result != ztSuccess){
+
+    fprintf(stderr, "download2FileRetry(): Error failed download2File() for second attempt.\n"
+    		" Sleep Time Value: <%d> seconds.\n"
+    		" function failed with Zone Tree Code: <%s>\n", delay, ztCode2ErrorStr(result));
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "download2FileRetry(): Error failed download2File() for second attempt.\n"
+    		" Sleep Time Value: <%d> seconds.\n"
+      		" function failed with Zone Tree Exit Code: <%s>\n", delay, ztCode2ErrorStr(result));
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+  }
+
+  return result;
+
+} /* END download2FileRetry() **/
+
+
+/* getPrefixCURLU():
+ * Returns character pointer to string in initialed parse handle.
+ *
+ * Function requires scheme, host and path to be set; no empty string
+ * is allowed. Function is used to verify the integrity of the pointer
+ * in parseHandle.
+ *
+ * Parameter:
+ *  parseUrlHandle : initialed CURLU* parse handle.
+ *
+ * Return:
+ *  character pointer to string including {scheme + host + path} on success,
+ *  NULL if any part is not set; has string length zero.
+ *
+ * Note some servers setup may not include {path} part; this is not the case
+ * with my "getdiff" program or overpass servers we query (both have path part).
+ *
+ **************************************************************************/
+
+char *getPrefixCURLU(CURLU *parseUrlHandle){
+
+  CURLUcode  result; /* curl parse URL API return code **/
+
   char   *url = NULL;
-
   char   *scheme = NULL;
   char   *host = NULL;
   char   *path = NULL;
   char   myUrl[PATH_MAX] = {0};
 
+  ASSERTARGS(parseUrlHandle);
+
   result = curl_url_get(parseUrlHandle, CURLUPART_SCHEME, &scheme, 0);
   if (result != CURLUE_OK ) {
-    fprintf(stderr, "getCurrentURL(): Error failed curl_url_get() for 'scheme' part.\n");
+    fprintf(stderr, "getPrefixCURLU(): Error failed curl_url_get() for 'scheme' part.\n");
     return url;
   }
 
   result = curl_url_get(parseUrlHandle, CURLUPART_HOST, &host, 0);
   if (result != CURLUE_OK ) {
-    fprintf(stderr, "getCurrentURL(): Error failed curl_url_get() for 'host' part.\n");
+    fprintf(stderr, "getPrefixCURLU(): Error failed curl_url_get() for 'host' part.\n");
 
     if(scheme) 	curl_free(scheme);
 
@@ -668,7 +979,7 @@ char *getCurrentURL(){
 
   result = curl_url_get(parseUrlHandle, CURLUPART_PATH, &path, 0);
   if (result != CURLUE_OK ) {
-    fprintf(stderr, "getCurrentURL(): Error failed curl_url_get() for 'path' part.\n");
+    fprintf(stderr, "getPrefixCURLU(): Error failed curl_url_get() for 'path' part.\n");
 
     if(scheme) 	curl_free(scheme);
     if(host)  curl_free(host);
@@ -676,120 +987,28 @@ char *getCurrentURL(){
     return url;
   }
 
+  /* no zero length string is allowed in any part.
+   * NOTE: path might be zero length in some servers setup **/
+  if ( (strlen(scheme) == 0) || (strlen(host) == 0) || (strlen(path) == 0) )
+
+    return url;
+
   sprintf(myUrl, "%s://%s%s", scheme, host, path);
 
-  url = STRDUP(myUrl);
+  url = STRDUP(myUrl); /* STRDUP() terminates program on memory failure! **/
 
   if(scheme)
-	curl_free(scheme);
+    curl_free(scheme);
 
   if(host)
-	curl_free(host);
+    curl_free(host);
 
   if(path)
     curl_free(path);
 
   return url;
 
-} /* END getCurrentURL() **/
-
-
-/* initialQuery(): initials curl handle for query, calls curl_easy_initial() then
- * sets basic common options including the call back function to call.
- * Parameters: serverUrl is curl URL handle returned by initialURL(),
- *                     secToken : character pointer for security token.
- * Note: a server may require user name and password; not handled here.
- * return: CURL handle or NULL on error.
- ****************************************************************************/
-
-CURL * initialQuery (CURLU *serverUrl, char *secToken){
-
-  CURL      *qryHandle = NULL;
-  CURLcode  result;
-
-
-  ASSERTARGS (serverUrl);
-
-  if (sessionFlag == 0){
-    fprintf(stderr, "initialQuery(): Error, session not initialized. You must call\n "
-	    " initialCurlSession() first and check its return value.\n");
-    return qryHandle;
-  }
-
-  qryHandle = easyInitial(); /* easyInitial() is defined in curl_func.h as curl_easy_init() */
-  if ( ! qryHandle){
-    fprintf(stderr, "initialQuery(): curl_easy_init() call failed. Client:: Abort?!\n");
-    return qryHandle;
-  }
-
-  /* connect CURL handle with CURLU handle */
-  result = curl_easy_setopt(qryHandle, CURLOPT_CURLU, serverUrl);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "initialQuery(): Error failed setopt() : CURLOPT_CURLU.\n");
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  /* CURL_USER_AGENT is defined in curl_func.h */
-  result = curl_easy_setopt(qryHandle, CURLOPT_USERAGENT, CURL_USER_AGENT);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "initialQuery(): Error failed setopt() : CURLOPT_USERAGENT.\n");
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  result = curl_easy_setopt (qryHandle, CURLOPT_TCP_KEEPALIVE, 1L);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "initialQuery() failed to set KEEPALIVE option"
-	    "{CURLOPT_TCP_KEEPALIVE}: %s\n", curl_easy_strerror(result));
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  /* try to get human readable error message */
-  result = curl_easy_setopt (qryHandle, CURLOPT_ERRORBUFFER, curlErrorMsg);
-  if (result != CURLE_OK) {
-    fprintf(stderr, "initialQuery() Error: failed to set ERRORBUFFER option\n"
-	    " curl_easy_setopt(.., CURLOPT_ERRORBUFFER, ..) failed: %s\n", curl_easy_strerror(result));
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  if (secToken){
-    result = curl_easy_setopt(qryHandle, CURLOPT_COOKIE, secToken);
-    if(result != CURLE_OK) {
-      fprintf(stderr, "initialQuery(): Error failed setopt() : CURLOPT_COOKIE.\n");
-      easyCleanup(qryHandle);
-      qryHandle = NULL;
-      return qryHandle;
-    }
-  }
-
-  result = curl_easy_setopt(qryHandle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "initialQuery()  failed to set WRITEFUNCTION option! "
-	    "{CURLOPT_WRITEFUNCTION}: %s\n", curl_easy_strerror(result));
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  result = curl_easy_setopt (qryHandle, CURLOPT_HTTPGET, 1L);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "initialQuery() failed to set HTTPGET option "
-	    "{CURLOPT_HTTPGET}: %s\n", curl_easy_strerror(result));
-    easyCleanup(qryHandle);
-    qryHandle = NULL;
-    return qryHandle;
-  }
-
-  return qryHandle;
-
-} /* END initialQuery() */
+} /* END getPrefixCURLU() **/
 
 /* callback function prototype: (see man CURLOPT_WRITEFUNCTION)
  *  size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
@@ -818,25 +1037,58 @@ static size_t WriteMemoryCallback (void *contents, size_t size, size_t nmemb, vo
 } /* END WriteMemoryCallback() */
 
 /* performQuery():
+ * Executes a query using cURL and manages the interaction with the
+ * provided server handle.
  *
- **	400 code 400 code 400 code 400 code 400 code 400 code
- * overpass response code == 400 with malformed query string. Parse error.
- * server did not understand 400
- */
+ * Parameters:
+ * - dst: Pointer to MEMORY_STRUCT where query results will be stored.
+ * - whichData: The query string to be processed.
+ * - qHandle: cURL handle for performing the query.
+ * - srvrHandle: cURL URL handle for server interactions.
+ *
+ * Returns:
+ *  - ztSuccess: Query execution successful.
+ *  - ztCurlTimeout: cURL operation timed out.
+ *  - ztResponse301, ztResponse302, ztResponse400,
+ *    ztResponse429, ztResponse504: Various response
+ *    codes indicating specific issues.
+ *
+ *  - ztFatalError: Unrecoverable error occurred during query execution.
+ *
+ *  - ztFailedLibCall: Error in the cURL library function calls.
+ *
+ *  - ztNoCurlSession: The cURL session was not initialized.
+ *
+ *  - ztInvalidArg: Invalid argument passed to the function.
+ *  - ztNetConnFailed: Connection failure while performing the query.
+ *  - ztUnknownError: Unknown error occurred during the query execution.
+ *
+ * Additional Notes:
+ *  - Utilizes cURL functionality to perform the query.
+ *  - Handles query-related settings, URL encoding, and error checks.
+ *  - Provides detailed error messages for various failure scenarios.
+ *  - Manages the retrieval of response codes and logging.
+ *  - Writes query result data to a client file pointer if set (curlRawDataFP).
+ *
+ ********************************************************************/
 
 int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrHandle) {
 
-  CURLcode   result;
+  CURLUcode  resultU; /* URL API curl parser calls return code **/
+
+  CURLcode   resultC, performResult; /* normal curl library return code **/
+
   char       *queryEscaped;
   char       *serverName;
   char       getBuf[PATH_MAX] = {0};
+
 
   ASSERTARGS (dst && whichData && qHandle && srvrHandle);
 
   if (sessionFlag == 0){
     fprintf(stderr, "performQuery(): Error, session not initialized. You must call\n "
 	    " curlInitialSession() first and check its return value.\n");
-    return ztNoSession;
+    return ztNoCurlSession;
   }
 
   if (strlen(whichData) == 0){
@@ -845,90 +1097,205 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
   }
 
   /* check that initialURL() was called, try to get serverName - overhead? NO. */
+  resultU = curl_url_get (srvrHandle, CURLUPART_HOST, &serverName, 0);
+  if(resultU != CURLUE_OK) {
 
-  result = curl_url_get (srvrHandle, CURLUPART_HOST, &serverName, 0);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "performQuery(): Error failed curl_url_get() call for HOST name. "
-	    "Curl string error: %s\n", curl_easy_strerror(result));
-    return result;
+	fprintf(stderr, "performQuery(): Error failed curl_url_get() call for HOST name. "
+	    " Curl URL string error: %s\n", curl_url_strerror(resultU));
+
+    return ztFailedLibCall;
   }
 
-  /* need more checking */
   if (serverName == NULL || strlen(serverName) == 0){
     fprintf(stderr, "performQuery(): Error server name NOT set in srvrHandle parameter!"
 	    " did you call initialURL()?\n");
     return ztInvalidArg;
   }
 
+  /* let curl do URL encoding for our query string **/
   queryEscaped = curl_easy_escape(qHandle, whichData, strlen(whichData));
   if (!queryEscaped){
     printf("performQuery(): Error failed curl_easy_esacpe() function.\n");
     return ztFailedLibCall;
   }
 
-  /* add "data=" prefix to the encoded query string */
+  /* prepend "data=" prefix to the encoded query string */
   sprintf(getBuf, "data=%s", queryEscaped);
 
-  /* replace query part in URL srvrHandle */
-  result = curl_url_set(srvrHandle, CURLUPART_QUERY, getBuf, 0);
-  if(result != CURLE_OK) {
+  /* replace / set query part in curl parse handle srvrHandle */
+  resultU = curl_url_set(srvrHandle, CURLUPART_QUERY, getBuf, 0);
+  if(resultU != CURLUE_OK) {
     fprintf(stderr, "performQuery(): Error failed curl_url_set() call for query part. "
-	    "Curl string error: %s\n", curl_easy_strerror(result));
-    return result;
+	    "Curl URL string error: %s\n", curl_url_strerror(resultU));
+    return ztFailedLibCall;
   }
 
-  result = curl_easy_setopt(qHandle, CURLOPT_WRITEDATA, (void *)dst);
-  if(result != CURLE_OK) {
-    fprintf(stderr, "performQuery() curl_easy_setopt() failed to set WRITEDATA "
-	    "{CURLOPT_WRITEDATA}: %s\n", curl_easy_strerror(result));
-    return result;
+  /* set query specific easy options **/
+  resultC = curl_easy_setopt(qHandle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+  if(resultC != CURLE_OK) {
+    fprintf(stderr, "performQuery(): Error failed curl_esay_setop CURLOPT_WRITEFUNCTION\n"
+	    " Curl string error: %s\n", curl_easy_strerror(resultC));
+    return ztFailedLibCall;
   }
 
-  /* uncomment for debug */
+  /* use user provided pointer to write to, this is passed to WriteMemoryCallback()
+   * as fourth argument **/
+  resultC = curl_easy_setopt(qHandle, CURLOPT_WRITEDATA, (void *)dst);
+  if(resultC != CURLE_OK) {
+    fprintf(stderr, "performQuery(): Error failed curl_easy_setopt() CURLOPT_WRITEDATA "
+	    " Curl string error: %s\n", curl_easy_strerror(resultC));
+    return ztFailedLibCall;
+  }
+
+  /* uncomment for debug **/
   /* curl_easy_setopt(qHandle, CURLOPT_VERBOSE, 1L); */
 
+  /* send it away! */
+  performResult = curl_easy_perform(qHandle);
 
-  /* get it! */
-  result = curl_easy_perform(qHandle);
+  if (performResult == CURLE_OPERATION_TIMEDOUT) { /* CURLOPT_TIMEOUT != 0 **/
+
+	fprintf(stderr, "performQuery(): Failed curl_easy_perform() for operation TIMED OUT.\n");
+    return ztCurlTimeout;
+  }
+
+  if (performResult == CURLE_COULDNT_CONNECT){
+
+	fprintf(stderr, "performQuery(): Failed curl_easy_perform() with curl could not connect.\n");
+	return ztNetConnFailed;
+  }
 
   /* check for errors */
-  if(result != CURLE_OK) {
-    fprintf(stderr, "performQuery(): error failed curl_easy_perform() call. String Error: %s\n",
-	    curl_easy_strerror(result));
+  if(performResult != CURLE_OK) {
+
+    fprintf(stderr, "performQuery(): error failed curl_easy_perform() call. Curl String Error: %s\n",
+	    curl_easy_strerror(performResult));
+
+    fprintf(stderr," Parameter 'whichData' (query string) is: <%s>\n", whichData);
+
+    fprintf(stderr, " Current URL prefix is: <%s>\n", getPrefixCURLU(srvrHandle));
 
     if (strlen(curlErrorMsg))
-      fprintf(stderr, "performQuery(): Curl Perform Error Message: %s\n", curlErrorMsg);
-  }
-  /*
-    else {
+      fprintf(stderr, " curlErrorMsg contents: <%s>\n", curlErrorMsg);
 
-    printf("performQuery(): Done with success.  "
-    "%lu bytes retrieved\n\n", (unsigned long) dst->size);
+    /* try to get Server Response Code **/
+    if(curl_easy_getinfo (qHandle, CURLINFO_RESPONSE_CODE, &responseCode) != CURLE_OK)
 
+      responseCode = -1L;
+
+    fprintf(stderr," Failed curl_easy_perform() with response code: <%ld>\n"
+    		"  Note response code is set to -1 on failure to retrieve it.\n\n", responseCode);
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer, "performQuery(): error failed curl_easy_perform() call. Curl String Error: %s\n"
+    		  " Parameter 'whichData' (query string) is: <%s>\n"
+    		  " Current URL prefix is: <%s>\n"
+    		  " curlErrorMsg contents: <%s>\n"
+    		  " Failed curl_easy_perform() with response code: <%ld>\n"
+    		  "  Note response code is set to -1 on failure to retrieve it.\n\n",
+			  curl_easy_strerror(performResult),
+			  whichData,
+			  getPrefixCURLU(srvrHandle),
+			  curlErrorMsg,
+			  responseCode);
+
+      writeLogCurl(curlLogtoFP, logBuffer);
     }
-  */
+
+  } /* end if(performResult != CURLE_OK) **/
+
+  /* curl_easy_perform() was successful with performResult == CURLE_OK **/
+  resultC = curl_easy_getinfo (qHandle, CURLINFO_RESPONSE_CODE, &responseCode);
+  if (resultC != CURLE_OK){
+
+    responseCode = -1;
+
+    fprintf(stderr, "performQuery(): Error failed curl_easy_getinfo() for CURLINFO_RESPONSE_CODE.\n");
+
+    return ztFailedLibCall;
+  }
+
   if (queryEscaped)
     curl_free(queryEscaped);
 
-  /* write received data to client opened file if curlRawDataFP is set */
+  /* write received data - query result - to client file pointer
+   * when exported "curlRawDataFP" file pointer is set */
   if (curlRawDataFP) {
 
     fprintf(curlRawDataFP, "%s", dst->memory);
     fflush(curlRawDataFP);
   }
 
-  return result;
+  if((performResult == CURLE_OK) && (responseCode == OK_RESPONSE_CODE)){
+
+	return responseCode2ztCode(responseCode); /* returns ztSuccess - NOT ztResponse200 **/
+
+  }
+  else if(responseCode != OK_RESPONSE_CODE){
+
+	if(curlLogtoFP){
+
+	  char   logBuffer[PATH_MAX] = {0};
+
+	  sprintf(logBuffer, "performQuery(): Error failed test (responseCode == OK_RESPONSE_CODE)\n"
+			" Received response code was: <%ld>\n", responseCode);
+	  if(strlen(dst->memory)){
+	    sprintf(logBuffer + strlen(logBuffer), " String received is below:\n");
+
+	    /* copy only what will fit in our logBuffer **/
+	    strncpy(logBuffer + strlen(logBuffer), dst->memory, (size_t) (PATH_MAX - strlen(logBuffer)));
+	  }
+
+	  writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    return responseCode2ztCode(responseCode);
+  }
+  else
+
+    /* we should not get here! **/
+    fprintf(stderr, "performQuery(): UNKNOWN ERROR,,, at bottom of function.\n"
+		  "LAST curl error string is: <%s>\n\n", curl_easy_strerror(resultC));
+
+  return ztUnknownError;
 
 } /* END performQuery() */
 
+/* performQueryRetry():
+ *
+ *
+ */
+
+int performQueryRetry (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrHandle) {
+
+  int  result;
+
+  result = performQuery(dst, whichData, qHandle, srvrHandle);
+
+  if ( (result == ztCurlTimeout) ||
+       (result == ztNetConnFailed) ||
+       (result == ztResponse504) ){
+
+    sleep(SLEEP_SECONDS);
+
+    return performQuery(dst, whichData, qHandle, srvrHandle);
+  }
+
+  return result;
+
+} /* END performQueryRetry() **/
+
 /* isOkResponse(): remote server response is okay if first line in the
- * response matches header.
+ * response matches header string supplied by client.
  * this function compares the first "header" string length characters from
  * "responseStr" to "header".
  * Question? : I am hoping this tells me the query was understood by
  * the server; the query syntax was correct.
  *
- * THIS THIS THIS  This should return TRUE or FALSE. FIXME
+ * @@ THIS @@ This should return TRUE or FALSE. FIXME
  ********************************************************************/
 
 int isOkResponse (char *responseStr, char *header){
@@ -982,270 +1349,293 @@ int writeLogCurl(FILE *to, char *msg){
 
   myPID = getpid();
 
-  fprintf(to, "\n- - - - - - - - - - - -Start- Curl Functions Log -Start- - - - - - - - - - - - - - - -\n\n");
+  fprintf(to, "\n- - - - - - - - - - - - Start Curl Functions Log - - - - - - - - - - - - - - -\n\n");
 
   fprintf (to, "%s [%d] writeLogCurl() received message below:\n %s\n", timestamp, (int) myPID, msg);
 
-  fprintf(to, "- - - - - - - - - - - - -End- Curl Functions Log -End- - - - - - - - - - - - - - - - -\n\n");
+  fprintf(to, "- - - - - - - - - - - - End Curl Functions Log - - - - - - - - - - - - - - - -\n\n");
 
   return ztSuccess;
 
 } /* END writeLogCurl() **/
 
-/* Note change to download2File() function above.
+/* responseCode2ztCode():
+ * Converts HTTP response code to our Zone Tree code -- see ztError.h file.
  *
- * download2FileRetry():
- * calls download2File(), retries when Response Code == 500 ONLY.
  *
- ********************************************************************************/
+ ***************************************************************************/
 
-int download2FileRetry(char *destFile, CURL *handle){
+ZT_EXIT_CODE responseCode2ztCode(long resCode){
 
-  ASSERTARGS(destFile && handle);
+  /* special cases **/
+  if(resCode == 200)
 
-  if (sessionFlag == 0){
-    fprintf(stderr, "download2FileRetry(): Error, curl session not initialized. You must call\n "
-	    " initialCurlSession() first and check its return value.\n");
-    return ztNoSession;
-  }
+    return ztSuccess;
 
-  int   result;
-  int   delay = 2 * 30;  /* sleep time in seconds **/
+  else if (resCode == -1)
 
-  result = download2File(destFile, handle);
+    /* if curl library fails to retrieve response code (curl_easy_getinfo()),
+     * in that case we set global responseCode = -1L;
+     * functions (download2File() & performQuery()) usually will exit with
+     * "ztFailedLibCall" error code; you may not get this!
+     *******************************************************************/
+    return ztResponseFailed2Retrieve;
 
-  if(result == ztSuccess)
+  else if (resCode == 0)
 
-    return result;
+    return ztResponseNone;
 
-  //if(curlResponseCode == 500)
-  if(result == ztResponse500)
+  else ; // do nothing?
 
-	sleep(delay);
-
-  else
-
-	return result;
-
-  /* try again **/
-  result = download2File(destFile, handle);
-  if(result != ztSuccess)
-
-	fprintf(stderr, "download2FileRetry(): Error failed download2File() for second attempt.\n");
-
-  return result;
-
-} /* END download2FileRetry() **/
-
-/* getCurlResponseCode():
- *
- * FUNCTION IS NOT TO BE CALLED WHEN responseCode == 200.
- *
- * A lot of UNHANDLED codes, log those codes for now.
- */
-
-ZT_EXIT_CODE getCurlResponseCode(CURL *handle){
-
-  CURLcode       result;
-  long           responseCode;
-
-  ASSERTARGS(handle);
-
-  if(responseCode == 200)
-
-	return ztSuccess;
-
-  result = curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &responseCode);
-  if(result != CURLE_OK){
-
-	responseCode = -1;
-
-	fprintf(stderr, "getCurlResponseCode(): Error failed curl_easy_getinfo() for response code! "
-			"Code is set to: <-1>\n");
-
-	if(curlLogtoFP){
-
-      char   logBuffer[PATH_MAX] = {0};
-
-	  sprintf(logBuffer, "getCurlResponseCode(): Error failed curl_easy_getinfo() for response code! "
-				"Code is set to: <-1>\n");
-
-      writeLogCurl(curlLogtoFP, logBuffer);
-    }
-
-	return ztFatalError;
-  }
-  else if(responseCode == 0){
-
-	fprintf(stderr, "getCurlResponseCode(): Error did NOT receive any response code from server.\n");
-
-	if(curlLogtoFP){
-      char   logBuffer[PATH_MAX] = {0};
-	  sprintf(logBuffer, "getCurlResponseCode(): Error did NOT receive any response code from server.\n");
-      writeLogCurl(curlLogtoFP, logBuffer);
-    }
-
-	return ztResponseUnknown;
-  }
-
-  switch(responseCode){
+  /* handle response codes in a switch statement **/
+  switch((int) resCode){
 
   case 301:
 
-	fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 301.\n Code is for: <%s>\n",
-				ztCode2Msg(ztResponse301));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 301.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse301));
 
-	return ztResponse301;
-	break;
+    return ztResponse301;
+    break;
 
   case 400:
 
-	fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 400.\n Code is for: <%s>\n",
-			ztCode2Msg(ztResponse400));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 400.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse400));
 
     if(curlLogtoFP){
 
       char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 400 Response Code 400 Response Code 400\n"
-				  "getCurlResponseCode(): Error received Server Response Code <400>\n Code is for: <%s>\n",
-				  ztCode2Msg(ztResponse400));
+      sprintf(logBuffer, "Response Code 400 Response Code 400 Response Code 400\n"
+	      "responseCode2ztCode(): Error received Server Response Code <400>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse400));
 
       writeLogCurl(curlLogtoFP, logBuffer);
     }
 
-
-	  return ztResponse400;
-	  break;
+    return ztResponse400;
+    break;
 
   case 403:
 
-    fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 403\n Code is for: <%s>\n",
-			ztCode2Msg(ztResponse403));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 403\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse403));
 
     if(curlLogtoFP){
 
       char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 403 Response Code 403 Response Code 403\n"
-					  "getCurlResponseCode(): Error received Server Response Code <403>\n Code is for: <%s>\n",
-					  ztCode2Msg(ztResponse403));
+      sprintf(logBuffer, "Response Code 403 Response Code 403 Response Code 403\n"
+	      "responseCode2ztCode(): Error received Server Response Code <403>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse403));
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
+      writeLogCurl(curlLogtoFP, logBuffer);
     }
 
-	return ztResponse403;
-	break;
+    return ztResponse403;
+    break;
 
 
   case 404:
 
-    fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 404.\n Code is for: <%s>\n",
-			ztCode2Msg(ztResponse404));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 404.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse404));
 
     if(curlLogtoFP){
 
       char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 404 Response Code 404 Response Code 404\n"
-			  "getCurlResponseCode(): Error received Server Response Code <404>\n Code is for: <%s>\n",
-			  ztCode2Msg(ztResponse404));
+      sprintf(logBuffer, "Response Code 404 Response Code 404 Response Code 404\n"
+	      "responseCode2ztCode(): Error received Server Response Code <404>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse404));
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
+      writeLogCurl(curlLogtoFP, logBuffer);
     }
 
     return ztResponse404;
-	break;
+    break;
 
   case 429:
 
-	fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 429\n Code is for: <%s>\n",
-			ztCode2Msg(ztResponse429));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 429\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse429));
 
-	if(curlLogtoFP){
+    if(curlLogtoFP){
 
-	  char   logBuffer[PATH_MAX] = {0};
+      char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 429 Response Code 429 Response Code 429\n"
-			  "getCurlResponseCode(): Error received Server Response Code <429>\n Code is for: <%s>\n",
-			  ztCode2Msg(ztResponse429));
+      sprintf(logBuffer, "Response Code 429 Response Code 429 Response Code 429\n"
+	      "responseCode2ztCode(): Error received Server Response Code <429>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse429));
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
-	}
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	return ztResponse429;
-	break;
+    return ztResponse429;
+    break;
 
   case 500:
 
-	fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 500.\n Code is for: <%s>\n",
-			ztCode2Msg(ztResponse500));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 500.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse500));
 
-	if(curlLogtoFP){
+    if(curlLogtoFP){
 
-	  char   logBuffer[PATH_MAX] = {0};
+      char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 500 Response Code 500 Response Code 500\n"
-			  "getCurlResponseCode(): Error received Server Response Code <500>\n Code is for: <%s>\n",
-			  ztCode2Msg(ztResponse500));
+      sprintf(logBuffer, "Response Code 500 Response Code 500 Response Code 500\n"
+	      "responseCode2ztCode(): Error received Server Response Code <500>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse500));
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
-	}
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	return ztResponse500;
-	break;
+    return ztResponse500;
+    break;
+
+  case 502:
+
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 502.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse502));
+
+    if(curlLogtoFP){
+
+      char   logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer,"responseCode2ztCode(): Error received Server Response Code <502>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse502));
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    return ztResponse502;
+    break;
 
   case 503:
 
-	fprintf(stderr, "getCurlResponseCode(): Error received Server Response Code 503.\n Code is for: <%s>\n",
-				ztCode2Msg(ztResponse503));
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 503.\n Code is for: <%s>\n",
+	    ztCode2Msg(ztResponse503));
 
-	if(curlLogtoFP){
+    if(curlLogtoFP){
 
-	  char   logBuffer[PATH_MAX] = {0};
+      char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer, "Response Code 503 Response Code 503 Response Code 503\n"
-			  "getCurlResponseCode(): Error received Server Response Code <503>\n Code is for: <%s>\n",
-			  ztCode2Msg(ztResponse503));
+      sprintf(logBuffer, "Response Code 503 Response Code 503 Response Code 503\n"
+	      "responseCode2ztCode(): Error received Server Response Code <503>\n Code is for: <%s>\n",
+	      ztCode2Msg(ztResponse503));
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
-	}
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	return ztResponse503;
-	break;
+    return ztResponse503;
+    break;
 
 
   default:
 
-	fprintf(stderr, "getCurlResponseCode(): Error unhandled response code. THIS IS THE DEFAULT CASE.\n"
-			" RESPONSE CODE IS NOT HANDLED BY THIS FUNCTION. CODE IS: <%ld>.\n", responseCode);
+    fprintf(stderr, "responseCode2ztCode(): Error unhandled response code. THIS IS THE DEFAULT CASE.\n"
+	    " RESPONSE CODE IS NOT HANDLED BY THIS FUNCTION. RESPONSE CODE NUMBER IS: <%ld>.\n", resCode);
 
-	if(curlLogtoFP){
+    if(curlLogtoFP){
 
-	  char   logBuffer[PATH_MAX] = {0};
+      char   logBuffer[PATH_MAX] = {0};
 
-	  sprintf(logBuffer,"getCurlResponseCode(): Error unhandled response code. THIS IS THE DEFAULT CASE.\n"
-			" RESPONSE CODE IS NOT HANDLED BY THIS FUNCTION. CODE IS: <%ld>.\n", responseCode);
+      sprintf(logBuffer,"responseCode2ztCode(): Error unhandled response code. THIS IS THE DEFAULT CASE.\n"
+	      " RESPONSE CODE IS NOT HANDLED BY THIS FUNCTION. CODE IS: <%ld>.\n", resCode);
 
-	  writeLogCurl(curlLogtoFP, logBuffer);
-	}
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
 
-	return ztResponseUnhandled;
-	break;
+    return ztResponseUnhandled;
+    break;
 
   } /* end switch(curlResponseCode) **/
 
-  fprintf(stderr, "getCurlResponseCode(): Error: THIS IS OUT SIDE OF SWITCH STATEMENT AND SHOULD NOT BE SEEN.\n");
+  fprintf(stderr, "responseCode2ztCode(): Error: THIS IS OUT SIDE OF SWITCH STATEMENT AND SHOULD NOT BE SEEN.\n");
 
   if(curlLogtoFP){
 
-	char   logBuffer[PATH_MAX] = {0};
+    char   logBuffer[PATH_MAX] = {0};
 
-	sprintf(logBuffer, "getCurlResponseCode(): Error: THIS IS OUT SIDE OF SWITCH STATEMENT AND SHOULD NOT BE SEEN.\n");
+    sprintf(logBuffer, "responseCode2ztCode(): Error: THIS IS OUT SIDE OF SWITCH STATEMENT AND SHOULD NOT BE SEEN.\n");
 
-	writeLogCurl(curlLogtoFP, logBuffer);
+    writeLogCurl(curlLogtoFP, logBuffer);
   }
 
-  return ztUnknownError; /* we do not get here **/
+  return ztUnknownError; /* we should not get here! **/
 
-} /* END getCurlResponseCode() **/
+} /* END responseCode2ztCode() **/
+
+/* initialMS():
+ * Initializes a MEMORY_STRUCT object by allocating memory for the
+ * structure itself and for the memory field. The size field is set
+ * to zero.
+ *
+ * Parameter:
+ * None.
+ *
+ * Return:
+ * A pointer to one MEMORY_STRUCT on success, NULL on failure.
+ *
+ ***************************************************************/
+
+MEMORY_STRUCT *initialMS(void){
+
+  MEMORY_STRUCT *newMS;
+
+  newMS = (MEMORY_STRUCT *) malloc(sizeof(MEMORY_STRUCT));
+  if ( ! newMS ){
+	fprintf(stderr, "initialMS(): Error allocating memory.\n");
+	return newMS;
+  }
+  newMS->memory = (char *) malloc(1); /* IMPORTANT to allocate this */
+  if(! newMS->memory){
+    fprintf(stderr, "initialMS(): Error allocating memory.\n");
+    free(newMS);
+    newMS = NULL;
+    return newMS;
+  }
+
+  newMS->size = 0;
+
+  return newMS;
+
+} /* END initialMS() **/
+
+/* zapMS():
+ * Releases memory allocated for a MEMORY_STRUCT object,
+ * including the memory allocated for the memory field.
+ *
+ * Parameter:
+ * Pointer to a pointer to MEMORY_STRUCT (MEMORY_STRUCT**).
+ *
+ * Return:
+ * Nothing.
+ *
+ * Note: passed in parameter can NOT be used after this call.
+ *
+ ********************************************************/
+
+void zapMS(MEMORY_STRUCT **ms){
+
+  MEMORY_STRUCT *myMS;
+
+  ASSERTARGS(ms);
+
+  myMS = (MEMORY_STRUCT *) *ms;
+
+  if(!myMS) return;
+
+  if(myMS->memory) free(myMS->memory);
+
+  memset(myMS, 0, sizeof(MEMORY_STRUCT));
+
+  free(myMS);
+
+  *ms = NULL; /* Set original pointer to NULL after freeing the memory **/
+
+  return;
+
+} /* END zapMS() **/
+

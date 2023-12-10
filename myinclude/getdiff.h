@@ -6,7 +6,31 @@
 #include <time.h>
 
 /* version number is a string! **/
-#define VERSION "0.01.0"
+/* #define VERSION "0.01.0"
+ * removed global variable from curlfn.c
+ * static CURLU   *parseUrlHandle = NULL;
+ * added parameter "parseHandle" to:
+ * download2File()
+ * download2FileRetry()
+ * getCurrentURL()
+ * 11/20/2023
+ *
+ * changes in 0.01.2
+ *  - function name change: getCurrentURL() -> parsePrefixCURLU()
+ *  - getCurlResponseCode() -> responseCode2ztCode(long resCode) edited function
+ *  - handles curl errors for retry(): CURLE_COULDNT_CONNECT
+ *  - added more ztResponseNNN and other zt codes.
+ *  date 12/6/2023
+ *
+ * changes in 0.01.3
+ *  - replaced initialDownload() & initialQuery() with initialOperation()
+ *  - improved error messages and logging
+ *  - added documentation and worked on code comments.
+ *  date 12/9/2023
+ *
+ *********************************/
+
+#define VERSION "0.01.3"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61

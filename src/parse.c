@@ -97,20 +97,19 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
         return ztMalformedCML;
       }
 
-      char  *withPath = NULL;
+      char  *withPath;
 
       if(strstr(optarg, "../") && strstr(optarg, "../") == optarg)
 
     	withPath = prependParent(optarg);
 
-      else if(isCwdChild(optarg) == TRUE)
+      else if(hasPath(optarg) == FALSE)
 
         withPath = prependCWD(optarg);
 
       else
 
         withPath = optarg;
-
 
       if(!withPath){
         fprintf(stderr, "%s: Error 'withPath' variable is NULL in parseCmdLine(); Exiting.\n", progName);

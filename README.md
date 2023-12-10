@@ -1,7 +1,6 @@
 # Updated
-This is a complete rewrite of the program with major changes to its code and required
-arguments.
-
+Updated curlfn.c file; improved logging and documentations.
+Added more return codes in ztError.c
 
 # Getdiff
 Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.
@@ -15,7 +14,7 @@ The script above is used to retrieve login cookie from OpenStreetMap.org when ge
 This program assumes python3 executable to be found in the default slackware installation; that is '/usr/bin/python3'.
 
 ## Building:
-Program requires "libcurl" version 7.80.0 or later. A makefile is included in the root directory; to compile run 'make' in that directory.
+Program requires "libcurl" version 7.86.0 or later. A makefile is included in the root directory; to compile run 'make' in that directory.
 
 ## Improvements
   - Utilized change files sequence number to locate files on remote servers and on local machine.
@@ -247,5 +246,5 @@ Enjoy
 
 Wael Hammoudeh
 
-August 23/2023
+December 10/2023
 

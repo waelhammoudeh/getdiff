@@ -59,6 +59,7 @@ FILE   *fLogPtr = NULL;
 /* curl easy handle and curl parse handle **/
 static CURL   *downloadHandle = NULL;
 static CURLU  *curlParseHandle = NULL;
+static char   *sourceURL = NULL;
 
 int main(int argc, char *argv[]){
 
@@ -322,6 +323,9 @@ int main(int argc, char *argv[]){
 
   CURLUcode   curluResult; /* returned type by curl_url_get() & curl_url_set() **/
 
+  /* set global sourceURL **/
+  sourceURL = STRDUP(mySettings->source);
+
   result = initialCurlSession();
   if (result != ztSuccess){
     printfWriteMsg("Error failed initialCurlSession() function.", stderr);
@@ -335,7 +339,7 @@ int main(int argc, char *argv[]){
   /* let our curl functions log errors to our log file **/
   curlLogtoFP = fLogPtr;
 
-  /* get curl parse handle using source argument for verification **/
+  /* get curl parse handle using source argument and verify pointer **/
   curlParseHandle = initialURL(mySettings->source);
   if (! curlParseHandle ){
 	printfWriteMsg("Error failed initialURL() function.", stderr);
@@ -498,7 +502,7 @@ int main(int argc, char *argv[]){
 
   } /* end if(useInternal) **/
 
-  /* obtain CURL easy handle with initialDownload() with parameters
+  /* obtain CURL easy handle with initialOperation() with parameters
    * curlParseHandle and secToken.
    *
    * Note that those were made global variables
@@ -506,12 +510,12 @@ int main(int argc, char *argv[]){
    * CURLU  *curlParseHandle = NULL;
    *************************************************************************/
 
-  downloadHandle = initialDownload(curlParseHandle, secToken);
+  downloadHandle = initialOperation(curlParseHandle, secToken);
   if( !downloadHandle ){
-    printfWriteMsg("Error failed initialDownload() function.", stderr);
+    printfWriteMsg("Error failed initialOperation() function.", stderr);
 
     memset(logBuffer, 0, sizeof(logBuffer));
-    sprintf(logBuffer, "initialDownload() function failed for: <%s>. Exiting... ", curlErrorMsg);
+    sprintf(logBuffer, "initialOperation() function failed for: <%s>. Exiting... ", curlErrorMsg);
     printfWriteMsg(logBuffer, stderr);
 
     value2Return = ztFailedLibCall;
@@ -576,7 +580,8 @@ int main(int argc, char *argv[]){
 
     result = myDownload(remotePathSuffix, localDest);
     if(result != ztSuccess){
-      printfWriteMsg("Error failed myDownload() function for start sequence 'state.txt' file.", stderr);
+      sprintf(logBuffer, "Error failed myDownload() function for start sequence '%s' file.",mySettings->startNumber);
+      printfWriteMsg(logBuffer, stderr);
 
       value2Return = result;
       goto EXIT_CLEAN;
@@ -598,7 +603,7 @@ int main(int argc, char *argv[]){
 
   else{ /* not firstUse: get startSequence from 'previous.state.txt' file **/
 
-    printfWriteMsg("Found previous 'state.txt', filling start STATE_INFO ...", stdout);
+    printfWriteMsg("Found previous 'state.txt', IGNORING 'begin' setting, filling start STATE_INFO ...", stdout);
 
     result = stateFile2StateInfo(startStateInfo, mySettings->prevStateFile);
     if(result != ztSuccess){
@@ -2135,6 +2140,8 @@ int myDownload(char *remotePathSuffix, char *localFile){
   char        *pathPrefix;
   char        newPath[PATH_MAX] = {0};
 
+  char        *currentSourceURL;
+
   ASSERTARGS(localFile);
 
   result = isGoodFilename(localFile);
@@ -2142,6 +2149,15 @@ int myDownload(char *remotePathSuffix, char *localFile){
     fprintf(stderr, "%s: Error failed isGoodFilename() for 'localFile' parameter in myDownload(): <%s>.\n",
                     progName, localFile);
     return result;
+  }
+
+  /* ensure that "curlParseHandle" is intact **/
+  currentSourceURL = getPrefixCURLU(curlParseHandle);
+
+  if(strcmp(sourceURL, currentSourceURL) != 0){
+    fprintf(stderr, "%s: Error fatal NOT same strings in sourceURL: <%s> and currentSourceURL: <%s>.\n",
+    		progName, sourceURL, currentSourceURL);
+    return ztFatalError;
   }
 
   /* append remote path suffix to current path in parse handle **/
@@ -2163,8 +2179,7 @@ int myDownload(char *remotePathSuffix, char *localFile){
       return ztFailedLibCall;
     }
 
-    /* remotePathSuffix may start with a slash - can be a path, filename or
-     * file extension; use ONE slash ONLY between parts **/
+    /* use ONLY ONE slash between parts **/
 
     if(remotePathSuffix[0] == '\057')
 
@@ -2183,10 +2198,14 @@ int myDownload(char *remotePathSuffix, char *localFile){
     }
   }
 
-  result = download2FileRetry(localFile, downloadHandle);
+  result = download2FileRetry(localFile, downloadHandle, curlParseHandle);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed to download file: <%s>.\n"
 	    " Function failed for: <%s>\n",progName, localFile, ztCode2Msg(result));
+
+    /* new error code; needs better handling. FIXME 12/8/2023 **/
+    if(result == ztNetConnFailed)
+      fprintf(stderr, "download failed for lost established connection; check cables please.\n");
 
     if(remotePathSuffix) /* restore pathPrefix **/
       curl_url_set (curlParseHandle, CURLUPART_PATH, pathPrefix, 0);
@@ -2201,6 +2220,10 @@ int myDownload(char *remotePathSuffix, char *localFile){
   return ztSuccess;
 
 } /* END myDownload() **/
+
+/* getHeader() and getListHeaders() are not used here
+ * TODO: could be used sometime; move to curlfn.c
+ ****************************************************/
 
 int getHeader(const char *tofile, const char *pathSuffix){
 
@@ -2235,8 +2258,7 @@ int getHeader(const char *tofile, const char *pathSuffix){
     return ztFailedLibCall;
   }
 
-  /* pathSuffix may start with a slash - can be a path, filename or
-   * file extension; use ONE slash ONLY between parts **/
+  /* use ONLY ONE slash between parts **/
 
   if(pathSuffix[0] == '\057')
 

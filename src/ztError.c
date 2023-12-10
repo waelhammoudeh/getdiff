@@ -216,13 +216,43 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztNoConnNet",
    "No network or internet connection."},
 
+  {ztNetConnFailed,
+   "ztNetConnFailed",
+   "Established network connection failure."
+  },
+
+  {ztHostResolveFailed,
+   "ztHostResolveFailed",
+   "Failed to resolve host name (curl)"
+  },
+
   {ztNoConnDB,
    "ztNoConnDB",
    "Failed to connect to database server."},
 
+   {ztResponse200,
+    "ztResponse200",
+	"Server response was 'Okay', does not mean we got what we wanted."
+   },
+
+   {ztResponseFailed2Retrieve,
+	"ztResponseFailed2Retrieve",
+	"Function failed to retrieve server response code"
+   },
+
+   {ztResponseNone,
+    "ztResponseNone",
+	"Server response was NOT set"
+   },
+
    {ztResponse301,
     "ztResponse301",
 	"Server response code 301: Requested resource Moved Permanently"},
+
+  {ztResponse302,
+   "ztResponse302",
+   "Moved is only relevant in the context of the permanent id feature. Says overpass.)"
+  },
 
   {ztResponse400,
    "ztResponse400",
@@ -238,15 +268,24 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
   {ztResponse429,
    "ztResponse429",
-   "Server response code 429: [Too Many Requests] Too many downloads in short time. DO NOT DO THIS PLEASE."},
+   "Server response code 429: [Too Many Requests] Too many downloads in short time. Multiple queries from one IP."},
 
   {ztResponse500,
    "ztResponse500",
    "Server response code 500: [Internal Server Error] Server is busy or overpass dispatcher is not running."},
 
+   {ztResponse502,
+    "ztResponse502",
+    "Server response code 502: [Bad Gateway Error] while acting as a gateway proxy."},
+
   {ztResponse503,
    "ztResponse503",
    "Server response code 503: [Server Unavailable Now] Server is not available now; overloaded?"},
+
+  {ztResponse504,
+   "ztresponse504",
+   "Gateway Time: Overloaded overpass server. May also be large query setting for timeout or maxsize"
+  },
 
   {ztResponseUnknown,
    "ztResponseUnknown",
@@ -264,9 +303,9 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztNoCookieToken",
    "Missing cookie token, failed getCookieToken() with NULL result"},
 
-  {ztNoSession,
-   "ztNoSession",
-   "No session was initialed"},
+  {ztNoCurlSession,
+   "ztNoCurlSession",
+   "Curl session was not initialed; function requires initialCurlSession() call first."},
 
   {ztOldCurl,
    "ztOldCurl",
@@ -295,6 +334,15 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
   {ztFatalError,
    "ztFatalError",
    "Program or function encountered a fatal error; could not continue and terminates."	},
+
+  {ztNoQuerySession,
+   "ztNoQuerySession",
+   "Query session was not initialed; function requires qInitialSession() call first."},
+
+  {ztCurlTimeout,
+   "ztCurlTimeout",
+   "Curl operation exceeded set timeout value - non-zero."
+  },
 
   {ztUnknownError,
    "ztUnknownError",
@@ -327,4 +375,18 @@ char* ztCode2Msg(int code){
 
 } /* END ztCode2Msg() **/
 
+char* ztCode2ErrorStr(int code){
 
+  static char *errStr;
+
+  if (code < 0 || code > MAX_ERROR_CODE){
+
+    errStr = strdup(ztErrorTable[MAX_ERROR_CODE].errString);
+    return errStr;
+  }
+
+  errStr = strdup(ztErrorTable[code].errString);
+
+  return errStr;
+
+} /* END ztCode2ErrorStr() **/

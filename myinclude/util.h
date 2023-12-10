@@ -117,8 +117,6 @@ char *prependCWD(const char *name);
 
 char *prependParent(const char *name);
 
-int isCwdChild(const char *name);
-
 int removeSpaces(char **str);
 
 char  *removeSpaces2(char *str);
