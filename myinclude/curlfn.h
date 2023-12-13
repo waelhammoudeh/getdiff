@@ -97,6 +97,8 @@ char *getPrefixCURLU(CURLU *parseUrlHandle);
 
 int performQuery(MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrURL);
 
+int performQueryRetry(MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrURL);
+
 int isOkResponse(char *response, char *header);
 
 int writeLogCurl(FILE *to, char *msg);

@@ -30,7 +30,7 @@
  *  - Using the CURLU parse handle, libcurl enables users to modify/set
  *    the URL whole or in parts.
  *
- * Typical Usage:
+ * Typical Usage: see Usage in download2File() & performQuery() below please.
  *
  *  - call functions in this order:
  *
@@ -577,6 +577,15 @@ int isConnCurl(const char *server){
  *  - ztBadSizeDownload
  *  - ztResponse{code} - {response code including unknown & unhandled response codes}
  *
+ * Usage:
+ *  - initialCurlSession()
+ *  - initialURL(server) : obtain 'parseHandle' parameter
+ *    'server' has (scheme + server_name + path); path maybe partial
+ *  - initialOperation() : obtain 'handle' parameter
+ *  - set 'path' part in parseHandle to the path of your file on remote server:
+ *    curl_url_set (parseHandle, CURLUPART_PATH, newPath, 0); // newPath is remote path
+ *  - download2File() : provide parameters described above.
+ *
  ****************************************************************************/
 
 int download2File (char *filename, CURL *handle, CURLU *parseHandle){
@@ -1070,6 +1079,14 @@ static size_t WriteMemoryCallback (void *contents, size_t size, size_t nmemb, vo
  *  - Manages the retrieval of response codes and logging.
  *  - Writes query result data to a client file pointer if set (curlRawDataFP).
  *
+ * Usage:
+ *  - initialCurlSession()
+ *  - initialURL(server) : obtain 'srvrHandle' parameter;
+ *    your 'server' parameter here has (scheme + server_name + path)
+ *  - initialOperation() : obtain 'qHandlel' parameter.
+ *  - initialMS() to obtain parameter 'dst' MEMORY_STRUCT
+ *  - whichData parameter is your constructed "query string".
+ *
  ********************************************************************/
 
 int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrHandle) {
@@ -1309,12 +1326,16 @@ int isOkResponse (char *responseStr, char *header){
     retCode = ztSuccess;
   }
   else {
-
+    /**
+    fprintf (stderr, "isOkResponse(): parameter 'header' did not match first part of response text.\n"
+             " Parameter 'header' has: <%s>\n", header);
     fprintf (stderr, "isOkResponse(): Error: Not a valid response. Server may responded "
 	     "with an error message! The server response was:\n\n");
     fprintf (stderr, " Start server response below >>>>:\n\n");
     fprintf (stderr, "%s\n\n", responseStr);
     fprintf (stderr, " >>>> End server response This line is NOT included.\n\n");
+    **/
+
     retCode = ztStringUnknown;
   }
 
