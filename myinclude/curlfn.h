@@ -74,6 +74,7 @@ typedef struct MEMORY_STRUCT_  {
 
 	char    *memory;
 	size_t	size;
+
 } MEMORY_STRUCT;
 
 typedef enum HTTP_METHOD_ {

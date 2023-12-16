@@ -19,6 +19,7 @@ typedef enum ZT_EXIT_CODE_ {
   ztMalformedCML,
   ztStringUnknown,
   ztEmptyString,
+  ztNotString,
 
   ztParseError,
   ztDisallowedChar,
@@ -101,7 +102,8 @@ typedef enum ZT_EXIT_CODE_ {
 
   ztNoCurlSession,
   ztOldCurl,
-  ztQuerySyntax,
+  ztQuerySyntaxError,
+
   ztNoNodesFound,
   ztNoGeometryFound,
   ztBadSegment,

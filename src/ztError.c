@@ -44,6 +44,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztEmptyString",
    "String with string length zero"},
 
+  {ztNotString,
+   "ztNotString",
+   "Not a string; last character / byte not null character"
+  },
+
   {ztParseError,
    "ztParseError",
    "Parse function failed. String was not as expected."},
@@ -311,8 +316,8 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztOldCurl",
    "Old curl library version found. Please check minimum required version."},
 
-  {ztQuerySyntax,
-   "ztQuerySyntax",
+  {ztQuerySyntaxError,
+   "ztQuerySyntaxError",
    "Query syntax error reported by server with response code 400."},
 
   {ztNoNodesFound,
