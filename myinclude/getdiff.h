@@ -28,9 +28,18 @@
  *  - added documentation and worked on code comments.
  *  date 12/9/2023
  *
+ * changes in 0.01.4
+ *  - fixed "removeSpaces()" function
+ *  - added zapString() - used in initialStringList() now.
+ *  - complete implementation of STRING_LIST included.
+ *  - removed other list types - not used here.
+ *    (included in "primitives.h" for other projects)
+ *  - added more error codes
+ *  date 1/14/2024
+ *
  *********************************/
 
-#define VERSION "0.01.3"
+#define VERSION "0.01.4"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61

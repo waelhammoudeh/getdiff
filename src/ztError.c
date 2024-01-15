@@ -49,6 +49,30 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "Not a string; last character / byte not null character"
   },
 
+  {ztMalformedStr,
+   "ztMalofromedStr",
+   "Malformed string, string was not to specification by parse function"
+  },
+
+  {ztInvalidLatValue,
+   "Invalid LATITUDE value for Arizona",
+		  ""
+  },
+  {ztInvalidLonValue,
+   "ztInvalidLonValue",
+   "Invalid LONGITITUDE value for Arizona"
+  },
+
+  {ztInvalidGpsValue,
+   "ztInvalidGpsValue",
+   "Invalid GPS point for local range"
+  },
+
+  {ztInvalidBbox,
+   "ztInvalidBbox",
+   "Invalid bounding box; values are not in the correct order"
+  },
+
   {ztParseError,
    "ztParseError",
    "Parse function failed. String was not as expected."},

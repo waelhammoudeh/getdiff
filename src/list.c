@@ -185,17 +185,6 @@ int removeDL (DLIST *list, ELEM *element, void **data) {
 
   }
 
-  /** we should be able to free this! but I get:
-      corrupted size vs. prev_size
-      Aborted
-
-      current GCC v. 10.2.0 & glibc-2.32 FIXME
-
-      free(element);
-      we allocated memory for it when inserting --
-      ADDED back call to free on 1/17/2022 w.h seems okay now!?
-  **/
-
   free(element);
 
   list->size--;
@@ -347,6 +336,25 @@ int ListInsertInOrder (DLIST *list, char *str){
 
 }   /* END ListInsertInOrder() */
 
+/* string list functions are from "primitives.c" source file;
+ * we do not use that file every where; we do use string list a lot!
+ *
+ ******************************************************************/
+
+void zapString(void **string){
+
+  char *myStr;
+
+  myStr = *string;
+  if(myStr){
+    free(myStr);
+    *string = NULL;
+  }
+
+  return;
+
+} /* END zapString() **/
+
 STRING_LIST *initialStringList(){
 
   STRING_LIST *newList;
@@ -357,121 +365,31 @@ STRING_LIST *initialStringList(){
     return newList;
   }
 
-  initialDL((DLIST *) newList, NULL, NULL);
+  /* do not use same pointer in different lists;
+   * zapString() will call free() each time! **/
+
+  initialDL((DLIST *) newList, zapString, NULL);
   newList->listType = STRING_LT;
 
   return newList;
 
 } /* END initialStringList() */
 
-GPS_LIST *initialGpsList(){
+void zapStringList(void **strList){
 
-  GPS_LIST *newGpsList;
+	STRING_LIST *myStrList;
 
-  newGpsList = (GPS_LIST *) malloc(sizeof(GPS_LIST));
-  if (! newGpsList ){
-    fprintf(stderr, "initialGpsList(): Error allocating memory.\n");
-    return newGpsList;
-  }
+	ASSERTARGS(strList);
 
-  initialDL((DLIST *) newGpsList, NULL, NULL);
-  newGpsList->listType = GPS_LT;
+	myStrList = (STRING_LIST *) *strList;
 
-  return newGpsList;
+	if(myStrList && myStrList->listType == STRING_LT){
 
-} /* END initialGpsList() */
+		destroyDL(myStrList);
+		free(*strList);
+		*strList = NULL;
+	}
 
-void zapGpsList(void **gpsList){
+	return;
 
-  GPS_LIST    *list;
-
-  ASSERTARGS(gpsList);
-
-  list = (GPS_LIST *) *gpsList;
-
-  if ( ! list )
-
-    return;
-
-  if (list->listType != GPS_LT)
-
-    return;
-
-
-  destroyDL(list);
-  memset(list, 0, sizeof(GPS_LIST));
-  free(list);
-  list = NULL;
-
-  return;
-
-} /* END zapGpsList() */
-
-SEGMENT *initialSegment(){
-
-  SEGMENT *newSeg;
-
-  newSeg = (SEGMENT *)malloc(sizeof(SEGMENT));
-  if (! newSeg){
-    fprintf(stderr, "initialSegment(): Error allocating memory.\n");
-    return newSeg;
-  }
-
-  initialDL(newSeg, NULL, NULL);
-  newSeg->listType = SEGMENT_LT;
-
-  return newSeg;
-
-} /* END initialSegment() */
-
-GEOMETRY *initialGeometry(){
-
-  GEOMETRY *newG;
-
-  newG = (GEOMETRY *)malloc(sizeof(GEOMETRY));
-  if (! newG){
-    fprintf(stderr, "initialGeometry(): Error allocating memory.\n");
-    return newG;
-  }
-
-  initialDL(newG, NULL, NULL);
-  newG->listType = GEOMETRY_LT;
-
-  return newG;
-
-} /* END initialGeometry() */
-
-POLYGON *initialPolygon(){
-
-  POLYGON *newPoly;
-
-  newPoly = (POLYGON *)malloc(sizeof(POLYGON));
-  if (! newPoly){
-    fprintf(stderr, "initialPolygon(): Error allocating memory.\n");
-    return newPoly;
-  }
-
-  initialDL((DLIST *)newPoly, NULL, NULL);
-  newPoly->listType = POLYGON_LT;
-
-  return newPoly;
-
-} /* END initialPolygon() */
-
-FRQNCY_LIST *initialFrqncyList(){
-
-  FRQNCY_LIST *newFL;
-
-  newFL = (FRQNCY_LIST *)malloc(sizeof(FRQNCY_LIST));
-  if (! newFL){
-    fprintf(stderr, "initialFrqncyList(): Error allocating memory.\n");
-    return newFL;
-  }
-
-  initialDL((DLIST *)newFL, NULL, NULL);
-  newFL->listType = FRQNCY_LT;
-
-  return newFL;
-
-} /* END initialFrqncyList() */
-
+} /* END zapStringList() **/

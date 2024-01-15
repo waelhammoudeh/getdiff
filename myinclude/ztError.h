@@ -21,6 +21,12 @@ typedef enum ZT_EXIT_CODE_ {
   ztEmptyString,
   ztNotString,
 
+  ztMalformedStr,
+  ztInvalidLatValue,
+  ztInvalidLonValue,
+  ztInvalidGpsValue,
+  ztInvalidBbox,
+
   ztParseError,
   ztDisallowedChar,
 

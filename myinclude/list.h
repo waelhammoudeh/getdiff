@@ -68,41 +68,19 @@ int ListInsertInOrder (DLIST *list, char *str);
 
 #define DL_DATA(element)  ((element)->data)
 
-/* List Type constant */
-#define  STRING_LT     1
-#define	GPS_LT     2
-#define	SEGMENT_LT     3
-#define	GEOMETRY_LT     4
-#define  POLYGON_LT     5
-#define FRQNCY_LT    6
+/* include STRING_LIST from "primitives.h" here **/
+
+void zapString(void **string);
+
+#define STRING_LT   1
 
 typedef DLIST STRING_LIST;
-typedef DLIST GPS_LIST;
-typedef DLIST SEGMENT;
-typedef DLIST GEOMETRY;
-typedef DLIST POLYGON;
-typedef DLIST FRQNCY_LIST;
 
 #define TYPE_STRING_LIST(list) ((list)->listType == STRING_LT)
-#define TYPE_GPS_LIST(list) ((list)->listType == GPS_LT)
-#define TYPE_SEGMENT(list) ((list)->listType == SEGMENT_LT)
-#define TYPE_GEOMETRY(geometry) ((geometry)->listType == GEOMETRY_LT)
-#define TYPE_POLYGON(list) ((list)->listType == POLYGON_LT)
-#define TYPE_FRQNCY_LIST(list) ((list)->listType == FRQNCY_LT)
 
 STRING_LIST *initialStringList();
 
-GPS_LIST *initialGpsList();
-
-void zapGpsList(void **gpsList);
-
-SEGMENT *initialSegment();
-
-GEOMETRY *initialGeometry();
-
-POLYGON *initialPolygon();
-
-FRQNCY_LIST *initialFrqncyList();
+void zapStringList(void **strList);
 
 
 #endif /* DLIST_H_ */

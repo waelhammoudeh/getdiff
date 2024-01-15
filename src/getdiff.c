@@ -67,6 +67,10 @@ int main(int argc, char *argv[]){
 
   int  result;
 
+  STRING_LIST   *childrenList;
+  STRING_LIST   *newDiffersList;
+  STRING_LIST   *completedList;
+
   /* set progName - used in error messages. **/
   if(strchr(argv[0], '/'))
     progName = lastOfPath(argv[0]);
@@ -765,7 +769,7 @@ int main(int argc, char *argv[]){
 
     printfWriteMsg("Retrieved 'parent directory listing', calling parseHtmlFile() ...", stdout);
 
-    STRING_LIST   *childrenList;
+//    STRING_LIST   *childrenList;
 
     childrenList = initialStringList();
 
@@ -832,7 +836,7 @@ int main(int argc, char *argv[]){
   /* now startSequence number and latestSequence number are okay, make the download list **/
 
   /* initial download list **/
-  STRING_LIST   *newDiffersList;
+//  STRING_LIST   *newDiffersList;
   int           includeStartFlag = 0; /* do not include start sequence files.
                                          'start' is really our previous - most recent -
                                          downloaded files; we start from files just
@@ -1004,7 +1008,7 @@ int main(int argc, char *argv[]){
 //  getListHeaders(newDiffersList, mySettings);
 
   /* compare completedList with newDiffersList to verify download **/
-  STRING_LIST   *completedList;
+//  STRING_LIST   *completedList;
 
   completedList = initialStringList();
   if(!completedList){
@@ -1100,6 +1104,15 @@ int main(int argc, char *argv[]){
     fclose(fLogPtr);
   }
 
+  if(childrenList)
+    zapStringList((void **) &childrenList);
+
+  if(newDiffersList)
+    zapStringList((void **) &newDiffersList);
+
+  if(completedList)
+    zapStringList((void **) &completedList);
+
   return value2Return;
 
 } /* END main() **/
@@ -1117,7 +1130,7 @@ int logMessage(FILE *to, char *msg){
 
   char   *startTemplate =
     "+++++++++++++++++++++++++++++++++++ STARTING +++++++++++++++++++++++++++++++++\n"
-    "%s [%d]: %s started.\n";
+    "%s [%d]: %s started. (Version: %s)\n";
 
   char   *doneTemplate =
     "%s [%d]: %s is done.\n"
@@ -1150,7 +1163,7 @@ int logMessage(FILE *to, char *msg){
 
   if(strcmp(msg, "START") == 0){
 
-    sprintf(tmpBuf, startTemplate, timestamp, (int) myPID, progName);
+    sprintf(tmpBuf, startTemplate, timestamp, (int) myPID, progName, VERSION);
     fprintf(to, tmpBuf);
   }
 
@@ -2497,9 +2510,13 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
     /* latest file is in another server directory - path), get html page,
        parse it AND add files to download list with latest childPath **/
 
-    destroyDL(indexList); /* reuse list **/
+/*
+    destroyDL(indexList);  reuse list
     free(indexList);
     indexList = NULL;
+*/
+
+	zapStringList((void **) &indexList); /* reuse list **/
 
     indexList = initialStringList();
     if(!indexList){
@@ -2559,6 +2576,10 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
 	    progName, DL_SIZE(list));
     return ztUnknownError;
   }
+
+  /* cleanup after your self **/
+  if(indexList)
+    zapStringList((void **) &indexList);
 
   return ztSuccess;
 
@@ -2648,8 +2669,15 @@ int downloadFiles(STRING_LIST *completed, STRING_LIST *downloadList, SETTINGS *s
 	sleep(sleepSeconds);
 
 	result = myDownload(pathSuffix, localFilename);
-	if(result == ztSuccess)
-	  insertNextDL(completed, DL_TAIL(completed), (void **) pathSuffix);
+	if(result == ztSuccess){
+	  /* each list must have its own copy of data; this is
+	   * so zapString() does not free same pointer again. **/
+
+	  char *pathSuffixCopy;
+	  pathSuffixCopy = STRDUP(pathSuffix);
+
+	  insertNextDL(completed, DL_TAIL(completed), (void **) pathSuffixCopy);
+	}
 	else{
 	  fprintf(stderr, "%s: Error failed myDownload() function for localFilename: <%s>\n",
 			         progName, localFilename);

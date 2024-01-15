@@ -185,6 +185,8 @@ int isGoodFilename(const char *name){
       return ztFnameMultiSlashes;
 
     hasSlash = strchr(mover, slash);
+
+
   }
 
   /* check each part **/
@@ -852,17 +854,25 @@ char *prependParent(const char *name){
  *********************************************************************/
 int removeSpaces(char **str){
 
+  char    *originalPtr;
   char    *cleanStr;
   char    *end;
 
   ASSERTARGS(str && *str);
 
+  originalPtr = *str;
   cleanStr = *str;
+
 
   /* remove leading spaces **/
   while (isspace( (unsigned char) *cleanStr))
 
     cleanStr++;
+
+  if(cleanStr != originalPtr){
+	  strcpy(originalPtr, cleanStr);
+	  cleanStr = originalPtr;
+  }
 
   if(cleanStr[0] == 0)
 
@@ -1086,7 +1096,7 @@ int isGoodURL (const char *str){
  * allocates memory for return pointer. returns NULL if str > PATH_MAX or
  * memory allocation error. you get a duplicate if str has no period.
  **************************************************************************/
-char* DropExtension(char *str){
+char* dropExtension(char *str){
 
   char		*retCh = NULL;
   int	 	period = '.';
@@ -1385,6 +1395,31 @@ int isPathDirectory(const char* const path){
 
 } /* END isDirectory() **/
 
+int isRegularFile(const char *path){
+
+  struct stat status;
+  int    result;
+
+  ASSERTARGS(path);
+
+  errno = 0;
+
+  result = lstat(path, &status);
+  if (result != 0) {
+  /* return false regardless of the error **/
+    perror("lstat() system call failure:");
+    return FALSE;
+  }
+
+  if (S_ISREG(status.st_mode)) {
+    return TRUE;
+  }
+
+  return FALSE;
+
+} /* END isRegularFile() **/
+
+
 /* myGetDirDL() function to read directory and place entries in sorted list.
  * The returned list WILL INCLUDE the full entry path.
  * This function will NOT include the dot OR double dot entries.
@@ -1463,19 +1498,6 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 
 }  /* END myGetDirDL()  */
 
-void zapString(void **data){ //free allocated string as in myGetDirDL()
-
-  char *str;
-
-  ASSERTARGS (data);
-
-  str = *data;
-  if(str)
-
-    free(str);
-
-  return;
-}
 /* GetFormatTime(): formats current time in a string buffer, allocates buffer
  * and return buffer address.  */
 

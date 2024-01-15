@@ -1,6 +1,6 @@
-# Updated
-Updated curlfn.c file; improved logging and documentations.
-Added more return codes in ztError.c
+# Update
+Improved code & fixed some of my errors.
+Please see Changes in "getdiff.h" file.
 
 # Getdiff
 Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.

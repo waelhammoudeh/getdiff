@@ -125,7 +125,7 @@ int isGoodPortString (const char *port);
 
 int isOkayFormat4HTTPS(char const *source);
 
-
+char* dropExtension(char *str);
 
 
 
@@ -134,7 +134,9 @@ int IsEntryDir (char const *entry);
 
 int isPathDirectory(const char* const path);
 
-char* DropExtension(char *str);
+int isRegularFile(const char *path);
+
+//char* DropExtension(char *str);
 
 void** allocate2Dim (int row, int col, size_t elemSize);
 
@@ -156,8 +158,6 @@ int mySpawn (char *prgName, char **argLst);
 int spawnWait (char *prog, char **argsList);
 
 int myGetDirDL (DLIST *dstDL, char *dir);
-
-void zapString(void **data);
 
 char* getFormatTime (void);
 

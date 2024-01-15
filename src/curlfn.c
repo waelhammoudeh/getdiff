@@ -58,10 +58,15 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "curlfn.h"
-#include "util.h"
+#ifndef ZTERROR_H_
 #include "ztError.h"
+#endif
 
+#ifndef UTIL_H_
+#include "util.h"
+#endif
+
+#include "curlfn.h"
 
 /* global exported variables:
  *

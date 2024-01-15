@@ -792,9 +792,11 @@ printf("configureGetValues():\n"
   destroyDL(confList);
   free(confList);
 
+  zapStringList((void **) &foundKeysList);
+/*
   destroyDL(foundKeysList);
   free(foundKeysList);
-
+*/
   return ztSuccess;
 
 } /* END configureGetValues() **/
