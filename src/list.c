@@ -377,19 +377,20 @@ STRING_LIST *initialStringList(){
 
 void zapStringList(void **strList){
 
-	STRING_LIST *myStrList;
+  STRING_LIST *myStrList;
 
-	ASSERTARGS(strList);
+  ASSERTARGS(strList);
 
-	myStrList = (STRING_LIST *) *strList;
+  myStrList = (STRING_LIST *) *strList;
 
-	if(myStrList && myStrList->listType == STRING_LT){
+  if(myStrList && myStrList->listType == STRING_LT){
 
-		destroyDL(myStrList);
-		free(*strList);
-		*strList = NULL;
-	}
+    destroyDL(myStrList);
+    free(*strList);
+    *strList = NULL;
+  }
 
-	return;
+  return;
 
 } /* END zapStringList() **/
+

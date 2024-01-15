@@ -55,9 +55,10 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
   },
 
   {ztInvalidLatValue,
+   "ztInvalidLatValue",
    "Invalid LATITUDE value for Arizona",
-		  ""
   },
+
   {ztInvalidLonValue,
    "ztInvalidLonValue",
    "Invalid LONGITITUDE value for Arizona"
@@ -131,11 +132,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
    {ztEndOfFile,
     "ztEndOfFile",
-	"End of file is set to non-zero value."},
+    "End of file is set to non-zero value."},
 
-	{ztFileError,
-     "ztFileError",
-	 "File operation error occured; file error is set."},
+   {ztFileError,
+    "ztFileError",
+    "File operation error occured; file error is set."},
 
   {ztNoLinefeed,
    "ztNoLinefeed",
@@ -143,12 +144,12 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
    {ztWriteError,
     "ztWriteError",
-	"Failed write operation, did not write whole string to file."
+    "Failed write operation, did not write whole string to file."
    },
 
    {ztMalformedFile,
     "ztMalformedFile",
-	"Malformed file format; file contents are not as expected"
+    "Malformed file format; file contents are not as expected"
    },
 
   {ztFnameLong,
@@ -203,7 +204,7 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
    {ztNotExecutableFile,
     "ztNotExecutableFile",
-	"File is NOT executable by the effective user"},
+    "File is NOT executable by the effective user"},
 
   {ztNoReadPerm,
    "ztNoReadPerm",
@@ -219,15 +220,15 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
    {ztFailedLibCall,
     "ztFailedLibCall",
-	"Failed external library call or function."},
+    "Failed external library call or function."},
 
    {ztFailedDownload,
-	"ztFailedDownload",
-	"Failed curl_easy_perform() curl library function; (result != CURLE_OK)"},
+    "ztFailedDownload",
+    "Failed curl_easy_perform() curl library function; (result != CURLE_OK)"},
 
    {ztBadSizeDownload,
     "ztBadSizeDownload",
-	"Failed size test for download; file disk size did not match sizeHeader or sizeDownload"},
+    "Failed size test for download; file disk size did not match sizeHeader or sizeDownload"},
 
   {ztMemoryAllocate,
    "ztMemoryAllocate",
@@ -261,22 +262,22 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
    {ztResponse200,
     "ztResponse200",
-	"Server response was 'Okay', does not mean we got what we wanted."
+    "Server response was 'Okay', does not mean we got what we wanted."
    },
 
    {ztResponseFailed2Retrieve,
-	"ztResponseFailed2Retrieve",
-	"Function failed to retrieve server response code"
+    "ztResponseFailed2Retrieve",
+    "Function failed to retrieve server response code"
    },
 
    {ztResponseNone,
     "ztResponseNone",
-	"Server response was NOT set"
+    "Server response was NOT set"
    },
 
    {ztResponse301,
     "ztResponse301",
-	"Server response code 301: Requested resource Moved Permanently"},
+    "Server response code 301: Requested resource Moved Permanently"},
 
   {ztResponse302,
    "ztResponse302",

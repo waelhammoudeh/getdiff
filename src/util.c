@@ -631,19 +631,19 @@ int getFileSize(long *size, const char *filename){
   result = stat(filename, &status);
   if(result == -1){
 
-	if(errno == ENOENT)
+    if(errno == ENOENT)
 
-	  return ztFileNotFound;
+      return ztFileNotFound;
 
-	else
+    else
 
-	  return ztFailedSysCall;
+      return ztFailedSysCall;
   }
 
   /* ensure it is a regular file **/
   if(! S_ISREG(status.st_mode))
 
-	return ztNotRegFile;
+    return ztNotRegFile;
 
   *size = (long) status.st_size;
 
@@ -764,19 +764,19 @@ char *prependCWD(const char *name){
 
   if(strstr(name, "./") == name)
 
-	name = name + 2;
+    name = name + 2;
 
 
   gtResult = getcwd(cwd, sizeof(cwd));
   if(!gtResult)
 
-	return path;
+    return path;
 
 
   if(SLASH_ENDING(cwd))
-	sprintf(buffer, "%s%s", cwd, name);
+    sprintf(buffer, "%s%s", cwd, name);
   else
-	sprintf(buffer, "%s/%s", cwd, name);
+    sprintf(buffer, "%s/%s", cwd, name);
 
   path = STRDUP(buffer);
 
@@ -790,7 +790,7 @@ int hasPath(const char *name){
 
   if((name[0] == '/') && strchr(name+1, '/'))
 
-	return TRUE;
+    return TRUE;
 
   return FALSE;
 
@@ -817,28 +817,28 @@ char *prependParent(const char *name){
 
   if(! foundChar)
 
-	return path;
+    return path;
 
   if(foundChar != name)
 
-	return path;
+    return path;
 
   name = name + strlen("../");
 
   gwdResult = getcwd(cwd, sizeof(cwd));
   if(!gwdResult)
 
-	return path;
+    return path;
 
   parent = getParentDir(cwd);
   if(!parent)
 
-	return path;
+    return path;
 
   if(SLASH_ENDING(parent))
-	sprintf(buffer, "%s%s", parent, name);
+    sprintf(buffer, "%s%s", parent, name);
   else
-	sprintf(buffer, "%s/%s", parent, name);
+    sprintf(buffer, "%s/%s", parent, name);
 
   path = STRDUP(buffer);
 
@@ -870,8 +870,8 @@ int removeSpaces(char **str){
     cleanStr++;
 
   if(cleanStr != originalPtr){
-	  strcpy(originalPtr, cleanStr);
-	  cleanStr = originalPtr;
+    strcpy(originalPtr, cleanStr);
+    cleanStr = originalPtr;
   }
 
   if(cleanStr[0] == 0)
@@ -1024,15 +1024,15 @@ int isOkayFormat4HTTPS(char const *source){
 int isGoodURL (const char *str){
 
 
-  char		*allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "0123456789:./-_~";
-  char		dash = '-';
-  char		underscore = '_';
-  char		*myStr;
-  int		hasDisallowed;
-  char		*del = "/";
-  char		*token;
+  char	*allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                    "abcdefghijklmnopqrstuvwxyz"
+                    "0123456789:./-_~";
+  char	dash = '-';
+  char	underscore = '_';
+  char	*myStr;
+  int	hasDisallowed;
+  char	*del = "/";
+  char	*token;
 
   if ( str == NULL )
 
@@ -1061,17 +1061,17 @@ int isGoodURL (const char *str){
   token = strtok (myStr, del);
   while (token){
 
-	  count++; /* count tokens **/
+    count++; /* count tokens **/
 
-	  if(strchr(token, dash) &&
-	     (token[0] == dash || token[strlen(token) - 1] == dash))
+    if(strchr(token, dash) &&
+      (token[0] == dash || token[strlen(token) - 1] == dash))
 
-		  return FALSE;
+      return FALSE;
 
-	  if(strchr(token, underscore) &&
-	     (token[0] == underscore || token[strlen(token) - 1] == underscore))
+    if(strchr(token, underscore) &&
+      (token[0] == underscore || token[strlen(token) - 1] == underscore))
 
-		  return FALSE;
+      return FALSE;
 
     token = strtok (NULL, del);
   }
@@ -1080,19 +1080,16 @@ int isGoodURL (const char *str){
    * assumed for (scheme + server_name + path)
    * none of them should empty **/
   if(count < 3){
-	fprintf(stderr, "isGoodURL(): Error parameter token count < 3\n"
-			"  string should include (scheme + server_name + path) at least.\n");
-	return FALSE;
+    fprintf(stderr, "isGoodURL(): Error parameter token count < 3\n"
+                    "  string should include (scheme + server_name + path) at least.\n");
+    return FALSE;
   }
 
   return TRUE;
 
 } /* END isGoodURL() **/
 
-
-
-
-/* DropExtension(): drops extension from str in; anything after a right period.
+/* dropExtension(): drops extension from str in; anything after a right period.
  * allocates memory for return pointer. returns NULL if str > PATH_MAX or
  * memory allocation error. you get a duplicate if str has no period.
  **************************************************************************/
@@ -1196,11 +1193,11 @@ void free2Dim (void **array, size_t elemSize){
 /* from Advanced-Linux Programming --- still needs work */
 char* get_self_executable_directory (){
 
-  int 		rval;
-  char 	link_target[1024];
-  char		*last_slash;
-  size_t 	result_length;
-  char		*result;
+  int   rval;
+  char  link_target[1024];
+  char  *last_slash;
+  size_t result_length;
+  char	*result;
 
   /* Read the target of the symbolic link /proc/self/exe. */
   rval = readlink ("/proc/self/exe", link_target, sizeof (link_target));
@@ -1430,12 +1427,12 @@ int isRegularFile(const char *path){
 
 int myGetDirDL (DLIST *dstDL, char *dir){
 
-  DIR 			*dirPtr;
-  struct 		dirent 	*entry;
-  char 		dirPath[PATH_MAX + 1];
-  char			tempBuf[PATH_MAX + 1];
-  char 		*fullPath;
-  int	 		result;
+  DIR 	*dirPtr;
+  struct dirent *entry;
+  char   dirPath[PATH_MAX + 1];
+  char	tempBuf[PATH_MAX + 1];
+  char 	*fullPath;
+  int	result;
 
   ASSERTARGS (dstDL && dir);
 
@@ -1474,9 +1471,10 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 	 (strcmp(entry->d_name, "..") == 0) )
 
       continue;
-
+    
+    /* TODO: replace me! bad use of ASSERTARGS **/
     ASSERTARGS (snprintf (tempBuf, PATH_MAX, "%s%s",
-			  dirPath, entry->d_name) < PATH_MAX);
+                dirPath, entry->d_name) < PATH_MAX);
 
     fullPath = (char *)malloc(strlen(tempBuf) + 1);
     if( ! fullPath){
@@ -1503,12 +1501,12 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 
 char* getFormatTime (void){
 
-  char		*ret = NULL;
-  char		buffer[1024];
-  char  	timeBuf[80];
-  long    milliSeconds;
-  struct    timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
-  struct    tm *timePtr;
+  char	*ret = NULL;
+  char	buffer[1024];
+  char  timeBuf[80];
+  long   milliSeconds;
+  struct timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
+  struct tm *timePtr;
 
   gettimeofday (&startTV, NULL);
   timePtr = localtime (&startTV.tv_sec);
@@ -1529,13 +1527,13 @@ char* getFormatTime (void){
 
 } /* END GetFormatTime() */
 
-char	 *formatC_Time(void){
+char *formatC_Time(void){
 
-  char		*ret = NULL;
-  char  	tmpBuf[80];
+  char	*ret = NULL;
+  char  tmpBuf[80];
 
-  struct		tm *timePtr;
-  time_t		timeValue;
+  struct tm *timePtr;
+  time_t timeValue;
 
   time(&timeValue);
   timePtr = localtime(&timeValue);
@@ -1561,11 +1559,11 @@ char	 *formatC_Time(void){
  * ***********************************************************************/
 char* formatMsgHeadTime(void){
 
-  char		*ret = NULL;
-  char  	tmpBuf[80];
+  char	*ret = NULL;
+  char  tmpBuf[80];
 
-  struct		tm *timePtr;
-  time_t		timeValue;
+  struct tm *timePtr;
+  time_t timeValue;
 
   time(&timeValue);
   timePtr = localtime(&timeValue);
@@ -1662,12 +1660,12 @@ int stringToUpper (char **dst, char *str){
 
 /* mkOutFile(): make output file name, sets dest to givenName if it has a slash,
  * else it appends givenName to rootDir and then sets dest to appended string
- */
+ *****************************************************************************/
 int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
-  char		slash = '/';
-  char		*hasSlash;
-  char		tempBuf[PATH_MAX] = {0};
+  char  slash = '/';
+  char	*hasSlash;
+  char	tempBuf[PATH_MAX] = {0};
 
   ASSERTARGS (dest && givenName && rootDir);
 
@@ -1696,7 +1694,7 @@ int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
 FILE* openOutputFile (char *filename){
 
-  FILE		*fPtr = NULL;
+  FILE	*fPtr = NULL;
 
   ASSERTARGS (filename);
 
@@ -1717,7 +1715,7 @@ FILE* openOutputFile (char *filename){
 
 int closeFile(FILE *fPtr){
 
-  int    result;
+  int  result;
 
   ASSERTARGS(fPtr);
 
@@ -1826,9 +1824,9 @@ int isStringInList (DLIST *list, const char *str){
 
 int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
 
-  ELEM		*elem;
-  char				*str;
-  char		*strCpy;
+  ELEM	*elem;
+  char	*str;
+  char	*strCpy;
 
 
   ASSERTARGS (dst && list1 && list2);
@@ -1879,16 +1877,16 @@ int convDouble2Long (long *dstL, double srcDouble){
     printf ("ULONG_MAX is: %lu\n", ULONG_MAX);
   */
 
-  char		buf[512] = {0};
-  char		*fraction, *whole;
-  char		*allowed = "0",
-    *digits = "1234567890",
-    *periodDel = ".",
-    *tabDel = "\t",
-    *endPtr = NULL;
+  char buf[512] = {0};
+  char 	*fraction, *whole;
+  char 	*allowed = "0",
+        *digits = "1234567890",
+        *periodDel = ".",
+        *tabDel = "\t",
+        *endPtr = NULL;
 
-  long	numL;
-  int    result;
+  long  numL;
+  int   result;
 
   ASSERTARGS (dstL);
 
