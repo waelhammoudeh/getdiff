@@ -769,8 +769,6 @@ int main(int argc, char *argv[]){
 
     printfWriteMsg("Retrieved 'parent directory listing', calling parseHtmlFile() ...", stdout);
 
-    //    STRING_LIST   *childrenList;
-
     childrenList = initialStringList();
 
     if(!childrenList){
@@ -836,11 +834,10 @@ int main(int argc, char *argv[]){
   /* now startSequence number and latestSequence number are okay, make the download list **/
 
   /* initial download list **/
-  //  STRING_LIST   *newDiffersList;
-  int           includeStartFlag = 0; /* do not include start sequence files.
-                                         'start' is really our previous - most recent -
-                                         downloaded files; we start from files just
-                                         after this. **/
+  int includeStartFlag = 0; /* do not include start sequence files.
+                               'start' is really our previous - most recent -
+                               downloaded files; we start from files just
+                               after this. **/
 
   newDiffersList = initialStringList();
 
@@ -1005,10 +1002,7 @@ int main(int argc, char *argv[]){
 
   }
 
-  //  getListHeaders(newDiffersList, mySettings);
-
   /* compare completedList with newDiffersList to verify download **/
-  //  STRING_LIST   *completedList;
 
   completedList = initialStringList();
   if(!completedList){
@@ -1255,6 +1249,7 @@ int isOkaySource(CURLU *curlSourceHandle){
      (strcasecmp(lastEntry, "hour") != 0) &&
      (strcasecmp(lastEntry, "day") != 0) &&
      (strcmp(lastEntry + (strlen(lastEntry) - strlen(strUpdates)), strUpdates) != 0) ){
+    
     /* lastEntry must end with the string in strUpdates **/
 
     fprintf(stderr, "isOkaySource(): Error invalid 'path' part in source string.\n"
