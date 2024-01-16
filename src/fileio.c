@@ -282,9 +282,13 @@ int renameFile(const char *oldName, const char *newName){
   ASSERTARGS(oldName && newName);
 
   /* renameFile() renames files only, NOT directory
-   * TODO: test parameter for being a file, do NOT allow directory.
-   * FIXME      FIXME
-   **************************************************************/
+   *
+   ************************************************/
+
+  if (!isRegularFile(oldName)){
+    fprintf(stderr, "renameFile(): Error - '%s' is not a regular file.\n", oldName);
+    return ztNotRegFile;
+  }
 
   /* try to use rename() first, we will be done if it is successful **/
   result = rename(oldName, newName);
