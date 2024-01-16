@@ -44,9 +44,9 @@
 #define LATEST_STATE_FILE  "latest.state.txt"
 
 #define STATE_FILE         "state.txt"
-#define	INDEX_HTML         "index.html"
+#define INDEX_HTML         "index.html"
 
-#define	TEST_SITE          "www.geofabrik.de"
+#define TEST_SITE          "www.geofabrik.de"
 #define INTERNAL_SERVER    "osm-internal.download.geofabrik.de"
 
 
@@ -63,7 +63,7 @@ static char   *sourceURL = NULL;
 
 int main(int argc, char *argv[]){
 
-//	printAcceptedSources(stdout);
+  //printAcceptedSources(stdout);
 
   int  result;
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]){
   if(strchr(argv[0], '/'))
     progName = lastOfPath(argv[0]);
   else
-	progName = argv[0];
+    progName = argv[0];
 
   /* set some sensible defaults we may have to use.
    * {HOME} is current user home directory.
@@ -129,9 +129,9 @@ int main(int argc, char *argv[]){
       /* use default configuration file if it exists,
        * file is not required, but write warning if not found regardless of verbose settings **/
       fprintf(stdout, "%s: Warning configuration file is not specified and could not find or access"
-          " default configuration file:\n"
-          " <%s>\n Default file is not usable for: <%s>\n",
-          progName, defConfFile, ztCode2Msg(result));
+	      " default configuration file:\n"
+	      " <%s>\n Default file is not usable for: <%s>\n",
+	      progName, defConfFile, ztCode2Msg(result));
 
     else
 
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]){
                         mySettings->verbose);
 
   /* configure array has ALL 'value' members in the array set to NULL - zeroed out **/
-  CONF_ENTRY 	confEntries[] = {
+  CONF_ENTRY  confEntries[] = {
     {"USER", NULL, NAME_CT, 0},
     {"PASSWD", NULL, NAME_CT, 0},
     {"SOURCE", NULL, INET_URL_CT, 0},
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]){
       fprintf(stderr, "%s: Error failed isDirUsable() function with root for work directory parameter: <%s>\n"
 	      "User ownership of this directory is required.\n"
 	      "function failed for: <%s>\n",
-		  progName, mySettings->rootWD, ztCode2Msg(result));
+	      progName, mySettings->rootWD, ztCode2Msg(result));
       return result;
     }
 
@@ -252,7 +252,7 @@ int main(int argc, char *argv[]){
   if(result != ztSuccess){
 
     fprintf(stderr, "%s: Error failed to create differs destination directory: <%s>.\n",
-	        progName, mySettings->diffDir);
+	    progName, mySettings->diffDir);
     return result;
   }
 
@@ -306,8 +306,8 @@ int main(int argc, char *argv[]){
         printfWriteMsg(logBuffer, stdout);
       }
       else{
-    	printfWriteMsg("Error failed renameFile() function for 'newerFiles.txt'. Exiting", stderr);
-    	return result;
+	printfWriteMsg("Error failed renameFile() function for 'newerFiles.txt'. Exiting", stderr);
+	return result;
       }
     }
   }
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
   else
-	printfWriteMsg("Initialed curl session okay.", stdout);
+    printfWriteMsg("Initialed curl session okay.", stdout);
 
   /* let our curl functions log errors to our log file **/
   curlLogtoFP = fLogPtr;
@@ -346,13 +346,13 @@ int main(int argc, char *argv[]){
   /* get curl parse handle using source argument and verify pointer **/
   curlParseHandle = initialURL(mySettings->source);
   if (! curlParseHandle ){
-	printfWriteMsg("Error failed initialURL() function.", stderr);
+    printfWriteMsg("Error failed initialURL() function.", stderr);
 
     value2Return = ztFailedLibCall;
     goto EXIT_CLEAN;
   }
   else
-	printfWriteMsg("Got curl parse handle with initialURL() function okay.", stdout);
+    printfWriteMsg("Got curl parse handle with initialURL() function okay.", stdout);
 
   /* extract host - server name **/
   curluResult = curl_url_get(curlParseHandle, CURLUPART_HOST, &host, 0);
@@ -363,9 +363,9 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
   else {
-	memset(logBuffer, 0, sizeof(logBuffer));
-	sprintf(logBuffer, "Extracted server name from source; server name is: <%s>", host);
-	printfWriteMsg(logBuffer, stdout);
+    memset(logBuffer, 0, sizeof(logBuffer));
+    sprintf(logBuffer, "Extracted server name from source; server name is: <%s>", host);
+    printfWriteMsg(logBuffer, stdout);
   }
 
   /* path part is needed further down, get it now */
@@ -410,11 +410,11 @@ int main(int argc, char *argv[]){
   if(firstUse)
     printfWriteMsg("Program first run, did not find previous state file in working directory.", stdout);
   else
-	printfWriteMsg("Found previous state file in working directory; not first run for program.", stdout);
+    printfWriteMsg("Found previous state file in working directory; not first run for program.", stdout);
 
   if(firstUse && (! mySettings->startNumber)){
     printfWriteMsg("Error missing 'begin' argument; "
-    		"argument is required for program first use.", stderr);
+		   "argument is required for program first use.", stderr);
 
     value2Return = ztMissingArg;
     goto EXIT_CLEAN;
@@ -432,13 +432,13 @@ int main(int argc, char *argv[]){
 
   if(useInternal){
 
-	printfWriteMsg("Geofabrik.de INTERNAL server is in use.", stdout);
+    printfWriteMsg("Geofabrik.de INTERNAL server is in use.", stdout);
 
     /* openstreetmap.org account user name & password are required **/
 
     if( ! mySettings->usr ){
       printfWriteMsg("Error missing 'user' argument setting, "
-    		  "'OSM USER' is required for geofabrik.de internal server.", stderr);
+		     "'OSM USER' is required for geofabrik.de internal server.", stderr);
 
       value2Return = ztMissingArg;
       goto EXIT_CLEAN;
@@ -446,7 +446,7 @@ int main(int argc, char *argv[]){
 
     if( ! mySettings->pswd ){
       printfWriteMsg("Error missing 'passwd' argument setting, "
-      		  "password for 'OSM ACCOUNT' is required for geofabrik.de internal server.", stderr);
+		     "password for 'OSM ACCOUNT' is required for geofabrik.de internal server.", stderr);
 
       value2Return = ztMissingArg;
       goto EXIT_CLEAN;
@@ -476,7 +476,7 @@ int main(int argc, char *argv[]){
 
   if(useInternal){
 
-	printfWriteMsg("Retrieving cookie for INTERNAL SERVER use.", stdout);
+    printfWriteMsg("Retrieving cookie for INTERNAL SERVER use.", stdout);
 
     result = initialCookie(mySettings);
     if(result != ztSuccess){
@@ -541,7 +541,7 @@ int main(int argc, char *argv[]){
   /* we may need to get startSequence from 'previous.state.txt' file. **/
   startStateInfo = initialStateInfo();
   if(!startStateInfo){
-	printfWriteMsg("Error failed initialStateInfo() function.", stderr);
+    printfWriteMsg("Error failed initialStateInfo() function.", stderr);
 
     value2Return = ztMemoryAllocate;
     goto EXIT_CLEAN;
@@ -549,7 +549,7 @@ int main(int argc, char *argv[]){
 
   if(firstUse == TRUE){
 
-	printfWriteMsg("Program first run; mapping start sequence number to path ...", stdout);
+    printfWriteMsg("Program first run; mapping start sequence number to path ...", stdout);
 
     /* convert 'startNumber' to PATH_PART so we can download the
      * corresponding "state.txt" file.
@@ -568,7 +568,7 @@ int main(int argc, char *argv[]){
 
     memset(logBuffer, 0, sizeof(logBuffer));
     sprintf(logBuffer, "start sequence number: <%s> maps to path: <%s>",
-    		mySettings->startNumber, pathParts.path);
+	    mySettings->startNumber, pathParts.path);
     printfWriteMsg(logBuffer, stdout);
 
     /* remotePathSuffex is FULL 'path' member of pathParts + {.state.txt}
@@ -579,7 +579,7 @@ int main(int argc, char *argv[]){
 
     memset(logBuffer, 0, sizeof(logBuffer));
     sprintf(logBuffer, "Fetching corresponding 'state.txt' file to start sequence using remote path suffix: <%s>",
-    		remotePathSuffix);
+	    remotePathSuffix);
     printfWriteMsg(logBuffer, stdout);
 
     result = myDownload(remotePathSuffix, localDest);
@@ -613,8 +613,8 @@ int main(int argc, char *argv[]){
     if(result != ztSuccess){
       memset(logBuffer, 0, sizeof(logBuffer));
       sprintf(logBuffer, "Error failed stateFile2StateInfo() function for 'previous.state.txt' file.\n"
-    		  "function failed for: %s\n"
-    		  "Note that this file might be corrupted or edited.", ztCode2Msg(result));
+	      "function failed for: %s\n"
+	      "Note that this file might be corrupted or edited.", ztCode2Msg(result));
       printfWriteMsg(logBuffer, stderr);
 
       value2Return = result;
@@ -630,7 +630,7 @@ int main(int argc, char *argv[]){
   if(result == ztSuccess){
     memset(logBuffer, 0, sizeof(logBuffer));
     sprintf(logBuffer, "Retrieved latest 'state.txt' file successfully;\n"
-    		"File saved to <%s>, file size: <%ld> bytes.",
+	    "File saved to <%s>, file size: <%ld> bytes.",
 	    mySettings->latestStateFile, sizeDownload);
     printfWriteMsg(logBuffer, stdout);
   }
@@ -665,10 +665,10 @@ int main(int argc, char *argv[]){
 
   memset(logBuffer, 0, sizeof(logBuffer));
   sprintf(logBuffer, "INFO:\n"
-		  " Info: startSequence is set to: <%s> and maps to path: <%s>\n"
-		  " Info: latestSequence is set to: <%s> and maps to path: <%s>",
-		  startSequence, startStateInfo->pathParts->path,
-		  latestSequence, latestStateInfo->pathParts->path);
+	  " Info: startSequence is set to: <%s> and maps to path: <%s>\n"
+	  " Info: latestSequence is set to: <%s> and maps to path: <%s>",
+	  startSequence, startStateInfo->pathParts->path,
+	  latestSequence, latestStateInfo->pathParts->path);
   printfWriteMsg(logBuffer, stdout);
 
   /* bail out on an unexpected time values
@@ -682,9 +682,9 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
   else if( (latestStateInfo->timeValue == startStateInfo->timeValue) &&
-		   (strcmp(latestStateInfo->sequenceNumber, startStateInfo->sequenceNumber) != 0) ){
+	   (strcmp(latestStateInfo->sequenceNumber, startStateInfo->sequenceNumber) != 0) ){
     printfWriteMsg("Error LATEST timeValue is equal to START timeValue with different sequence numbers!\n"
-    		       "Corrupted or possibly modified 'previous.state.txt' file!?", stderr);
+		   "Corrupted or possibly modified 'previous.state.txt' file!?", stderr);
 
     value2Return = ztUnknownError;
     goto EXIT_CLEAN;
@@ -703,7 +703,7 @@ int main(int argc, char *argv[]){
    *******************************************************************/
   if(abs(strlen(latestSequence) - (strlen(startSequence)) > 1)){
     printfWriteMsg("Error large difference between string length of latest and previous sequence numbers!\n"
-		           "Possible mixing of time granularities? Exiting.", stderr);
+		   "Possible mixing of time granularities? Exiting.", stderr);
 
     value2Return = ztInvalidArg;
     goto EXIT_CLEAN;
@@ -717,11 +717,11 @@ int main(int argc, char *argv[]){
    * that is the "parentEntry" member in our PATH_PART structure should be the same.
    ******************************************************************************/
   if(strcmp(latestStateInfo->pathParts->parentEntry, startStateInfo->pathParts->parentEntry) != 0){
-	  printfWriteMsg("Error start and latest sequence numbers do NOT map to the same "
-                     "parent (root) directory on the server.\n"
-                     "This could be your start sequence is way too far back from latest sequence.\n"
-                     "Please download more recent area data file in this case.\n"
-                     "This is also could be mixing of time granularity. Exiting.", stderr);
+    printfWriteMsg("Error start and latest sequence numbers do NOT map to the same "
+		   "parent (root) directory on the server.\n"
+		   "This could be your start sequence is way too far back from latest sequence.\n"
+		   "Please download more recent area data file in this case.\n"
+		   "This is also could be mixing of time granularity. Exiting.", stderr);
 
     value2Return = ztInvalidArg;
     goto EXIT_CLEAN;
@@ -754,10 +754,10 @@ int main(int argc, char *argv[]){
    **************************************************************************/
 
   if(strcmp(latestStateInfo->pathParts->childEntry,
-		    startStateInfo->pathParts->childEntry) != 0){
+	    startStateInfo->pathParts->childEntry) != 0){
 
     printfWriteMsg("Start sequence and latest sequence numbers did not come from the same "
-    		"server directory. Getting server directory listing page ...", stdout);
+		   "server directory. Getting server directory listing page ...", stdout);
 
     result = myDownload(latestStateInfo->pathParts->parentPath, mySettings->htmlFile);
     if(result != ztSuccess){
@@ -769,7 +769,7 @@ int main(int argc, char *argv[]){
 
     printfWriteMsg("Retrieved 'parent directory listing', calling parseHtmlFile() ...", stdout);
 
-//    STRING_LIST   *childrenList;
+    //    STRING_LIST   *childrenList;
 
     childrenList = initialStringList();
 
@@ -808,8 +808,8 @@ int main(int argc, char *argv[]){
     if(elemLatest != DL_NEXT(elemStart)){
 
       printfWriteMsg("Error start sequence number is too far from latest sequence!\n"
-	      "Need more recent source. If you are using minute or hour, try daily first to bring\n"
-	      "your data closer to latest sequence number.", stderr);
+		     "Need more recent source. If you are using minute or hour, try daily first to bring\n"
+		     "your data closer to latest sequence number.", stderr);
 
       value2Return = ztInvalidArg;
       goto EXIT_CLEAN;
@@ -836,7 +836,7 @@ int main(int argc, char *argv[]){
   /* now startSequence number and latestSequence number are okay, make the download list **/
 
   /* initial download list **/
-//  STRING_LIST   *newDiffersList;
+  //  STRING_LIST   *newDiffersList;
   int           includeStartFlag = 0; /* do not include start sequence files.
                                          'start' is really our previous - most recent -
                                          downloaded files; we start from files just
@@ -861,11 +861,11 @@ int main(int argc, char *argv[]){
      *****************************************************************/
     if(strcmp(latestSequence, startSequence) == 0){
       printfWriteMsg("Program first run with LATEST sequence number equals"
-    		  " START sequence number.", stdout);
+		     " START sequence number.", stdout);
 
       result = getNewDiffersList(newDiffersList,
-                                startStateInfo->pathParts, latestStateInfo->pathParts,
-                                mySettings, includeStartFlag);
+				 startStateInfo->pathParts, latestStateInfo->pathParts,
+				 mySettings, includeStartFlag);
 
       if(result != ztSuccess){
         printfWriteMsg("Error failed getNewDiffersList() function.", stderr);
@@ -879,12 +879,12 @@ int main(int argc, char *argv[]){
 
     if(strcmp(latestSequence, startSequence) == 0){
       printfWriteMsg("No new differs to get; latest sequence number "
-                      "equals start sequence number. Exiting", stdout);
+		     "equals start sequence number. Exiting", stdout);
 
       /* write this message to terminal if verbose is off **/
       if(fVerbose == 0)
-    	fprintf(stdout, "%s: No new differs to get; latest sequence number "
-                        "equals start sequence number. Exiting\n", progName);
+	fprintf(stdout, "%s: No new differs to get; latest sequence number "
+		"equals start sequence number. Exiting\n", progName);
 
       value2Return = ztSuccess;
       goto EXIT_CLEAN;
@@ -894,8 +894,8 @@ int main(int argc, char *argv[]){
   if(latestStateInfo->timeValue > startStateInfo->timeValue){
 
     result = getNewDiffersList(newDiffersList,
-                              startStateInfo->pathParts, latestStateInfo->pathParts,
-                              mySettings, includeStartFlag);
+			       startStateInfo->pathParts, latestStateInfo->pathParts,
+			       mySettings, includeStartFlag);
 
     if(result != ztSuccess){
       printfWriteMsg("Error failed getNewDiffersList() function.", stderr);
@@ -910,11 +910,11 @@ int main(int argc, char *argv[]){
   }
 
   if(DL_SIZE(newDiffersList) == 0){ /* we think it should not happen **/
-	printfWriteMsg("Error getNewDiffersList() returned an EMPTY list with latest timeValue > start timeValue!\n"
-			"This is UNKNOWN ERROR.", stderr);
+    printfWriteMsg("Error getNewDiffersList() returned an EMPTY list with latest timeValue > start timeValue!\n"
+		   "This is UNKNOWN ERROR.", stderr);
 
-	value2Return = ztUnknownError;
-	goto EXIT_CLEAN;
+    value2Return = ztUnknownError;
+    goto EXIT_CLEAN;
   }
   else{
     memset(logBuffer, 0, sizeof(logBuffer));
@@ -926,25 +926,25 @@ int main(int argc, char *argv[]){
       fprintStringList(NULL, newDiffersList);
   }
 
-/*
-  char   *newDiffersListFile;
+  /*
+    char   *newDiffersListFile;
 
-  newDiffersListFile = appendName2Path(mySettings->workDir, "newDiffersList.NoTrim.txt");
+    newDiffersListFile = appendName2Path(mySettings->workDir, "newDiffersList.NoTrim.txt");
 
-  result = stringList2File(newDiffersListFile, newDiffersList);
-  if(result == ztSuccess){
-	printfWriteMsg("Wrote NON-TRIMMED new differs to 'newDiffersList.NoTrim.txt' file.", stdout);
-  }
-**/
+    result = stringList2File(newDiffersListFile, newDiffersList);
+    if(result == ztSuccess){
+    printfWriteMsg("Wrote NON-TRIMMED new differs to 'newDiffersList.NoTrim.txt' file.", stdout);
+    }
+  **/
 
   /** newDiffersList: each line is in an element
 
-  /005/637/617.osc.gz
-  /005/637/617.state.txt
-  /005/637/618.osc.gz
-  /005/637/618.state.txt
-  /005/637/619.osc.gz
-  /005/637/619.state.txt
+      /005/637/617.osc.gz
+      /005/637/617.state.txt
+      /005/637/618.osc.gz
+      /005/637/618.state.txt
+      /005/637/619.osc.gz
+      /005/637/619.state.txt
 
   **/
 
@@ -952,12 +952,12 @@ int main(int argc, char *argv[]){
   if(DL_SIZE(newDiffersList) > (MAX_OSC_DOWNLOAD * 2)){
 
     fprintf(stdout, "New differs list size is: <%d> change files; trimming to maximum allowed per run <%d>\n"
-    		"Please wait at least 60 minutes for a rerun to fetch the rest.\n"
-    		"This is so we do not overwhelm the server and to avoid sending too many requests.\n",
-    		(DL_SIZE(newDiffersList) / 2), MAX_OSC_DOWNLOAD);
+	    "Please wait at least 60 minutes for a rerun to fetch the rest.\n"
+	    "This is so we do not overwhelm the server and to avoid sending too many requests.\n",
+	    (DL_SIZE(newDiffersList) / 2), MAX_OSC_DOWNLOAD);
 
-	printfWriteMsg("Trimming new differs list to 61 change files. "
-			"Please wait at least 60 minutes before a rerun.", stdout);
+    printfWriteMsg("Trimming new differs list to 61 change files. "
+		   "Please wait at least 60 minutes before a rerun.", stdout);
 
     char   *newDiffersListFile;
 
@@ -965,50 +965,50 @@ int main(int argc, char *argv[]){
     stringList2File(newDiffersListFile, newDiffersList);
     printfWriteMsg("Wrote NON-TRIMMED new differs to 'newDiffersList.NoTrim.txt' file.", stdout);
 
-	char  *string;
-	ELEM  *elem;
+    char  *string;
+    ELEM  *elem;
 
-	while(DL_SIZE(newDiffersList) > (MAX_OSC_DOWNLOAD * 2)){
-	  removeDL(newDiffersList, DL_TAIL(newDiffersList), (void **) &string);
-	}
+    while(DL_SIZE(newDiffersList) > (MAX_OSC_DOWNLOAD * 2)){
+      removeDL(newDiffersList, DL_TAIL(newDiffersList), (void **) &string);
+    }
 
-	printfWriteMsg("Trimmed differs list is below:", stdout);
+    printfWriteMsg("Trimmed differs list is below:", stdout);
 
-	fprintStringList(fLogPtr, newDiffersList);
+    fprintStringList(fLogPtr, newDiffersList);
     if(fVerbose)
       fprintStringList(NULL, newDiffersList);
 
-	/* adjust latest sequence -
-	 * tail element has remote path suffix to "state.txt" file **/
-	elem = DL_TAIL(newDiffersList);
-	string = (char *) DL_DATA(elem);
+    /* adjust latest sequence -
+     * tail element has remote path suffix to "state.txt" file **/
+    elem = DL_TAIL(newDiffersList);
+    string = (char *) DL_DATA(elem);
 
-	result = myDownload(string, mySettings->latestStateFile);
-	if(result != ztSuccess){
-	  printfWriteMsg("Error failed myDownload() function 4 adjusted latest state.txt", stderr);
+    result = myDownload(string, mySettings->latestStateFile);
+    if(result != ztSuccess){
+      printfWriteMsg("Error failed myDownload() function 4 adjusted latest state.txt", stderr);
 
-	  value2Return = result;
-	  goto EXIT_CLEAN;
-	}
+      value2Return = result;
+      goto EXIT_CLEAN;
+    }
 
-	/* update latestStateInfo TODO: check result **/
-	memset(latestStateInfo, 0, sizeof(STATE_INFO));
-	free(latestStateInfo);
+    /* update latestStateInfo TODO: check result **/
+    memset(latestStateInfo, 0, sizeof(STATE_INFO));
+    free(latestStateInfo);
 
-	latestStateInfo = initialStateInfo();
+    latestStateInfo = initialStateInfo();
 
-	stateFile2StateInfo(latestStateInfo, mySettings->latestStateFile);
+    stateFile2StateInfo(latestStateInfo, mySettings->latestStateFile);
 
-	memset(logBuffer, 0, sizeof(logBuffer));
-	sprintf(logBuffer, "Replaced latest state.txt file using remote suffix: <%s>", string);
-	printfWriteMsg(logBuffer, stdout);
+    memset(logBuffer, 0, sizeof(logBuffer));
+    sprintf(logBuffer, "Replaced latest state.txt file using remote suffix: <%s>", string);
+    printfWriteMsg(logBuffer, stdout);
 
   }
 
-//  getListHeaders(newDiffersList, mySettings);
+  //  getListHeaders(newDiffersList, mySettings);
 
   /* compare completedList with newDiffersList to verify download **/
-//  STRING_LIST   *completedList;
+  //  STRING_LIST   *completedList;
 
   completedList = initialStringList();
   if(!completedList){
@@ -1034,12 +1034,12 @@ int main(int argc, char *argv[]){
       sprintf(logBuffer, "Error failed writeNewerFiles() function.");
       printfWriteMsg(logBuffer, stderr);
 
-	  value2Return = result;
-	  goto EXIT_CLEAN;
+      value2Return = result;
+      goto EXIT_CLEAN;
     }
 
     sprintf(logBuffer, "Appended <%d> filenames to new differs file: <%s>",
-    		DL_SIZE(completedList), mySettings->newDiffersFile);
+	    DL_SIZE(completedList), mySettings->newDiffersFile);
     printfWriteMsg(logBuffer, stdout);
   }
 
@@ -1047,8 +1047,8 @@ int main(int argc, char *argv[]){
 
     memset(logBuffer, 0, sizeof(logBuffer));
     sprintf(logBuffer, "Error number of downloaded files does not equal new differs files.\n"
-    		"newDiffersList size is: <%d>, completedList size is: <%d>.",
-			DL_SIZE(newDiffersList), DL_SIZE(completedList));
+	    "newDiffersList size is: <%d>, completedList size is: <%d>.",
+	    DL_SIZE(newDiffersList), DL_SIZE(completedList));
 
     printfWriteMsg(logBuffer, stderr);
 
@@ -1067,10 +1067,10 @@ int main(int argc, char *argv[]){
   /* USE renameFile() :::: to be done AFTER we complete & verify download **/
   result = renameFile(mySettings->latestStateFile, mySettings->prevStateFile);
   if(result != ztSuccess){
-	printfWriteMsg("Error failed renameFile() function.", stderr);
+    printfWriteMsg("Error failed renameFile() function.", stderr);
 
-	value2Return = result;
-	goto EXIT_CLEAN;
+    value2Return = result;
+    goto EXIT_CLEAN;
   }
 
   /* we used "start_id" file name in old "getdiff" version;
@@ -1230,8 +1230,8 @@ int isOkaySource(CURLU *curlSourceHandle){
      (strcasecmp(host, "download.geofabrik.de") != 0) ){
 
     fprintf(stderr, "isOkaySource(): Error server <%s> is not supported;\n"
-        "invalid 'host / server' part in source argument.\n"
-        "Double check \"SERVER\" part spelling first.\n\n", host);
+	    "invalid 'host / server' part in source argument.\n"
+	    "Double check \"SERVER\" part spelling first.\n\n", host);
     return ztInvalidArg;
   }
 
@@ -1254,18 +1254,18 @@ int isOkaySource(CURLU *curlSourceHandle){
   if((strcasecmp(lastEntry, "minute") != 0) &&
      (strcasecmp(lastEntry, "hour") != 0) &&
      (strcasecmp(lastEntry, "day") != 0) &&
-	 (strcmp(lastEntry + (strlen(lastEntry) - strlen(strUpdates)), strUpdates) != 0) ){
-	 /* lastEntry must end with the string in strUpdates **/
+     (strcmp(lastEntry + (strlen(lastEntry) - strlen(strUpdates)), strUpdates) != 0) ){
+    /* lastEntry must end with the string in strUpdates **/
 
     fprintf(stderr, "isOkaySource(): Error invalid 'path' part in source string.\n"
 	    "Path part: <%s>\n", path);
     fprintf(stderr, "isOkaySource(): Error failed lastEntry test.\n"
-    		"Valid lastEntry in path is one of:\n"
-    		" minute\n"
-    		" hour\n"
-    		" day\n"
-    		" or last entry must end with \"-updates\"\n\n"
-    		"Please double check your spelling.\n\n");
+	    "Valid lastEntry in path is one of:\n"
+	    " minute\n"
+	    " hour\n"
+	    " day\n"
+	    " or last entry must end with \"-updates\"\n\n"
+	    "Please double check your spelling.\n\n");
 
     return ztInvalidArg;
   }
@@ -1285,7 +1285,7 @@ int isOkaySource(CURLU *curlSourceHandle){
 
 void printSettings(FILE *toFile, SETTINGS *settings){
 
-  FILE	*stream;
+  FILE *stream;
 
   ASSERTARGS(settings);
 
@@ -1413,7 +1413,7 @@ char *appendName2Path(char const *path, char const *name){
 
   /* use one slash between entries **/
   if(name[0] == '/')
-	name = name + 1;
+    name = name + 1;
 
   if(SLASH_ENDING(path))
     sprintf(tmpBuffer, "%s%s", path, name);
@@ -1491,7 +1491,7 @@ int updateSettings (SETTINGS *settings, CONF_ENTRY confEntries[]){
 
     case 5: // BEGIN
 
-if(settings->startNumber)
+      if(settings->startNumber)
 	printf("updateSettings(): start number here: <%s>\n", settings->startNumber);
 
       if ( !settings->startNumber && mover->value){
@@ -1504,23 +1504,23 @@ if(settings->startNumber)
 
       if (settings->verbose == 1)
 
-    	  break;
+	break;
 
       if(mover->value){
 
         if ((strcasecmp(mover->value, "true") == 0) ||
-	        (strcasecmp(mover->value, "on") == 0) ||
-	        (strcmp(mover->value, "1") == 0))
+	    (strcasecmp(mover->value, "on") == 0) ||
+	    (strcmp(mover->value, "1") == 0))
 
-        	settings->verbose = 1;
+	  settings->verbose = 1;
 
-      /* this is wrong! we only turn verbose on --
-      else if ((strcasecmp(mover->value, "false") == 0) ||
-		       (strcasecmp(mover->value, "off") == 0) ||
-		       (strcmp(mover->value, "0") == 0))
+	/* this is wrong! we only turn verbose on --
+	   else if ((strcasecmp(mover->value, "false") == 0) ||
+	   (strcasecmp(mover->value, "off") == 0) ||
+	   (strcmp(mover->value, "0") == 0))
 
-    	  settings->verbose = 0;
-      ****************************************************/
+	   settings->verbose = 0;
+	****************************************************/
       }
 
       break;
@@ -1691,15 +1691,15 @@ int stateFile2StateInfo(STATE_INFO *stateInfo, const char *filename){
     fprintf(stderr, "%s: Error failed seq2PathParts() function.\n", progName);
     return result;
   }
-/*
-  printf("stateFile2StateInfo(): Time string is: <%s>\n", timeLine);
+  /*
+    printf("stateFile2StateInfo(): Time string is: <%s>\n", timeLine);
 
-  printf("stateFile2StateInfo(): time value in stateInfo is: <%d>\n", (int)stateInfo->timeValue);
+    printf("stateFile2StateInfo(): time value in stateInfo is: <%d>\n", (int)stateInfo->timeValue);
 
-  printf("stateFile2StateInfo(): Sequence Number is: <%s>\n", stateInfo->sequenceNumber);
+    printf("stateFile2StateInfo(): Sequence Number is: <%s>\n", stateInfo->sequenceNumber);
 
-  printf("stateFile2StateInfo(): path is: <%s>\n", stateInfo->pathParts->path);
-*/
+    printf("stateFile2StateInfo(): path is: <%s>\n", stateInfo->pathParts->path);
+  */
   return ztSuccess;
 
 } /* END stateFile2StateInfo() **/
@@ -2160,7 +2160,7 @@ int myDownload(char *remotePathSuffix, char *localFile){
   result = isGoodFilename(localFile);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed isGoodFilename() for 'localFile' parameter in myDownload(): <%s>.\n",
-                    progName, localFile);
+	    progName, localFile);
     return result;
   }
 
@@ -2169,7 +2169,7 @@ int myDownload(char *remotePathSuffix, char *localFile){
 
   if(strcmp(sourceURL, currentSourceURL) != 0){
     fprintf(stderr, "%s: Error fatal NOT same strings in sourceURL: <%s> and currentSourceURL: <%s>.\n",
-    		progName, sourceURL, currentSourceURL);
+	    progName, sourceURL, currentSourceURL);
     return ztFatalError;
   }
 
@@ -2251,12 +2251,12 @@ int getHeader(const char *tofile, const char *pathSuffix){
   result = isGoodFilename(tofile);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed isGoodFilename() for 'localFile' parameter in getHeader(): <%s>.\n",
-                    progName, tofile);
+	    progName, tofile);
     return result;
   }
 
   char   *allowed = "0123456789.acegostxz\057"; /* 057 octal for forward slash, letters
-						     are from: state.txt & .osc.gz **/
+						   are from: state.txt & .osc.gz **/
 
   if(strspn(pathSuffix, allowed) != strlen(pathSuffix)){
     fprintf(stderr, "%s: Error 'remotePathSuffix' parameter has disallowed character.\n", progName);
@@ -2266,8 +2266,8 @@ int getHeader(const char *tofile, const char *pathSuffix){
   curluResult = curl_url_get(curlParseHandle, CURLUPART_PATH, &pathPrefix, 0);
   if(curluResult != CURLUE_OK ) {
     fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n"
-	      "Curl error message: <%s>\n", progName,
-	      curl_url_strerror(curluResult));
+	    "Curl error message: <%s>\n", progName,
+	    curl_url_strerror(curluResult));
     return ztFailedLibCall;
   }
 
@@ -2301,8 +2301,8 @@ int getHeader(const char *tofile, const char *pathSuffix){
 
   headerFile = fopen(tofile, "w");
   if(!headerFile){
-	fprintf(stderr, "%s: Error failed fopen() function in getHeader().\n", progName);
-	return ztOpenFileError;
+    fprintf(stderr, "%s: Error failed fopen() function in getHeader().\n", progName);
+    return ztOpenFileError;
   }
 
   curl_easy_setopt(downloadHandle, CURLOPT_NOBODY, 1L);
@@ -2341,16 +2341,16 @@ int getHeader(const char *tofile, const char *pathSuffix){
 
 int getListHeaders(STRING_LIST *list, SETTINGS *settings){
 
-	/** newDiffersList: each line is in an element
+  /** newDiffersList: each line is in an element
 
-	  /005/637/617.osc.gz
-	  /005/637/617.state.txt
-	  /005/637/618.osc.gz
-	  /005/637/618.state.txt
-	  /005/637/619.osc.gz
-	  /005/637/619.state.txt
+      /005/637/617.osc.gz
+      /005/637/617.state.txt
+      /005/637/618.osc.gz
+      /005/637/618.state.txt
+      /005/637/619.osc.gz
+      /005/637/619.state.txt
 
-	  **/
+  **/
 
   ASSERTARGS(list && settings);
 
@@ -2365,22 +2365,22 @@ int getListHeaders(STRING_LIST *list, SETTINGS *settings){
 
   while(elem){
 
-	  suffix = (char *)DL_DATA(elem);
+    suffix = (char *)DL_DATA(elem);
 
-	  /* skip state.txt file, get header for change file only **/
-	  if(strstr(suffix, "state")){
-		elem = DL_NEXT(elem);
-		continue;
-	  }
+    /* skip state.txt file, get header for change file only **/
+    if(strstr(suffix, "state")){
+      elem = DL_NEXT(elem);
+      continue;
+    }
 
-	  file = appendName2Path(settings->diffDir, suffix);
+    file = appendName2Path(settings->diffDir, suffix);
 
-	  memset(localHeader, 0, sizeof(localHeader));
-	  sprintf(localHeader, "%s.%s", file, headerTag);
+    memset(localHeader, 0, sizeof(localHeader));
+    sprintf(localHeader, "%s.%s", file, headerTag);
 
-	  getHeader(localHeader, suffix);
+    getHeader(localHeader, suffix);
 
-	  elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
   }
 
   return ztSuccess;
@@ -2424,7 +2424,7 @@ STATE_INFO *initialStateInfo(){
  **********************************************************************************/
 
 int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
-		     PATH_PARTS *latestPP, SETTINGS *settings, int includeStartFiles){
+		      PATH_PARTS *latestPP, SETTINGS *settings, int includeStartFiles){
 
   int   result;
 
@@ -2510,13 +2510,13 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
     /* latest file is in another server directory - path), get html page,
        parse it AND add files to download list with latest childPath **/
 
-/*
-    destroyDL(indexList);  reuse list
-    free(indexList);
-    indexList = NULL;
-*/
+    /*
+      destroyDL(indexList);  reuse list
+      free(indexList);
+      indexList = NULL;
+    */
 
-	zapStringList((void **) &indexList); /* reuse list **/
+    zapStringList((void **) &indexList); /* reuse list **/
 
     indexList = initialStringList();
     if(!indexList){
@@ -2641,52 +2641,52 @@ int downloadFiles(STRING_LIST *completed, STRING_LIST *downloadList, SETTINGS *s
   elem = DL_HEAD(downloadList);
   while(elem){
 
-	pathSuffix = (char *)DL_DATA(elem);
-	filename = lastOfPath(pathSuffix);
+    pathSuffix = (char *)DL_DATA(elem);
+    filename = lastOfPath(pathSuffix);
 
-	if(settings->textOnly && ! strstr(filename, ".state.txt")){
-	  elem = DL_NEXT(elem);
-	  continue;
-	}
+    if(settings->textOnly && ! strstr(filename, ".state.txt")){
+      elem = DL_NEXT(elem);
+      continue;
+    }
 
-	iCount++;
+    iCount++;
 
-	/* no delay for first 12 files **/
-	if(iCount == 13)
-	  sleepSeconds = SLEEP_INTERVAL;
+    /* no delay for first 12 files **/
+    if(iCount == 13)
+      sleepSeconds = SLEEP_INTERVAL;
 
-	/* increment sleep time after each 4 files **/
-	if( ((iCount - 1) % 4) == 0 )
+    /* increment sleep time after each 4 files **/
+    if( ((iCount - 1) % 4) == 0 )
       sleepSeconds += SLEEP_INTERVAL;
 
-	memset(localFilename, 0, sizeof(char) * sizeof(localFilename));
-	if(SLASH_ENDING(settings->diffDir))
-	  sprintf(localFilename, "%s%s", settings->diffDir, pathSuffix + 1); // (pathSuffix + 1) skip FIRST slash in path
-	else
-	  sprintf(localFilename, "%s/%s", settings->diffDir, pathSuffix + 1);
+    memset(localFilename, 0, sizeof(char) * sizeof(localFilename));
+    if(SLASH_ENDING(settings->diffDir))
+      sprintf(localFilename, "%s%s", settings->diffDir, pathSuffix + 1); // (pathSuffix + 1) skip FIRST slash in path
+    else
+      sprintf(localFilename, "%s/%s", settings->diffDir, pathSuffix + 1);
 
-	/* wait before next download **/
-	sleep(sleepSeconds);
+    /* wait before next download **/
+    sleep(sleepSeconds);
 
-	result = myDownload(pathSuffix, localFilename);
-	if(result == ztSuccess){
-	  /* each list must have its own copy of data; this is
-	   * so zapString() does not free same pointer again. **/
+    result = myDownload(pathSuffix, localFilename);
+    if(result == ztSuccess){
+      /* each list must have its own copy of data; this is
+       * so zapString() does not free same pointer again. **/
 
-	  char *pathSuffixCopy;
-	  pathSuffixCopy = STRDUP(pathSuffix);
+      char *pathSuffixCopy;
+      pathSuffixCopy = STRDUP(pathSuffix);
 
-	  insertNextDL(completed, DL_TAIL(completed), (void **) pathSuffixCopy);
-	}
-	else{
-	  fprintf(stderr, "%s: Error failed myDownload() function for localFilename: <%s>\n",
-			         progName, localFilename);
-	  return result;
-	}
+      insertNextDL(completed, DL_TAIL(completed), (void **) pathSuffixCopy);
+    }
+    else{
+      fprintf(stderr, "%s: Error failed myDownload() function for localFilename: <%s>\n",
+	      progName, localFilename);
+      return result;
+    }
 
-	/* file sizes are checked in download2File() function **/
+    /* file sizes are checked in download2File() function **/
 
-	elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
   }
 
   return ztSuccess;
@@ -2702,47 +2702,47 @@ int makeOsmDir(PATH_PARTS *startPP, PATH_PARTS *latestPP, const char *rootDir){
 
   /* startPP & latestPP must share parent directory **/
   if(strcmp(startPP->parentEntry, latestPP->parentEntry) != 0){
-	fprintf(stderr, "%s: Error parentEntry is not the same for parameters.\n", progName);
-	return ztInvalidArg;
+    fprintf(stderr, "%s: Error parentEntry is not the same for parameters.\n", progName);
+    return ztInvalidArg;
   }
 
   /* rootDir must exist and accessible **/
   result = isDirUsable(rootDir);
   if(result != ztSuccess){
-	fprintf(stderr, "%s: Error failed isDirUsable() for parameter 'rootDir'.\n", progName);
-	return result;
+    fprintf(stderr, "%s: Error failed isDirUsable() for parameter 'rootDir'.\n", progName);
+    return result;
   }
 
   if(SLASH_ENDING(rootDir))
-	sprintf(buffer, "%s%s", rootDir, startPP->parentPath);
+    sprintf(buffer, "%s%s", rootDir, startPP->parentPath);
   else
-	sprintf(buffer, "%s/%s", rootDir, startPP->parentPath);
+    sprintf(buffer, "%s/%s", rootDir, startPP->parentPath);
 
   result = myMkDir(buffer);
   if(result != ztSuccess){
-	fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-	return result;
+    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
+    return result;
   }
 
   sprintf(buffer, "%s%s", rootDir, startPP->childPath);
 
   result = myMkDir(buffer);
   if(result != ztSuccess){
-	fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-	return result;
+    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
+    return result;
   }
 
   if(strcmp(startPP->childEntry, latestPP->childEntry) == 0)
 
-	return ztSuccess;
+    return ztSuccess;
 
 
   sprintf(buffer, "%s%s", rootDir, latestPP->childPath);
 
   result = myMkDir(buffer);
   if(result != ztSuccess){
-	fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-	return result;
+    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
+    return result;
   }
 
   return ztSuccess;
@@ -2758,11 +2758,11 @@ void printfWriteMsg(char *msg,FILE *tof){
 
   if(tof == stderr)
 
-	fprintf(stderr, "%s: %s\n", progName, msg);
+    fprintf(stderr, "%s: %s\n", progName, msg);
 
   if(fVerbose && tof == stdout)
 
-	fprintf(stdout, "%s: %s\n", progName, msg);
+    fprintf(stdout, "%s: %s\n", progName, msg);
 
   logMessage(fLogPtr, msg);
 
@@ -2806,23 +2806,23 @@ int writeNewerFiles(char const *toFile, STRING_LIST *list){
 
   result = isFileUsable(toFile);
   if(result == ztSuccess){
-	result = file2StringList(fileList, toFile);
-	if(result != ztSuccess){
+    result = file2StringList(fileList, toFile);
+    if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed file2StringList() function.\n", progName);
       return result;
-	}
+    }
   }
 
   elem = DL_HEAD(list);
   while(elem){
 
-	line = (char *)DL_DATA(elem);
+    line = (char *)DL_DATA(elem);
 
-	result = insertNextDL(fileList, DL_TAIL(fileList), (void *) line);
-	if(result != ztSuccess){
+    result = insertNextDL(fileList, DL_TAIL(fileList), (void *) line);
+    if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed inesrtNextDL() function.\n", progName);
       return result;
-	}
+    }
 
     elem = DL_NEXT(elem);
   }

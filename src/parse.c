@@ -45,9 +45,9 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     {NULL, 0, NULL, 0}
   };
 
-  int 	opt = 0;
-  int 	longIndex = 0;
-  int 	confFlag, usrFlag, passwdFlag,
+  int  opt = 0;
+  int  longIndex = 0;
+  int  confFlag, usrFlag, passwdFlag,
     srcFlag, destFlag, beginFlag,
     newFlag; /* do not allow same option twice */
 
@@ -101,7 +101,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
       if(strstr(optarg, "../") && strstr(optarg, "../") == optarg)
 
-    	withPath = prependParent(optarg);
+	withPath = prependParent(optarg);
 
       else if(hasPath(optarg) == FALSE)
 

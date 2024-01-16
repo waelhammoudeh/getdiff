@@ -1322,45 +1322,48 @@ time_t makeTimeGMT(struct tm *tm){
 
 /*
   printf("tm->tm_year: <%d>\n"
-		  "tm->tm_mon: <%d>\n"
-		  "tm->tm_mday: <%d>\n"
-		  "tm->tm_hour: <%d>\n"
-		  "tm->tm_min: <%d>\n"
-		  "tm->tm_sec: <%d>\n",
-		  tm->tm_year, tm->tm_mon, tm->tm_mday,
-		  tm->tm_hour, tm->tm_min, tm->tm_sec);
-*/
+         "tm->tm_mon: <%d>\n"
+	 "tm->tm_mday: <%d>\n"
+	 "tm->tm_hour: <%d>\n"
+	 "tm->tm_min: <%d>\n"
+	 "tm->tm_sec: <%d>\n",
+	 tm->tm_year, tm->tm_mon, tm->tm_mday,
+	 tm->tm_hour, tm->tm_min, tm->tm_sec);
+*****************************************/
+  
   /* check members values:
    * year, month, day of month, hour, minute and seconds. **/
 
   /* year range [1964-2064]
    * better way is something around current year!
-   * Or current century .... **/
+   * Or current century .... 
+   *********************************************/
+  
   if(tm->tm_year < (1964 -1900) ||
      tm->tm_year > (2064 - 1900))
 
-	return invalidValue;
+    return invalidValue;
 
   if(tm->tm_mon < 0 || tm->tm_mon > 11)
 
-	return invalidValue;
+    return invalidValue;
 
   if(tm->tm_mday < 1 || tm->tm_mday > 31)
 
-	return invalidValue;
+    return invalidValue;
 
   if(tm->tm_hour < 0 || tm->tm_hour > 23)
 
-	return invalidValue;
+    return invalidValue;
 
   if(tm->tm_min < 0 || tm->tm_min > 59)
 
-	return invalidValue;
+    return invalidValue;
 
   /* second can be 60 to account for leap second **/
   if(tm->tm_sec < 0 || tm->tm_sec > 60)
 
-	return invalidValue;
+    return invalidValue;
 
   errno = 0;
 
@@ -1398,3 +1401,4 @@ time_t makeTimeGMT(struct tm *tm){
   return ret;
 
 } /* END makeTimeGMT() **/
+

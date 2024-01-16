@@ -19,7 +19,7 @@
 #include <dirent.h>
 #include <time.h>
 #include <sys/time.h>   /* gettimeofday() */
-#include <ctype.h>	//toupper()
+#include <ctype.h> //toupper()
 #include <sys/wait.h>
 
 #include "util.h"
@@ -72,9 +72,9 @@ char *myStrdup(const char *src, char *filename, unsigned uLine){
 int isGoodPathPart(const char *part){
 
   char   *allowed =
-		  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-          "abcdefghijklmnopqrstuvwxyz"
-          "0123456789-_.";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789-_.";
 
   char   dash = '-';
   char   underscore = '_';
@@ -272,7 +272,7 @@ char *getParentDir(char const *path){
 
   char   *retCh = NULL;
   char   *lastSlash;
-  char 	 tempBuf[PATH_MAX] = {0};
+  char   tempBuf[PATH_MAX] = {0};
   char   slash = '/';
 
   ASSERTARGS(path);
@@ -430,15 +430,15 @@ int isDirUsable(const char* const path){
   result = stat(path, &status);
   if(result != 0){
 
-	if((errno == ENOENT) || (errno == ENOTDIR))
+    if((errno == ENOENT) || (errno == ENOTDIR))
 
       return ztPathNotDir;
 
-	else if(errno){
+    else if(errno){
 
       fprintf(stderr, "Failed System call to stat(): %s\n", strerror(errno));
       return ztFailedSysCall;
-	}
+    }
   }
 
   if ( ! (S_ISDIR (status.st_mode)) )
@@ -529,7 +529,7 @@ int isFileUsable(const char *path2File){
 int isFileReadable(const char *path2File){
 
   int    result;
-//  char   *parent;
+  //  char   *parent;
 
   struct stat status;
 
@@ -582,7 +582,7 @@ int isExecutableUsable(const char *name){
   result = isGoodFilename(name);
   if(result != ztSuccess)
 
-	return result;
+    return result;
 
   errno = 0;
   result = stat(name, &status);
@@ -599,14 +599,14 @@ int isExecutableUsable(const char *name){
 
   if( ! (status.st_mode & S_IXOTH) ) //S_IXOTH is executable for other group
 
-	return ztNotExecutableFile;
+    return ztNotExecutableFile;
 
-/*
-  if (access(name, X_OK) != 0)
+  /*
+    if (access(name, X_OK) != 0)
 
     return ztNotExecutableFile;
 
-** commented out, same as above **/
+    ** commented out, same as above **/
 
 
   return ztSuccess;
@@ -625,7 +625,7 @@ int getFileSize(long *size, const char *filename){
   result = isGoodFilename(filename);
   if(result != ztSuccess)
 
-	return result;
+    return result;
 
   errno = 0;
   result = stat(filename, &status);
@@ -664,9 +664,9 @@ int getFileSize(long *size, const char *filename){
 
 char* getHome(){
 
-  char	*resultDir = NULL;
+  char *resultDir = NULL;
 
-  char	*homeDir = getenv("HOME");
+  char *homeDir = getenv("HOME");
 
   if (homeDir && (isDirUsable(homeDir) == ztSuccess) ){
 
@@ -990,7 +990,7 @@ int isOkayFormat4HTTPS(char const *source){
 
   if(! (head && (head == mySource)) )
 
-	return FALSE;
+    return FALSE;
 
   tail = mySource + strlen(protocol) - 1; /* path MUST start with a slash **/
 
@@ -1024,15 +1024,15 @@ int isOkayFormat4HTTPS(char const *source){
 int isGoodURL (const char *str){
 
 
-  char	*allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                    "abcdefghijklmnopqrstuvwxyz"
-                    "0123456789:./-_~";
-  char	dash = '-';
-  char	underscore = '_';
-  char	*myStr;
-  int	hasDisallowed;
-  char	*del = "/";
-  char	*token;
+  char *allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789:./-_~";
+  char dash = '-';
+  char underscore = '_';
+  char *myStr;
+  int hasDisallowed;
+  char *del = "/";
+  char *token;
 
   if ( str == NULL )
 
@@ -1064,12 +1064,12 @@ int isGoodURL (const char *str){
     count++; /* count tokens **/
 
     if(strchr(token, dash) &&
-      (token[0] == dash || token[strlen(token) - 1] == dash))
+       (token[0] == dash || token[strlen(token) - 1] == dash))
 
       return FALSE;
 
     if(strchr(token, underscore) &&
-      (token[0] == underscore || token[strlen(token) - 1] == underscore))
+       (token[0] == underscore || token[strlen(token) - 1] == underscore))
 
       return FALSE;
 
@@ -1081,7 +1081,7 @@ int isGoodURL (const char *str){
    * none of them should empty **/
   if(count < 3){
     fprintf(stderr, "isGoodURL(): Error parameter token count < 3\n"
-                    "  string should include (scheme + server_name + path) at least.\n");
+	    "  string should include (scheme + server_name + path) at least.\n");
     return FALSE;
   }
 
@@ -1095,10 +1095,10 @@ int isGoodURL (const char *str){
  **************************************************************************/
 char* dropExtension(char *str){
 
-  char		*retCh = NULL;
-  int	 	period = '.';
-  char		*periodCh;
-  char 	temp[PATH_MAX] = {0};
+  char *retCh = NULL;
+  int   period = '.';
+  char *periodCh;
+  char  temp[PATH_MAX] = {0};
 
   ASSERTARGS(str);
 
@@ -1136,9 +1136,9 @@ char* dropExtension(char *str){
 
 void** allocate2Dim (int row, int col, size_t elemSize){
 
-  void		**array = NULL;
-  void 	**mover;
-  int 		iRow, jCol;
+  void **array = NULL;
+  void  **mover;
+  int  iRow, jCol;
 
   if(row < 1 || col < 1 || elemSize < 1){
     printf("allocate2Dim(): ERROR at least one parameter is less than 1\n"
@@ -1197,7 +1197,7 @@ char* get_self_executable_directory (){
   char  link_target[1024];
   char  *last_slash;
   size_t result_length;
-  char	*result;
+  char *result;
 
   /* Read the target of the symbolic link /proc/self/exe. */
   rval = readlink ("/proc/self/exe", link_target, sizeof (link_target));
@@ -1276,14 +1276,14 @@ int isStrGoodDouble(char *str){
 
 int mySpawn (char *prgName, char **argLst){
 
-  pid_t		childPID;
+  pid_t childPID;
 
   ASSERTARGS(prgName && argLst);
 
   childPID = fork();
 
   if (childPID == 0){   /* this is the child process */
-    /*	prototype from man page:
+    /* prototype from man page:
      * int execv(const char *path, char *const argv[]); */
 
     execv (prgName, argLst);
@@ -1302,8 +1302,8 @@ int mySpawn (char *prgName, char **argLst){
 int spawnWait (char *prog, char **argsList){
 
   /* wait() : caller (parent) waits for child process to finish */
-  //pid_t		childPid;
-  int		childStatus;
+  //pid_t childPid;
+  int childStatus;
 
   // don't allow nulls
   ASSERTARGS(prog && argsList);
@@ -1403,7 +1403,7 @@ int isRegularFile(const char *path){
 
   result = lstat(path, &status);
   if (result != 0) {
-  /* return false regardless of the error **/
+    /* return false regardless of the error **/
     perror("lstat() system call failure:");
     return FALSE;
   }
@@ -1427,12 +1427,12 @@ int isRegularFile(const char *path){
 
 int myGetDirDL (DLIST *dstDL, char *dir){
 
-  DIR 	*dirPtr;
+  DIR  *dirPtr;
   struct dirent *entry;
   char   dirPath[PATH_MAX + 1];
-  char	tempBuf[PATH_MAX + 1];
-  char 	*fullPath;
-  int	result;
+  char tempBuf[PATH_MAX + 1];
+  char  *fullPath;
+  int result;
 
   ASSERTARGS (dstDL && dir);
 
@@ -1453,7 +1453,7 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 
   errno = 0;
   dirPtr = opendir (dir);
-  if (dirPtr == NULL){  		/* tell user why it failed */
+  if (dirPtr == NULL){   /* tell user why it failed */
     printf ("myGetDirDL(): Error opening directory %s, system says: %s\n",
 	    dir, strerror(errno));
     return ztFailedSysCall;
@@ -1474,7 +1474,7 @@ int myGetDirDL (DLIST *dstDL, char *dir){
     
     /* TODO: replace me! bad use of ASSERTARGS **/
     ASSERTARGS (snprintf (tempBuf, PATH_MAX, "%s%s",
-                dirPath, entry->d_name) < PATH_MAX);
+			  dirPath, entry->d_name) < PATH_MAX);
 
     fullPath = (char *)malloc(strlen(tempBuf) + 1);
     if( ! fullPath){
@@ -1501,8 +1501,8 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 
 char* getFormatTime (void){
 
-  char	*ret = NULL;
-  char	buffer[1024];
+  char *ret = NULL;
+  char buffer[1024];
   char  timeBuf[80];
   long   milliSeconds;
   struct timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
@@ -1529,7 +1529,7 @@ char* getFormatTime (void){
 
 char *formatC_Time(void){
 
-  char	*ret = NULL;
+  char *ret = NULL;
   char  tmpBuf[80];
 
   struct tm *timePtr;
@@ -1559,7 +1559,7 @@ char *formatC_Time(void){
  * ***********************************************************************/
 char* formatMsgHeadTime(void){
 
-  char	*ret = NULL;
+  char *ret = NULL;
   char  tmpBuf[80];
 
   struct tm *timePtr;
@@ -1594,7 +1594,7 @@ failure.
 
 int stringToLower (char **dest, char *str){
 
-  char 	*mover;
+  char  *mover;
 
   ASSERTARGS (dest && str);
 
@@ -1624,7 +1624,7 @@ int stringToLower (char **dest, char *str){
 
 int stringToUpper (char **dst, char *str){
 
-  char 	*mover;
+  char  *mover;
 
   ASSERTARGS (dst && str);
 
@@ -1664,8 +1664,8 @@ int stringToUpper (char **dst, char *str){
 int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
   char  slash = '/';
-  char	*hasSlash;
-  char	tempBuf[PATH_MAX] = {0};
+  char *hasSlash;
+  char tempBuf[PATH_MAX] = {0};
 
   ASSERTARGS (dest && givenName && rootDir);
 
@@ -1694,7 +1694,7 @@ int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
 FILE* openOutputFile (char *filename){
 
-  FILE	*fPtr = NULL;
+  FILE *fPtr = NULL;
 
   ASSERTARGS (filename);
 
@@ -1741,7 +1741,7 @@ int getDirList (DLIST *list, const char *dir){
 
   DIR *dirPtr;
   struct dirent *entry;
-  //	char dirPath[PATH_MAX + 1];
+  // char dirPath[PATH_MAX + 1];
   char *name;
 
   ASSERTARGS (dir && list);
@@ -1752,14 +1752,14 @@ int getDirList (DLIST *list, const char *dir){
   }
 
   /* append a slash if it is not there. */
-  /*	if (IsSlashEnding(dir))
-	sprintf (dirPath, "%s", dir);
-	else
-	sprintf (dirPath, "%s/", dir);
+  /* if (IsSlashEnding(dir))
+     sprintf (dirPath, "%s", dir);
+     else
+     sprintf (dirPath, "%s/", dir);
   */
   errno = 0;
   dirPtr = opendir (dir);
-  if (dirPtr == NULL){  		/* tell user why it failed */
+  if (dirPtr == NULL){   /* tell user why it failed */
     fprintf (stderr, "getDirList(): Error opening directory %s, system says: %s\n",
 	     dir, strerror(errno));
     return ztFailedSysCall ;
@@ -1824,9 +1824,9 @@ int isStringInList (DLIST *list, const char *str){
 
 int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
 
-  ELEM	*elem;
-  char	*str;
-  char	*strCpy;
+  ELEM *elem;
+  char *str;
+  char *strCpy;
 
 
   ASSERTARGS (dst && list1 && list2);
@@ -1862,7 +1862,7 @@ int deffList1Not2 (DLIST *dst, DLIST *list1, DLIST *list2){
  * long, value is stored in the pointer parameter dstL.
  * srcDouble can NOT have any fraction and is in the range of zero and less
  * than LONG_MAX. On my system with glibc version 2.33 LONG_MAX is defined
- * in stdint.h and limits.h as: LONG_MAX	9223372036854775807L.
+ * in stdint.h and limits.h as: LONG_MAX 9223372036854775807L.
  * Caller should guard against negative double.
  * Function returns ztSuccess - zero - on success and errors as follow:
  * ztOutOfRangePara : if srcDouble is negative or larger than LONG_MAX.
@@ -1878,12 +1878,12 @@ int convDouble2Long (long *dstL, double srcDouble){
   */
 
   char buf[512] = {0};
-  char 	*fraction, *whole;
-  char 	*allowed = "0",
-        *digits = "1234567890",
-        *periodDel = ".",
-        *tabDel = "\t",
-        *endPtr = NULL;
+  char  *fraction, *whole;
+  char  *allowed = "0",
+    *digits = "1234567890",
+    *periodDel = ".",
+    *tabDel = "\t",
+    *endPtr = NULL;
 
   long  numL;
   int   result;

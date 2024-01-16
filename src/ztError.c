@@ -92,7 +92,7 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
   {ztConfUnregonizedKey,
    "ztConfUnregonizedKey",
-   "Unrecognized key: key in configuration file but NOT in initialed configure array"	},
+   "Unrecognized key: key in configuration file but NOT in initialed configure array" },
 
   {ztConfInvalidValue,
    "ztConfInvalidValue",
@@ -124,33 +124,33 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
   {ztFileEmpty,
    "ztFileEmpty",
-   "Specified file is empty, has size zero."	},
+   "Specified file is empty, has size zero." },
 
   {ztUnexpectedEOF,
    "ztUnexpectedEOF",
    "Unexpected end of file; function did not read all expected data."},
 
-   {ztEndOfFile,
-    "ztEndOfFile",
-    "End of file is set to non-zero value."},
+  {ztEndOfFile,
+   "ztEndOfFile",
+   "End of file is set to non-zero value."},
 
-   {ztFileError,
-    "ztFileError",
-    "File operation error occured; file error is set."},
+  {ztFileError,
+   "ztFileError",
+   "File operation error occured; file error is set."},
 
   {ztNoLinefeed,
    "ztNoLinefeed",
    "No linefeed character at end of string"},
 
-   {ztWriteError,
-    "ztWriteError",
-    "Failed write operation, did not write whole string to file."
-   },
+  {ztWriteError,
+   "ztWriteError",
+   "Failed write operation, did not write whole string to file."
+  },
 
-   {ztMalformedFile,
-    "ztMalformedFile",
-    "Malformed file format; file contents are not as expected"
-   },
+  {ztMalformedFile,
+   "ztMalformedFile",
+   "Malformed file format; file contents are not as expected"
+  },
 
   {ztFnameLong,
    "ztFnameLong",
@@ -202,9 +202,9 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztInaccessibleFile",
    "Inaccessible file, missing at least one permission [Read, Write, eXecute]"},
 
-   {ztNotExecutableFile,
-    "ztNotExecutableFile",
-    "File is NOT executable by the effective user"},
+  {ztNotExecutableFile,
+   "ztNotExecutableFile",
+   "File is NOT executable by the effective user"},
 
   {ztNoReadPerm,
    "ztNoReadPerm",
@@ -218,17 +218,17 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztChildProcessFailed",
    "Child process terminated with an error."},
 
-   {ztFailedLibCall,
-    "ztFailedLibCall",
-    "Failed external library call or function."},
+  {ztFailedLibCall,
+   "ztFailedLibCall",
+   "Failed external library call or function."},
 
-   {ztFailedDownload,
-    "ztFailedDownload",
-    "Failed curl_easy_perform() curl library function; (result != CURLE_OK)"},
+  {ztFailedDownload,
+   "ztFailedDownload",
+   "Failed curl_easy_perform() curl library function; (result != CURLE_OK)"},
 
-   {ztBadSizeDownload,
-    "ztBadSizeDownload",
-    "Failed size test for download; file disk size did not match sizeHeader or sizeDownload"},
+  {ztBadSizeDownload,
+   "ztBadSizeDownload",
+   "Failed size test for download; file disk size did not match sizeHeader or sizeDownload"},
 
   {ztMemoryAllocate,
    "ztMemoryAllocate",
@@ -260,24 +260,24 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztNoConnDB",
    "Failed to connect to database server."},
 
-   {ztResponse200,
-    "ztResponse200",
-    "Server response was 'Okay', does not mean we got what we wanted."
-   },
+  {ztResponse200,
+   "ztResponse200",
+   "Server response was 'Okay', does not mean we got what we wanted."
+  },
 
-   {ztResponseFailed2Retrieve,
-    "ztResponseFailed2Retrieve",
-    "Function failed to retrieve server response code"
-   },
+  {ztResponseFailed2Retrieve,
+   "ztResponseFailed2Retrieve",
+   "Function failed to retrieve server response code"
+  },
 
-   {ztResponseNone,
-    "ztResponseNone",
-    "Server response was NOT set"
-   },
+  {ztResponseNone,
+   "ztResponseNone",
+   "Server response was NOT set"
+  },
 
-   {ztResponse301,
-    "ztResponse301",
-    "Server response code 301: Requested resource Moved Permanently"},
+  {ztResponse301,
+   "ztResponse301",
+   "Server response code 301: Requested resource Moved Permanently"},
 
   {ztResponse302,
    "ztResponse302",
@@ -304,9 +304,9 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztResponse500",
    "Server response code 500: [Internal Server Error] Server is busy or overpass dispatcher is not running."},
 
-   {ztResponse502,
-    "ztResponse502",
-    "Server response code 502: [Bad Gateway Error] while acting as a gateway proxy."},
+  {ztResponse502,
+   "ztResponse502",
+   "Server response code 502: [Bad Gateway Error] while acting as a gateway proxy."},
 
   {ztResponse503,
    "ztResponse503",
@@ -363,7 +363,7 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
   {ztFatalError,
    "ztFatalError",
-   "Program or function encountered a fatal error; could not continue and terminates."	},
+   "Program or function encountered a fatal error; could not continue and terminates." },
 
   {ztNoQuerySession,
    "ztNoQuerySession",

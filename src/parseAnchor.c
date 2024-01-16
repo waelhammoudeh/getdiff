@@ -30,19 +30,19 @@ int parseHtmlFile(STRING_LIST *destList, const char *filename){
 
   if(! TYPE_STRING_LIST(destList)){
     fprintf(stderr, "%s: Error 'destList' parameter is not of type STRING_LT in parseHtmlFile().\n", progName);
-	return ztInvalidArg;
+    return ztInvalidArg;
   }
 
   if(DL_SIZE(destList) != 0){
-	fprintf(stderr, "%s: Error parseHtmlFile() 'destList' parameter is not empty.\n", progName);
-	return ztListNotEmpty;
+    fprintf(stderr, "%s: Error parseHtmlFile() 'destList' parameter is not empty.\n", progName);
+    return ztListNotEmpty;
   }
 
   result = isFileUsable(filename);
   if(result != ztSuccess){
-	fprintf(stderr, "%s: Error parseHtmlFile() failed isUsableFile() function.\n"
-			"filename: <%s>\n", progName, filename);
-	return result;
+    fprintf(stderr, "%s: Error parseHtmlFile() failed isUsableFile() function.\n"
+	    "filename: <%s>\n", progName, filename);
+    return result;
   }
 
   /* read input file into fileList - string list **/
@@ -52,11 +52,11 @@ int parseHtmlFile(STRING_LIST *destList, const char *filename){
 
   result = file2StringList(fileList, filename);
   if(result != ztSuccess)
-	return result;
+    return result;
 
   if(isHtmlStringList(fileList) == FALSE){
-	fprintf(stderr, "%s: Error parameter 'filename' <%s> is not HTML file", progName, filename);
-	return ztInvalidArg;
+    fprintf(stderr, "%s: Error parameter 'filename' <%s> is not HTML file", progName, filename);
+    return ztInvalidArg;
   }
 
   /* forward lines with ANCHOR TAGS to parseAnchor() function **/
@@ -66,23 +66,23 @@ int parseHtmlFile(STRING_LIST *destList, const char *filename){
   elem = DL_HEAD(fileList);
   while(elem){
 
-	line = (char *)DL_DATA(elem);
+    line = (char *)DL_DATA(elem);
 
-	if(strstr(line, ANCHOR_TAG)){
+    if(strstr(line, ANCHOR_TAG)){
 
-	  result = parseAnchor(destList, line);
-	  if(result != ztSuccess){
-		fprintf(stderr, "%s: Error failed parseAnchor() function.\n", progName);
-		return result;
-	  }
-	}
+      result = parseAnchor(destList, line);
+      if(result != ztSuccess){
+	fprintf(stderr, "%s: Error failed parseAnchor() function.\n", progName);
+	return result;
+      }
+    }
 
-	elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
   }
-/*
-printf("ParseHtmlFile(): Printing String List for parsed file:\n");
-printStringList(destList);
-*/
+  /*
+    printf("ParseHtmlFile(): Printing String List for parsed file:\n");
+    printStringList(destList);
+  */
   return ztSuccess;
 
 } /* END parseHtmlFile() **/
@@ -107,31 +107,31 @@ int parseAnchor_strtok(STRING_LIST *destList, char *line){
 
   anchorStart = strstr(myLine, ANCHOR_TAG);
   if(!anchorStart){
-	fprintf(stderr, "%s: Error could not find anchor start.\n", progName);
-	return ztInvalidArg;
+    fprintf(stderr, "%s: Error could not find anchor start.\n", progName);
+    return ztInvalidArg;
   }
 
   while(anchorStart){
 
-	anchorStart = strchr(anchorStart, '>');
+    anchorStart = strchr(anchorStart, '>');
 
-	myLine = strstr(myLine, ANCHOR_END); /* move pointer BEFORE strtok() call **/
-	if(!myLine)
-	  return ztUnknownError;
+    myLine = strstr(myLine, ANCHOR_END); /* move pointer BEFORE strtok() call **/
+    if(!myLine)
+      return ztUnknownError;
 
-	myLine++; /* start character is going to be over written with null by strtok() **/
+    myLine++; /* start character is going to be over written with null by strtok() **/
 
-	token = strtok(anchorStart, delimiter);
-	if(!token){
+    token = strtok(anchorStart, delimiter);
+    if(!token){
 
-       return ztUnknownError;
-	}
+      return ztUnknownError;
+    }
 
-	if(isdigit(token[0])){
-	  ListInsertInOrder(destList, token);
-	}
+    if(isdigit(token[0])){
+      ListInsertInOrder(destList, token);
+    }
 
-	anchorStart = strstr(myLine, ANCHOR_TAG);
+    anchorStart = strstr(myLine, ANCHOR_TAG);
   }
 
   return ztSuccess;
@@ -158,41 +158,41 @@ int parseAnchor(STRING_LIST *destList, char *line){
 
   anchorStart = strstr(myLine, ANCHOR_TAG);
   if(!anchorStart){
-	fprintf(stderr, "%s: Error could not find ANCHOR TAG in 'line'.\n", progName);
-	return ztInvalidArg;
+    fprintf(stderr, "%s: Error could not find ANCHOR TAG in 'line'.\n", progName);
+    return ztInvalidArg;
   }
 
   while(anchorStart){
 
-	anchorEnd = strchr(anchorStart, gt_char);
+    anchorEnd = strchr(anchorStart, gt_char);
 
-	anchorClosing = strchr(anchorEnd, lt_char);
+    anchorClosing = strchr(anchorEnd, lt_char);
 
-	if ( ! (anchorEnd && anchorClosing)){
+    if ( ! (anchorEnd && anchorClosing)){
       fprintf(stderr, "%s: Error could not get anchor tag opening OR closing.\n", progName);
-	  return ztUnknownError;
-	}
+      return ztUnknownError;
+    }
 
-	length = anchorClosing - anchorEnd;
+    length = anchorClosing - anchorEnd;
 
-	if(length > 256){
-	  fprintf(stderr, "%s: Error buffer fixed length size is small for string.\n", progName);
-	  return ztFatalError; /* need small buffer error code! **/
-	}
+    if(length > 256){
+      fprintf(stderr, "%s: Error buffer fixed length size is small for string.\n", progName);
+      return ztFatalError; /* need small buffer error code! **/
+    }
 
-	memset(buffer, 0, sizeof(char) * sizeof(buffer));
+    memset(buffer, 0, sizeof(char) * sizeof(buffer));
 
-	sprintf (buffer, "%.*s",  length - 1, anchorEnd + 1);
-	/* -1 & +1 are to drop lt & gt characters **/
+    sprintf (buffer, "%.*s",  length - 1, anchorEnd + 1);
+    /* -1 & +1 are to drop lt & gt characters **/
 
-	if(isdigit(buffer[0])){
+    if(isdigit(buffer[0])){
 
       string = STRDUP(buffer);
 
       ListInsertInOrder(destList, string);
-	}
+    }
 
-	anchorStart = strstr(anchorClosing, ANCHOR_TAG);
+    anchorStart = strstr(anchorClosing, ANCHOR_TAG);
 
   }
 
@@ -206,41 +206,41 @@ int parseAnchor(STRING_LIST *destList, char *line){
 
 int isHtmlStringList(STRING_LIST *list){
 
-	ELEM		*elem;
-	char		*firstLine, *secondLine, *lastLine;
+  ELEM *elem;
+  char *firstLine, *secondLine, *lastLine;
 
-	ASSERTARGS (list);
+  ASSERTARGS (list);
 
-	if(! TYPE_STRING_LIST(list))
+  if(! TYPE_STRING_LIST(list))
 
-	  return FALSE;
+    return FALSE;
 
-	if(DL_SIZE(list) < 3)
+  if(DL_SIZE(list) < 3)
 
-	  return FALSE;
+    return FALSE;
 
-	/* <html> tag must appear at first or second line **/
+  /* <html> tag must appear at first or second line **/
 
-	elem = DL_HEAD(list);
+  elem = DL_HEAD(list);
 
-	firstLine = (char *)DL_DATA(elem);
+  firstLine = (char *)DL_DATA(elem);
 
-	secondLine = (char *)DL_DATA(DL_NEXT(elem));
+  secondLine = (char *)DL_DATA(DL_NEXT(elem));
 
-	if(! (strstr(firstLine, HTML_TAG) || strstr(secondLine, HTML_TAG)))
+  if(! (strstr(firstLine, HTML_TAG) || strstr(secondLine, HTML_TAG)))
 
-	  return FALSE;
+    return FALSE;
 
-	/* </html> tag must appear on last line - STRING_LIST has no empty lines **/
+  /* </html> tag must appear on last line - STRING_LIST has no empty lines **/
 
-	elem = DL_TAIL(list);
+  elem = DL_TAIL(list);
 
-	lastLine = (char *)DL_DATA(elem);
+  lastLine = (char *)DL_DATA(elem);
 
-	if( ! strstr(lastLine, HTML_END))
+  if( ! strstr(lastLine, HTML_END))
 
-	  return FALSE;
+    return FALSE;
 
-	return TRUE;
+  return TRUE;
 
 } /* END isHtmlStringList() **/

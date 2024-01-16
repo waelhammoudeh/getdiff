@@ -3,9 +3,9 @@
  *
  *  Created on: Jan 5, 2019
  *
- *		Source: Mastering Algorithms with C by Kyle Loudon. O'Reilly
+ * Source: Mastering Algorithms with C by Kyle Loudon. O'Reilly
  *
- *		D: is for double-linked list; element has pointers to next & previous element.
+ * D: is for double-linked list; element has pointers to next & previous element.
  *
  ****************************************************************************/
 
@@ -195,7 +195,7 @@ int removeDL (DLIST *list, ELEM *element, void **data) {
 
 void destroyDL (DLIST *list) {
 
-  void			*data;
+  void *data;
 
   ASSERTARGS (list);
 

@@ -30,20 +30,20 @@ int file2StringList(STRING_LIST *strList, const char *filename){
 
   if(DL_SIZE(strList) != 0){
 
-	fprintf(stderr, "file2StringList(): Error argument 'strList' is not empty.\n");
-	return ztListNotEmpty;
+    fprintf(stderr, "file2StringList(): Error argument 'strList' is not empty.\n");
+    return ztListNotEmpty;
   }
 
   if(strList->listType != STRING_LT) /* just set it, keep old code working **/
 
-	strList->listType = STRING_LT;
+    strList->listType = STRING_LT;
 
   result = isFileReadable(filename);
   if(result != ztSuccess){
 
-	fprintf(stderr, "file2StringList(): Error failed isFileReadable()"
-			" for argument 'filename'.\n");
-	return result;
+    fprintf(stderr, "file2StringList(): Error failed isFileReadable()"
+	    " for argument 'filename'.\n");
+    return result;
   }
 
   errno = 0;
@@ -51,39 +51,39 @@ int file2StringList(STRING_LIST *strList, const char *filename){
   fPtr = fopen(filename, "r");
   if (fPtr == NULL){
 
-	fprintf (stderr, "file2StringList(): Error failed fopen() function.\n");
-	fprintf(stderr, "System error message: %s\n\n", strerror(errno));
-	return ztOpenFileError;
+    fprintf (stderr, "file2StringList(): Error failed fopen() function.\n");
+    fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+    return ztOpenFileError;
   }
 
   while (fgets(buffer, (PATH_MAX + 1), fPtr)){
 
-	/* do not allow a line longer than (PATH_MAX) - we do not combine lines. **/
-	if((strlen(buffer) == PATH_MAX) &&
-	   (buffer[PATH_MAX] != '\n')){ /* did not read linefeed --> truncated **/
+    /* do not allow a line longer than (PATH_MAX) - we do not combine lines. **/
+    if((strlen(buffer) == PATH_MAX) &&
+       (buffer[PATH_MAX] != '\n')){ /* did not read linefeed --> truncated **/
 
-	  fprintf(stderr, "file2StringList(): Error long line; longer than <%d> characters.\n"
-			  "lines are not combined by this function.\n", PATH_MAX);
-	  return ztInvalidArg;
-	}
+      fprintf(stderr, "file2StringList(): Error long line; longer than <%d> characters.\n"
+	      "lines are not combined by this function.\n", PATH_MAX);
+      return ztInvalidArg;
+    }
 
-	/* remove line feed - kept by fgets() **/
-	if (buffer[strlen(buffer) - 1] == '\n')
+    /* remove line feed - kept by fgets() **/
+    if (buffer[strlen(buffer) - 1] == '\n')
 
-	  buffer[strlen(buffer) - 1] = '\0';
+      buffer[strlen(buffer) - 1] = '\0';
 
-	newString = STRDUP(buffer);
+    newString = STRDUP(buffer);
 
-	/* remove leading and trailing white spaces **/
-	removeSpaces(&newString);
+    /* remove leading and trailing white spaces **/
+    removeSpaces(&newString);
 
-	result = insertNextDL (strList, DL_TAIL(strList), (void *)newString);
-	if(result != ztSuccess){
+    result = insertNextDL (strList, DL_TAIL(strList), (void *)newString);
+    if(result != ztSuccess){
 
-	  fprintf(stderr, "file2StringList(): Error failed insertNextDL() function.\n");
-	  fclose(fPtr);
-	  return result;
-	}
+      fprintf(stderr, "file2StringList(): Error failed insertNextDL() function.\n");
+      fclose(fPtr);
+      return result;
+    }
 
   } /* end while() **/
 
@@ -103,20 +103,20 @@ void printStringList(STRING_LIST *list){
   ASSERTARGS(list);
 
   if(DL_SIZE(list) == 0){
-	printf ("printStringList(): Empty list, nothing to do.\n");
-	return;
+    printf ("printStringList(): Empty list, nothing to do.\n");
+    return;
   }
   else
-	printf("printStringList(): List Size is: %d\n", DL_SIZE(list));
+    printf("printStringList(): List Size is: %d\n", DL_SIZE(list));
 
   elem = DL_HEAD(list);
   while(elem){
 
-	string = (char *)DL_DATA(elem);
+    string = (char *)DL_DATA(elem);
 
-	fprintf(stdout, "%s\n", string);
+    fprintf(stdout, "%s\n", string);
 
-	elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
   }
 
   return;
@@ -136,20 +136,20 @@ void fprintStringList(FILE *tofile, STRING_LIST *list){
     stream = tofile;
 
   if(DL_SIZE(list) == 0){
-	fprintf (stream, "fprintStringList(): Empty list, nothing to print.\n");
-	return;
+    fprintf (stream, "fprintStringList(): Empty list, nothing to print.\n");
+    return;
   }
   else
-	fprintf(stream, "fprintStringList(): Printing List with size is: <%d>\n", DL_SIZE(list));
+    fprintf(stream, "fprintStringList(): Printing List with size is: <%d>\n", DL_SIZE(list));
 
   elem = DL_HEAD(list);
   while(elem){
 
-	string = (char *)DL_DATA(elem);
+    string = (char *)DL_DATA(elem);
 
-	fprintf(stream, "%s\n", string);
+    fprintf(stream, "%s\n", string);
 
-	elem = DL_NEXT(elem);
+    elem = DL_NEXT(elem);
   }
 
   fprintf(stream, "fprintStringList(): Done.\n");
@@ -168,24 +168,24 @@ ELEM* findElemSubString (STRING_LIST *list, char *subString){
 
   if(! TYPE_STRING_LIST(list))
 
-	return elem;
+    return elem;
 
   if(DL_SIZE(list) == 0)
 
-	return elem;
+    return elem;
 
   currentElem = DL_HEAD(list);
   while(currentElem){
 
-	string = (char *)DL_DATA(currentElem);
+    string = (char *)DL_DATA(currentElem);
 
-	if(strstr(string, subString)){
+    if(strstr(string, subString)){
 
-	  elem = currentElem;
-	  break;
-	}
+      elem = currentElem;
+      break;
+    }
 
-	currentElem = DL_NEXT(currentElem);
+    currentElem = DL_NEXT(currentElem);
   }
 
   return elem;
@@ -209,16 +209,16 @@ int stringList2File(const char *filename, STRING_LIST *list){
 
   result = isGoodFilename(filename);
   if(result != ztSuccess){
-	fprintf(stderr, "stringList2File() Error failed isGoodFilename() for 'filename': <%s>\n",
-	                filename);
-	return result;
+    fprintf(stderr, "stringList2File() Error failed isGoodFilename() for 'filename': <%s>\n",
+	    filename);
+    return result;
   }
 
   errno = 0;
   fPtr = fopen(filename, "w");
   if(!fPtr){
     fprintf(stderr, "stringList2File(): Error failed fopen() function for 'filename': <%s>\n",
-                     filename);
+	    filename);
     fprintf(stderr, "System error message: %s\n\n", strerror(errno));
     return ztOpenFileError;
   }
@@ -232,14 +232,14 @@ int stringList2File(const char *filename, STRING_LIST *list){
 
   while (elem) {
 
-	string = (char *)DL_DATA(elem);
+    string = (char *)DL_DATA(elem);
 
-	if(!string){
-	  fprintf(stderr, "stringList2File(): Error variable 'string' is null ...\n");
-	  return ztFatalError;
-	}
+    if(!string){
+      fprintf(stderr, "stringList2File(): Error variable 'string' is null ...\n");
+      return ztFatalError;
+    }
 
-	fprintf (fPtr, "%s\n", string);
+    fprintf (fPtr, "%s\n", string);
 
     elem = DL_NEXT(elem);
 
@@ -290,7 +290,7 @@ int renameFile(const char *oldName, const char *newName){
   result = rename(oldName, newName);
   if(result == ztSuccess)
 
-	return ztSuccess;
+    return ztSuccess;
 
   /* rename() failed; try to read file into list then write list with new name **/
 
