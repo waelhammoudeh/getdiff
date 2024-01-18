@@ -7,7 +7,7 @@
  * It aims to consolidate commonly used libcurl functionalities, making them
  * readily accessible for various applications.
  *
- * Minimum required Curl Library version is "7.86".
+ * Minimum required Curl Library version is "7.80.0".
  *
  * The main functions are:
  *

@@ -2,6 +2,8 @@
 Improved code & fixed some of my errors.
 Please see Changes in "getdiff.h" file.
 
+Current program version: "0.01.4"
+
 # Getdiff
 Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.
 
@@ -14,7 +16,13 @@ The script above is used to retrieve login cookie from OpenStreetMap.org when ge
 This program assumes python3 executable to be found in the default slackware installation; that is '/usr/bin/python3'.
 
 ## Building:
-Program requires "libcurl" version 7.86.0 or later. A makefile is included in the root directory; to compile run 'make' in that directory.
+
+To compile the program, ensure you have "libcurl" version 7.80.0 or later installed on your system. A makefile is provided in the root directory.
+Simply navigate to that directory and run the command 'make' to build the program.
+
+Please note that the makefile currently doesn't perform checks for the minimum required version of "libcurl."
+Implementing such checks in the makefile has proven to be challenging and problematic. While using "autotools" could be a potential solution,
+there are no immediate plans for its implementation. If you're interested in contributing to this aspect, your volunteer efforts would be appreciated.
 
 ## Improvements
   - Utilized change files sequence number to locate files on remote servers and on local machine.
