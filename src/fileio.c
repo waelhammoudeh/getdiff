@@ -60,7 +60,7 @@ int file2StringList(STRING_LIST *strList, const char *filename){
 
     /* do not allow a line longer than (PATH_MAX) - we do not combine lines. **/
     if((strlen(buffer) == PATH_MAX) &&
-       (buffer[PATH_MAX] != '\n')){ /* did not read linefeed --> truncated **/
+       (buffer[PATH_MAX - 1] != '\n')){ /* did not read linefeed --> truncated **/
 
       fprintf(stderr, "file2StringList(): Error long line; longer than <%d> characters.\n"
 	      "lines are not combined by this function.\n", PATH_MAX);
