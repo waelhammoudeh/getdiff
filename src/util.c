@@ -141,7 +141,7 @@ int isGoodFilename(const char *name){
   char    slash = '/';
   char    period = '.';
   char    *hasSlash;
-  char    tmpBuf[PATH_MAX + 1] = {0};
+  char    *tmpBuf = NULL;
   char    *mover;
 
   ASSERTARGS(name);
@@ -166,7 +166,7 @@ int isGoodFilename(const char *name){
 
     return ztFnameSlashEnd;
 
-  strcpy(tmpBuf, name);
+  tmpBuf = STRDUP(name);
 
   hasSlash = strchr(tmpBuf, slash);
 
@@ -321,9 +321,7 @@ char* lastOfPath (const char *path){
   char  *pointer = NULL;
 
   char  slash = '/';
-  char  *lastSlash;
-  char  lastEntry[FNAME_MAX + 1] = {0};
-
+  char  *lastSlash = NULL;
   char  myPath[PATH_MAX] = {0};
 
   ASSERTARGS(path);
@@ -332,39 +330,27 @@ char* lastOfPath (const char *path){
 
     return pointer;
 
-  char    *PS = "./";
-
-  /* if period + slash; point AT the slash **/
-  if(strncmp(path, PS, 2) == 0){
-
-    path++;
-
-  }
-
   /* get our own copy **/
   strcpy(myPath, path);
 
-  /* if it ends with slash; remove it **/
-  if(SLASH_ENDING(myPath))
+  /* if it ends with slash; remove it - while() is probably wrong! **/
+  while(SLASH_ENDING(myPath))
 
     myPath[strlen(myPath) - 1] = '\0';
 
-  if(isGoodFilename(myPath) != ztSuccess)
+
+  if(! strchr(myPath, slash)){
+
+	pointer = STRDUP(myPath);
 
     return pointer;
+  }
 
   lastSlash = strrchr(myPath, slash);
 
-  if ( ! lastSlash ) /* just to be sure **/
+  lastSlash++;
 
-    return pointer;
-
-  strcpy(lastEntry, lastSlash + 1);
-
-  pointer = (char *)malloc((strlen(lastEntry)  + 1) * sizeof(char));
-  if( pointer )
-
-    strcpy(pointer, lastEntry);
+  pointer = STRDUP(lastSlash);
 
   return pointer;
 
@@ -1089,7 +1075,10 @@ int isGoodURL (const char *str){
 
 } /* END isGoodURL() **/
 
-/* dropExtension(): drops extension from str in; anything after a right period.
+
+
+
+/* DropExtension(): drops extension from str in; anything after a right period.
  * allocates memory for return pointer. returns NULL if str > PATH_MAX or
  * memory allocation error. you get a duplicate if str has no period.
  **************************************************************************/
@@ -1193,10 +1182,10 @@ void free2Dim (void **array, size_t elemSize){
 /* from Advanced-Linux Programming --- still needs work */
 char* get_self_executable_directory (){
 
-  int   rval;
+  int  rval;
   char  link_target[1024];
-  char  *last_slash;
-  size_t result_length;
+  char *last_slash;
+  size_t  result_length;
   char *result;
 
   /* Read the target of the symbolic link /proc/self/exe. */
@@ -1428,11 +1417,11 @@ int isRegularFile(const char *path){
 int myGetDirDL (DLIST *dstDL, char *dir){
 
   DIR  *dirPtr;
-  struct dirent *entry;
-  char   dirPath[PATH_MAX + 1];
+  struct  dirent  *entry;
+  char  dirPath[PATH_MAX + 1];
   char tempBuf[PATH_MAX + 1];
   char  *fullPath;
-  int result;
+  int   result;
 
   ASSERTARGS (dstDL && dir);
 
@@ -1471,8 +1460,7 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 	 (strcmp(entry->d_name, "..") == 0) )
 
       continue;
-    
-    /* TODO: replace me! bad use of ASSERTARGS **/
+
     ASSERTARGS (snprintf (tempBuf, PATH_MAX, "%s%s",
 			  dirPath, entry->d_name) < PATH_MAX);
 
@@ -1496,6 +1484,21 @@ int myGetDirDL (DLIST *dstDL, char *dir){
 
 }  /* END myGetDirDL()  */
 
+/** exist in "primitives.c"
+
+    void zapString(void **string){
+
+    if((char *) *string){
+    free(*string);
+    *string = NULL;
+    }
+
+    return;
+
+    }
+
+**/
+
 /* GetFormatTime(): formats current time in a string buffer, allocates buffer
  * and return buffer address.  */
 
@@ -1503,10 +1506,10 @@ char* getFormatTime (void){
 
   char *ret = NULL;
   char buffer[1024];
-  char  timeBuf[80];
-  long   milliSeconds;
-  struct timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
-  struct tm *timePtr;
+  char   timeBuf[80];
+  long    milliSeconds;
+  struct    timeval  startTV;   /* timeval has two fields: tv_sec: seconds  and tv_usec: MICROseconds */
+  struct    tm *timePtr;
 
   gettimeofday (&startTV, NULL);
   timePtr = localtime (&startTV.tv_sec);
@@ -1527,10 +1530,10 @@ char* getFormatTime (void){
 
 } /* END GetFormatTime() */
 
-char *formatC_Time(void){
+char  *formatC_Time(void){
 
   char *ret = NULL;
-  char  tmpBuf[80];
+  char   tmpBuf[80];
 
   struct tm *timePtr;
   time_t timeValue;
@@ -1560,7 +1563,7 @@ char *formatC_Time(void){
 char* formatMsgHeadTime(void){
 
   char *ret = NULL;
-  char  tmpBuf[80];
+  char   tmpBuf[80];
 
   struct tm *timePtr;
   time_t timeValue;
@@ -1660,10 +1663,10 @@ int stringToUpper (char **dst, char *str){
 
 /* mkOutFile(): make output file name, sets dest to givenName if it has a slash,
  * else it appends givenName to rootDir and then sets dest to appended string
- *****************************************************************************/
+ */
 int mkOutputFile (char **dest, char *givenName, char *rootDir){
 
-  char  slash = '/';
+  char slash = '/';
   char *hasSlash;
   char tempBuf[PATH_MAX] = {0};
 
@@ -1715,7 +1718,7 @@ FILE* openOutputFile (char *filename){
 
 int closeFile(FILE *fPtr){
 
-  int  result;
+  int    result;
 
   ASSERTARGS(fPtr);
 
@@ -1878,15 +1881,15 @@ int convDouble2Long (long *dstL, double srcDouble){
   */
 
   char buf[512] = {0};
-  char  *fraction, *whole;
-  char  *allowed = "0",
+  char *fraction, *whole;
+  char *allowed = "0",
     *digits = "1234567890",
     *periodDel = ".",
     *tabDel = "\t",
     *endPtr = NULL;
 
-  long  numL;
-  int   result;
+  long numL;
+  int    result;
 
   ASSERTARGS (dstL);
 
@@ -1986,3 +1989,125 @@ int isGoodExecutable(char *file){
 
 } /* END isGoodExecutable() **/
 
+
+/* arg2FullPath():
+ *
+ * function return full path to its argument.
+ *
+ * argument is usually "file name" entered to program by user.
+ *
+ */
+
+char *arg2FullPath(const char *arg){
+
+  char *fullPath = NULL;
+
+  /* already path case **/
+  if(arg[0] == '/'){
+
+    fullPath = STRDUP(arg);
+    return fullPath;
+  }
+
+  /* case starts with tilde '~' prepend $HOME **/
+  if(arg[0] == '~'){
+
+    char *home;
+
+    home = getHome();
+    if(!home){
+      fprintf(stderr, "arg2FullPath(): Error failed getHome().\n");
+      return fullPath;
+    }
+
+    fullPath = (char *)malloc(strlen(home) + strlen(arg) + 1);
+    if(!fullPath){
+      fprintf(stderr, "arg2FullPath(): Error allocating memory.\n");
+      return fullPath;
+    }
+    memset(fullPath, 0, strlen(home) + strlen(arg) + 1);
+
+    strcpy(fullPath, home);
+    strcat(fullPath, arg + 1); /* skip the tilde character **/
+
+    return fullPath;
+  }
+
+  /* case starts with double dots '../' **/
+  if(strncmp(arg, "../", 3) == 0){
+
+    char *parent = NULL;
+    char *current = NULL;
+
+    current = getcwd(NULL, 0);
+    if(!current){
+      fprintf(stderr, "arg2FullPath(): Error failed getcwd().\n");
+      return fullPath;
+    }
+
+    parent = getParentDir(current);
+    if(!parent){
+      fprintf(stderr, "arg2FullPath(): Error failed getParentDir().\n");
+      return fullPath;
+    }
+
+    fullPath = (char *)malloc(strlen(parent) + strlen(arg) + 1);
+    if(!fullPath){
+      fprintf(stderr, "arg2FullPath(): Error allocating memory.\n");
+      return fullPath;
+    }
+    memset(fullPath, 0, strlen(parent) + strlen(arg) + 1);
+
+    if(SLASH_ENDING(parent))
+      sprintf(fullPath, "%s%s", parent, arg + 3); /* skip '../' **/
+    else
+      sprintf(fullPath, "%s%s", parent, arg + 2); /* skip '..' - we need slash **/
+
+
+    free(current);
+    free(parent);
+    
+    return fullPath;
+  }
+
+  /* case starts './' AND not slash **/
+  if((strncmp(arg, "./", 2) == 0) || (arg[0] != '/')){
+
+    char *current = NULL;
+
+    current = getcwd(NULL, 0);
+    if(!current){
+      fprintf(stderr, "arg2FullPath(): Error failed getcwd().\n");
+      return fullPath;
+    }
+
+    fullPath = (char *)malloc(strlen(current) + strlen(arg) + 2);
+    if(!fullPath){
+      fprintf(stderr, "arg2FullPath(): Error allocating memory.\n");
+      return fullPath;
+    }
+    memset(fullPath, 0, strlen(current) + strlen(arg) + 2);
+
+    if(SLASH_ENDING(current)){
+
+      if(arg[0] == '.')
+	sprintf(fullPath, "%s%s", current, arg + 2); /* skip './' **/
+      else
+	sprintf(fullPath, "%s%s", current, arg);
+    }
+    else{
+
+      if(arg[0] == '.')
+	sprintf(fullPath, "%s%s", current, arg + 1); /* skip '.' and keep slash **/
+      else
+	sprintf(fullPath, "%s/%s", current, arg); /* insert slash **/
+    }
+ 
+    free(current);
+
+    return fullPath;
+  }
+
+  return fullPath;
+
+} /* END arg2FullPath() **/

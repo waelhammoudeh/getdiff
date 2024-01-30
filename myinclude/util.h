@@ -50,7 +50,7 @@
 /* is slash ending path? **/
 #define SLASH_ENDING(path) (( (path [strlen(path) - 1]) == '/' ) ? 1 : 0)
 
-/* this to be removed **/
+/* this is to be removed **/
 #define IsSlashEnding(str)    (( (str [strlen(str) - 1]) == '/' ) ? 1 : 0)
 
 /* This is from: WRITING SOLID CODE by Steve Maguire
@@ -159,6 +159,8 @@ int spawnWait (char *prog, char **argsList);
 
 int myGetDirDL (DLIST *dstDL, char *dir);
 
+//void zapString(void **data); 12/18/2023
+
 char* getFormatTime (void);
 
 int stringToUpper (char **dst, char *str);
@@ -189,6 +191,7 @@ int closeFile(FILE *fPtr);
 
 int isGoodExecutable(char *file);
 
+char *arg2FullPath(const char *arg);
 
 
 #endif /* UTIL_H_ */

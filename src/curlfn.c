@@ -7,7 +7,7 @@
  * It aims to consolidate commonly used libcurl functionalities, making them
  * readily accessible for various applications.
  *
- * Minimum required Curl Library version is "7.80".
+ * Minimum required Curl Library version is "7.86".
  *
  * The main functions are:
  *
@@ -21,13 +21,11 @@
  *
  *  - Users acquire two handles (pointers):
  *    CURLU* (URL parse handle) and CURL* (easy handle).
- *    The former is obtained with initialURL(), and the latter
- *    with initialOperation().
+ *    The former is obtained via initialURL(),
+ *    and the latter through either initialDownload() or initialQuery().
  *
- *  - Both handles are connected in initialOperation() function.
- *
- *  - Note: Function initialOperation() has replaced both
- *    initialDownload() and initialQuery() functions.
+ *  - Both handles are connected within the initialDownload() and
+ *    initialQuery() functions.
  *
  *  - Using the CURLU parse handle, libcurl enables users to modify/set
  *    the URL whole or in parts.
@@ -294,9 +292,6 @@ CURLU * initialURL (const char *server){
  *
  * Returns:
  * A CURL* handle on successful initialization or NULL on failure.
- *
- * Note: This function is a replacement for both - now removed -
- * initialDownload() and initialQuery() functions.
  *
  ************************************************************************/
 
@@ -717,8 +712,9 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
 
       char   logBuffer[PATH_MAX] = {0};
 
-      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
-    	  " function failed with (performResult == CURLE_COULDNT_CONNECT)\n"
+      sprintf(logBuffer,
+	      "download2File(): Error failed curl_easy_perform() function.\n"
+    	      " function failed with (performResult == CURLE_COULDNT_CONNECT)\n"
 	      " Parameter 'filename': <%s>\n"
 	      " Remote URL: <%s>\n"
 	      " curlErrorMsg contents: <%s>\n",
@@ -733,14 +729,15 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
 
   if (performResult == CURLE_COULDNT_RESOLVE_HOST){
 
-	fprintf(stderr, "download2File(): Failed curl_easy_perform() with CURLE_COULDNT_RESOLVE_HOST.\n");
+    fprintf(stderr, "download2File(): Failed curl_easy_perform() with CURLE_COULDNT_RESOLVE_HOST.\n");
 
     if(curlLogtoFP){
 
       char   logBuffer[PATH_MAX] = {0};
 
-      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
-    	  " function failed with (performResult == CURLE_COULDNT_RESOLVE_HOST)\n"
+      sprintf(logBuffer,
+	      "download2File(): Error failed curl_easy_perform() function.\n"
+	      " function failed with (performResult == CURLE_COULDNT_RESOLVE_HOST)\n"
 	      " Parameter 'filename': <%s>\n"
 	      " Remote URL: <%s>\n"
 	      " curlErrorMsg contents: <%s>\n",
@@ -770,7 +767,8 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
 
       char   logBuffer[PATH_MAX] = {0};
 
-      sprintf(logBuffer, "download2File(): Error failed curl_easy_perform() function.\n"
+      sprintf(logBuffer,
+	      "download2File(): Error failed curl_easy_perform() function.\n"
 	      " Parameter 'filename': <%s>\n"
 	      " Remote URL: <%s>\n"
 	      " curl_easy_strerror() for result: <%s>\n"
@@ -784,7 +782,7 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
 
       myResult = closeFile(toFilePtr);
       if(myResult != ztSuccess)
-	    fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
+	fprintf(stderr, "download2File(): Error failed closeFile() function.\n");
 
       /* we want to return ztFailedDownload; still 2 errors might be related?! **/
     }
@@ -869,7 +867,8 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
 
 	char   logBuffer[PATH_MAX] = {0};
 
-	sprintf(logBuffer, "download2File(): Warning, different sizes!\n"
+	sprintf(logBuffer,
+		"download2File(): Warning, different sizes!\n"
 		"download2File(): SUCCESS curl_easy_perform() function result == CURLE_OK.\n"
 		" Response Code == 200 (OK_RESPONSE_CODE)\n"
 		" Parameter filename: <%s>\n"
@@ -931,17 +930,19 @@ int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
   result = download2File(destFile, handle, parseHandle);
   if(result != ztSuccess){
 
-    fprintf(stderr, "download2FileRetry(): Error failed download2File() for second attempt.\n"
-    		" Sleep Time Value: <%d> seconds.\n"
-    		" function failed with Zone Tree Code: <%s>\n", delay, ztCode2ErrorStr(result));
+    fprintf(stderr,
+	    "download2FileRetry(): Error failed download2File() for second attempt.\n"
+	    " Sleep Time Value: <%d> seconds.\n"
+	    " function failed with Zone Tree Code: <%s>\n", delay, ztCode2ErrorStr(result));
 
     if(curlLogtoFP){
 
-      char   logBuffer[PATH_MAX] = {0};
+      char  logBuffer[PATH_MAX] = {0};
 
-      sprintf(logBuffer, "download2FileRetry(): Error failed download2File() for second attempt.\n"
-    		" Sleep Time Value: <%d> seconds.\n"
-      		" function failed with Zone Tree Exit Code: <%s>\n", delay, ztCode2ErrorStr(result));
+      sprintf(logBuffer,
+	      "download2FileRetry(): Error failed download2File() for second attempt.\n"
+	      " Sleep Time Value: <%d> seconds.\n"
+	      " function failed with Zone Tree Exit Code: <%s>\n", delay, ztCode2ErrorStr(result));
 
       writeLogCurl(curlLogtoFP, logBuffer);
     }
@@ -1004,7 +1005,7 @@ char *getPrefixCURLU(CURLU *parseUrlHandle){
     fprintf(stderr, "getPrefixCURLU(): Error failed curl_url_get() for 'path' part.\n");
 
     if(scheme) 	curl_free(scheme);
-    if(host)  curl_free(host);
+    if(host)    curl_free(host);
 
     return url;
   }
@@ -1242,12 +1243,13 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
     else {
 
       /* failed with some other error code **/
-      fprintf(stderr, "performQuery(): Error failed curl_easy_perform(); transfer failed:\n"
+      fprintf(stderr,
+	      "performQuery(): Error failed curl_easy_perform(); transfer failed:\n"
 	      " curl string error: <%s>\n"
 	      " curlErrorMsg contents: <%s>\n"
 	      " HTTP Response Code: <%ld>\n\n",
 	      curl_easy_strerror(performResult), curlErrorMsg, responseCode);
-      //return responseCode2ztCode(responseCode);
+      
       return ztFailedDownload;
     }
 
@@ -1256,16 +1258,19 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 
     if(responseCode == OK_RESPONSE_CODE){
       if((dst->memory[dst->size]) != '\0'){ /* last received character must be null **/
-	fprintf(stderr, "performQuery(): Error response contents NOT string; not null ending.\n"
+	fprintf(stderr,
+		"performQuery(): Error response contents NOT string; not null ending.\n"
 		" (performResult == CULRE_OK && responseCode == OK_RESPONSE_CODE)\n\n");
 	return ztNotString;
       }
       else if(dst->size == 0 || strlen(dst->memory) == 0){
-	fprintf(stderr, "performQuery(): Error empty query response. Nothing in MEMORY_STRUCT!\n");
+	fprintf(stderr,
+		"performQuery(): Error empty query response. Nothing in MEMORY_STRUCT!\n");
 	return ztEmptyString;
       }
       else if( (sizeDownload != dst->size) || (sizeDownload != strlen(dst->memory)) ){
-	fprintf(stderr, "performQuery(): Error different sizes; sizeDownload test failed.\n"
+	fprintf(stderr,
+		"performQuery(): Error different sizes; sizeDownload test failed.\n"
 		" (performResult == CULRE_OK && responseCode == OK_RESPONSE_CODE)\n\n");
 	return ztBadSizeDownload;
       }
@@ -1285,9 +1290,10 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
 
       if(curlLogtoFP){
 
-	char   logBuffer[PATH_MAX] = {0};
+	char logBuffer[PATH_MAX] = {0};
 
-	sprintf(logBuffer, "performQuery(): Error failed test (responseCode == OK_RESPONSE_CODE)\n"
+	sprintf(logBuffer,
+		"performQuery(): Error failed test (responseCode == OK_RESPONSE_CODE)\n"
 		" Received response code was: <%ld>\n", responseCode);
 	if(strlen(dst->memory)){
 	  sprintf(logBuffer + strlen(logBuffer), " String received is below:\n");
@@ -1302,7 +1308,8 @@ int performQuery (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srv
   }
 
   /* we should not get here! **/
-  fprintf(stderr, "performQuery(): UNKNOWN ERROR,,, at bottom of function.\n"
+  fprintf(stderr,
+	  "performQuery(): UNKNOWN ERROR,,, at bottom of function.\n"
 	  "LAST curl error string is: <%s>\n\n", curl_easy_strerror(resultC));
 
   return ztUnknownError;
@@ -1330,8 +1337,9 @@ int performQueryRetry (MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU
 
     sleep(SLEEP_SECONDS);
 
-    fprintf(stdout, "performQueryRety(): Retrying query for error code: <%s>"
-    		" RETRY RETRY\n\n", ztCode2ErrorStr(result));
+    fprintf(stdout,
+	    "performQueryRety(): Retrying query for error code: <%s>"
+	    " RETRY RETRY\n\n", ztCode2ErrorStr(result));
 
     return performQuery(dst, whichData, qHandle, srvrHandle);
   }

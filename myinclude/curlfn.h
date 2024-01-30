@@ -49,7 +49,7 @@ extern char  curlErrorMsg[CURL_ERROR_SIZE + 1];
 
 /* To parse URL we use curl_url() which is available since version 7.62.0
  * and curl_url_strerror() which is available since 7.80.0
- * CURLOPT_CONNECT_ONLY this was added in 7.15.2. I had this WRONG as 7.86.0.
+ * CURLOPT_CONNECT_ONLY Since  7.86.0.
  *
  * see CURL_VERSION_BITS(x,y,z) macro in curlver.h
  * #define MIN_CURL_VER 0x073e00u
@@ -57,17 +57,17 @@ extern char  curlErrorMsg[CURL_ERROR_SIZE + 1];
 ***********************************************************************/
 
 #define MAJOR_REQ 7
-#define MINOR_REQ 80
+#define MINOR_REQ 86
 #define PATCH_REQ 0
 #define MIN_CURL_VER ((uint) CURL_VERSION_BITS(MAJOR_REQ,MINOR_REQ,PATCH_REQ))
 
-#define CURL_USER_AGENT "curl/7.80.0"
+#define CURL_USER_AGENT "curl/7.86.0"
 
 #define easyInitial() curl_easy_init()
 #define easyCleanup(h) curl_easy_cleanup(h)
 #define urlCleanup(retValue) curl_url_cleanup(retValue)
 
-#define OK_RESPONSE_CODE   200L
+#define OK_RESPONSE_CODE	200L
 
 // structure from examples/getinmemory.c - added  typedef
 typedef struct MEMORY_STRUCT_  {

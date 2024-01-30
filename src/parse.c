@@ -97,25 +97,20 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
         return ztMalformedCML;
       }
 
-      char  *withPath;
+      char  *withPath = NULL;
 
-      if(strstr(optarg, "../") && strstr(optarg, "../") == optarg)
+      /* use arg2FullPath(optarg) instead of this block 1/29/2024 **/
 
-	withPath = prependParent(optarg);
-
-      else if(hasPath(optarg) == FALSE)
-
-        withPath = prependCWD(optarg);
-
-      else
-
-        withPath = optarg;
+      withPath = arg2FullPath(optarg);
 
       if(!withPath){
         fprintf(stderr, "%s: Error 'withPath' variable is NULL in parseCmdLine(); Exiting.\n", progName);
         fprintf(stderr, "optarg was: <%s> @@\n\n", optarg);
+        fprintf(stderr, " %s: Failed arg2FullPath() function in parseCmdLine().\n", progName);
         return ztUnknownError;
       }
+
+fprintf(stdout, "%s: configure file with full path is: <%s>\n", progName, withPath);
 
       result = isGoodFilename(withPath);
       if (result != ztSuccess){

@@ -37,9 +37,14 @@
  *  - added more error codes
  *  date 1/14/2024
  *
+ *  updated 1/29/2024
+ *   - updated lastOfPath() ---> util.c
+ *   - added arg2FullPath() ---> util.c
+ *   - use double digit for patch number in version number.
+ *
  *********************************/
 
-#define VERSION "0.01.4"
+#define VERSION "0.01.41"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61

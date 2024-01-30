@@ -71,11 +71,8 @@ int main(int argc, char *argv[]){
   STRING_LIST   *newDiffersList;
   STRING_LIST   *completedList;
 
-  /* set progName - used in error messages. **/
-  if(strchr(argv[0], '/'))
-    progName = lastOfPath(argv[0]);
-  else
-    progName = argv[0];
+  /* set progName - used in output messages. **/
+  progName = lastOfPath(argv[0]);
 
   /* set some sensible defaults we may have to use.
    * {HOME} is current user home directory.
