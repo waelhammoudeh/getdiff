@@ -42,9 +42,14 @@
  *   - added arg2FullPath() ---> util.c
  *   - use double digit for patch number in version number.
  *
+ *  update 2/4/2024
+ *   - modified removeSpaces() - do not copy overlapped strings
+ *   - fixed getNewDiffersList() error.
+ *   - added ztStringNotFound error code.
+ *
  *********************************/
 
-#define VERSION "0.01.41"
+#define VERSION "0.01.42"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61
@@ -147,7 +152,7 @@ int myDownload(char *remotePathSuffix, char *localFile);
 
 int seq2PathParts(PATH_PARTS *pathParts, const char *sequenceStr);
 
-void printPathParts(PATH_PARTS *pp);
+void fprintPathParts(FILE *file, PATH_PARTS *pp);
 
 STATE_INFO *initialStateInfo();
 

@@ -79,10 +79,7 @@ int parseHtmlFile(STRING_LIST *destList, const char *filename){
 
     elem = DL_NEXT(elem);
   }
-  /*
-    printf("ParseHtmlFile(): Printing String List for parsed file:\n");
-    printStringList(destList);
-  */
+
   return ztSuccess;
 
 } /* END parseHtmlFile() **/
@@ -153,6 +150,7 @@ int parseAnchor(STRING_LIST *destList, char *line){
   char   *string;
 
   ASSERTARGS(destList && line);
+
 
   myLine = STRDUP(line);
 

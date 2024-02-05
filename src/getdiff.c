@@ -916,6 +916,7 @@ int main(int argc, char *argv[]){
     printfWriteMsg(logBuffer, stdout);
 
     fprintStringList(fLogPtr, newDiffersList);
+
     if(fVerbose)
       fprintStringList(NULL, newDiffersList);
   }
@@ -1994,27 +1995,32 @@ int seq2PathParts(PATH_PARTS *pathParts, const char *sequenceStr){
 
 } /* END seq2PathParts() **/
 
-void printPathParts(PATH_PARTS *pp){
+
+void fprintPathParts(FILE *file, PATH_PARTS *pp){
 
   ASSERTARGS(pp);
 
-  printf("PATH_PARTS members are:\n");
+  FILE  *fPointer = stdout;
 
-  printf(" path is: <%s>\n", pp->path);
+  if(file)  fPointer = file;
 
-  printf(" parentPath is: <%s>\n", pp->parentPath);
+  fprintf(fPointer, "PATH_PARTS members are:\n");
 
-  printf(" childPath is: <%s>\n", pp->childPath);
+  fprintf(fPointer, " path is: <%s>\n", pp->path);
 
-  printf(" parentEntry is: <%s>\n", pp->parentEntry);
+  fprintf(fPointer, " parentPath is: <%s>\n", pp->parentPath);
 
-  printf(" childEntry is: <%s>\n", pp->childEntry);
+  fprintf(fPointer, " childPath is: <%s>\n", pp->childPath);
 
-  printf(" file is: <%s>\n", pp->file);
+  fprintf(fPointer, " parentEntry is: <%s>\n", pp->parentEntry);
+
+  fprintf(fPointer, " childEntry is: <%s>\n", pp->childEntry);
+
+  fprintf(fPointer, " file is: <%s>\n", pp->file);
 
   return;
 
-} /* END printPathParts() **/
+} /* END fprintPathParts() **/
 
 /* readStartID() :
  *
@@ -2379,7 +2385,6 @@ int getListHeaders(STRING_LIST *list, SETTINGS *settings){
 
 }
 
-
 STATE_INFO *initialStateInfo(){
 
   STATE_INFO   *newSI;
@@ -2404,6 +2409,8 @@ STATE_INFO *initialStateInfo(){
   return newSI;
 
 } /* END initialStateInfo() **/
+
+//#define debug_getNewDiffersList
 
 /* getNewDiffersList(): fills 'list' with NEWer change files and their state.txt
  * file names.
@@ -2441,6 +2448,7 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
   result = myDownload(startPP->childPath, settings->htmlFile);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed myDownload() function in getNewDiffersList().\n", progName);
+
     return result;
   }
 
@@ -2455,6 +2463,7 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
   result = parseHtmlFile(indexList, settings->htmlFile);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed parseHtmlFile() function in getNewDiffersList().\n", progName);
+
     return result;
   }
 
@@ -2472,7 +2481,8 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
 
   if(!elem){
     fprintf(stderr, "%s: Error failed to find first start element in getNewDiffersList().\n", progName);
-    return ztFatalError; /* need error code */
+
+    return ztStringNotFound;
   }
 
   if(!includeStartFiles){
@@ -2483,7 +2493,8 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
     elem = findElemSubString(indexList, startPP->file);
     if(!elem){
       fprintf(stderr, "%s: Error failed to find second start element in getNewDiffersList().\n", progName);
-      return ztFatalError;
+
+      return ztStringNotFound;
     }
 
     /* move element pointer AFTER last downloaded file **/
@@ -2502,12 +2513,6 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
     /* latest file is in another server directory - path), get html page,
        parse it AND add files to download list with latest childPath **/
 
-    /*
-      destroyDL(indexList);  reuse list
-      free(indexList);
-      indexList = NULL;
-    */
-
     zapStringList((void **) &indexList); /* reuse list **/
 
     indexList = initialStringList();
@@ -2519,12 +2524,14 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
     result = myDownload(latestPP->childPath, settings->htmlFile);
     if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed myDownload() function in getNewDiffersList().\n", progName);
+
       return result;
     }
 
     result = parseHtmlFile(indexList, settings->htmlFile);
     if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed parseHtmlFile() function in getNewDiffersList().\n", progName);
+
       return result;
     }
 
@@ -2551,6 +2558,7 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
 
     if(removedCount == 2){
       fprintf(stderr, "%s: Error removed 2 elements still did NOT match latest path string!\n", progName);
+
       return ztUnknownError;
     }
 
@@ -2566,6 +2574,7 @@ int getNewDiffersList(STRING_LIST *list, PATH_PARTS *startPP,
   if(DL_SIZE(list) && ! IS_EVEN(DL_SIZE(list))){
     fprintf(stderr, "%s: Error in getNewDiffersList(); odd download list size: <%d>\n",
 	    progName, DL_SIZE(list));
+
     return ztUnknownError;
   }
 

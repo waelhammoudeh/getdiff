@@ -856,7 +856,14 @@ int removeSpaces(char **str){
     cleanStr++;
 
   if(cleanStr != originalPtr){
-    strcpy(originalPtr, cleanStr);
+
+    char *tempStr;
+
+    tempStr = STRDUP(cleanStr);
+
+    memset(originalPtr, 0, strlen(originalPtr));
+
+    strcpy(originalPtr, tempStr);
     cleanStr = originalPtr;
   }
 

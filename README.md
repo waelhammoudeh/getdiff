@@ -1,8 +1,11 @@
 # Update
-Improved code & fixed some of my errors.
+Improved code. Fixed error in getNewDiffersList().
+
 Please see Changes in "getdiff.h" file.
 
-Current program version: "0.01.4"
+Current program version: "0.01.42"
+
+Date: Feb. 4/2024
 
 # Getdiff
 Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.

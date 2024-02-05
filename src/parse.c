@@ -110,7 +110,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
         return ztUnknownError;
       }
 
-fprintf(stdout, "%s: configure file with full path is: <%s>\n", progName, withPath);
+//fprintf(stdout, "%s: configure file with full path is: <%s>\n", progName, withPath);
 
       result = isGoodFilename(withPath);
       if (result != ztSuccess){

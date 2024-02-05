@@ -49,6 +49,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "Not a string; last character / byte not null character"
   },
 
+  {ztStringNotFound,
+   "ztStringNotFound",
+   "String not found in list or file"
+  },
+
   {ztMalformedStr,
    "ztMalofromedStr",
    "Malformed string, string was not to specification by parse function"
