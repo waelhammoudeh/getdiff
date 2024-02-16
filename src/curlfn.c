@@ -490,6 +490,32 @@ CURL *initialOperation (CURLU *srcUrl, char *secToken){
     return opHandle;
   }
 
+  /* allow redirect **/
+  result = curl_easy_setopt(opHandle, CURLOPT_FOLLOWLOCATION, 1L);
+  if(result != CURLE_OK) {
+    fprintf(stderr, "initialOperation() failed curl_easy_setop CURLOPT_FOLLOWLOCATION\n"
+  	    " Curl string error: %s\n", curl_easy_strerror(result));
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /* only 5 redirects **/
+  result = curl_easy_setopt(opHandle, CURLOPT_MAXREDIRS, 5L);
+  if(result != CURLE_OK) {
+    fprintf(stderr, "initialOperation() failed curl_easy_setop CURLOPT_MAXREDIRS\n"
+  	    " Curl string error: %s\n", curl_easy_strerror(result));
+
+    easyCleanup(opHandle);
+    opHandle = NULL;
+
+    return opHandle;
+  }
+
+  /******* TODO: handle error CURLE_TOO_MANY_REDIRECTS ****/
+
   return opHandle;
 
 } /* END initialOperation() */
@@ -702,6 +728,8 @@ int download2File (char *filename, CURL *handle, CURLU *parseHandle){
     sizeHeader = (long) clSize;
   }
 
+/******* TODO: handle error CURLE_TOO_MANY_REDIRECTS ****/
+
   /* check curl_easy_perform() return in our 'performResult' variable **/
   if (performResult == CURLE_COULDNT_CONNECT){
 
@@ -909,7 +937,7 @@ int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
   }
 
   int   result;
-  int   delay = 2 * 30;  /* sleep time in seconds **/
+  int   delay = 2 * 5;  /* sleep time in seconds **/
 
   result = download2File(destFile, handle, parseHandle);
 
@@ -917,7 +945,8 @@ int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
 
     return result;
 
-  if( (result == ztResponse500) ||
+  if( (result == ztResponse302) ||
+	  (result == ztResponse500) ||
       (result == ztResponse502) ||
       (result == ztResponse503) ||
       (result == ztResponse504) ||
@@ -925,6 +954,26 @@ int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
       (result == ztHostResolveFailed) )
 
     sleep(delay);
+
+  else {
+
+    fprintf(stderr,
+	    "download2FileRetry(): Error failed download2File() on first try and NO retry case.\n"
+        " function failed with Zone Tree Code: <%s>\n", ztCode2ErrorStr(result));
+
+    if(curlLogtoFP){
+
+      char  logBuffer[PATH_MAX] = {0};
+
+      sprintf(logBuffer,
+           "download2FileRetry(): Error failed download2File() on first try and NO retry case.\n"
+           " function failed with Zone Tree Code: <%s>\n", ztCode2ErrorStr(result));
+
+      writeLogCurl(curlLogtoFP, logBuffer);
+    }
+
+    return result;
+  }
 
   /* try again **/
   result = download2File(destFile, handle, parseHandle);
@@ -1460,6 +1509,14 @@ ZT_EXIT_CODE responseCode2ztCode(long resCode){
 	    ztCode2Msg(ztResponse301));
 
     return ztResponse301;
+    break;
+
+  case 302:
+
+    fprintf(stderr, "responseCode2ztCode(): Error received Server Response Code 302.\n Code is for: <%s>\n",
+        ztCode2Msg(ztResponse302));
+
+    return ztResponse302;
     break;
 
   case 400:

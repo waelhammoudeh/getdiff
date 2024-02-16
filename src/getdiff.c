@@ -784,7 +784,7 @@ int main(int argc, char *argv[]){
     }
 
     /* file parsed okay, delete it **/
-    removeFile(mySettings->htmlFile);
+    //removeFile(mySettings->htmlFile);
 
     ELEM   *elemLatest, *elemStart;
 

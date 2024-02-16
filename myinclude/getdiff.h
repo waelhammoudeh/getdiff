@@ -47,9 +47,13 @@
  *   - fixed getNewDiffersList() error.
  *   - added ztStringNotFound error code.
  *
+ *  update 2/16/2024
+ *    - Use updated python script from Geofabrik "oauth_cookie_client.py"
+ *    - Use option CURLOPT_FOLLOWLOCATION - allow redirect
+ *
  *********************************/
 
-#define VERSION "0.01.42"
+#define VERSION "0.01.43"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61

@@ -286,7 +286,8 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
 
   {ztResponse302,
    "ztResponse302",
-   "Moved is only relevant in the context of the permanent id feature. Says overpass.)"
+   "Response 302 is for (Found redirect status) found but not available!\n"
+   "Moved is only relevant in the context of the permanent id feature; says overpass."
   },
 
   {ztResponse400,

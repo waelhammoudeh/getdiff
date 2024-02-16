@@ -180,6 +180,7 @@ int getCookieFile (SETTINGS *settings){
   scriptResult = pipeSpawnScript (pyExec, argsList, &scriptErrorMessage);
 
   /* remove temporary files - no longer needed **/
+
   result = removeFile(settings->scriptFile);
   if (result != ztSuccess)
     fprintf(stderr, "%s: Warning failed to remove temporary script file(s)!\n", progName);
@@ -487,7 +488,7 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
 
   char  *timeStr;
 
-  char  *fileMarker = "gf_download_oauth=\"login|";
+  char  *fileMarker = "gf_download_oauth=login|";
   char  *string;
 
   ASSERTARGS (dstCookie && filename);
