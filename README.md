@@ -42,9 +42,25 @@ there are no immediate plans for its implementation. If you're interested in con
   - Implemented periodic time delay when downloading as not to overwhelm remote server.
 
 ## Usage:
-Program accepts input from the command line, configuration file or combination of both.
-Command line option overrides the same configuration settings. Default configuration file is used unless changed by user.
-Configuration file is NOT required, a warning is issued if no configuration file is set and defaults were not found.
+
+Program "getdiff" is a command-line tool that allows users to download (OSM)
+Open Street Map differs; (.osc Open Street Change) files from a supported
+remote server listed below.
+This program is designed to be part of an automation process to update OSM
+database or data file, program does not update any data by itself.
+
+Supported servers are:
+  https://download.geofabrik.de/
+  https://osm-internal.download.geofabrik.de/
+  https://planet.osm.org/
+  https://planet.openstreetmap.org/
+
+The program supports a configuration file and accepts input from the command
+line, configuration file or combination of both. Command line setting overrides
+configuration file setting. Default configuration file is: {HOME}/getdiff.conf
+where {HOME} is current user home directory. You may specify a different file
+with '--conf' switch. Configuration file is a text file and is described below.
+
 ```
 Usage: getdiff [OPTION]
 
@@ -57,19 +73,22 @@ Usage: getdiff [OPTION]
                        user {HOME} directory.
    -b, --begin NUM     Specify sequence number for the change file to start downloading from.
                        This argument is required for first time use and ignored afterward.
+   -e, --end NUM       Specify sequence number for change file to stop downloading at.
+                       With 'begin NUM' above set, this provides a range of change files to download
    -u, --user NAME     Specify OSM account user name. Required for geofabrik internal server.
    -p, --passwd SECRET Specify the password for the account above.
    -c, --conf FILE     Configuration file to use, default {HOME}/getdiff.conf
-   -n, --new ACTION    Specify the action for newly downloaded files. By default, the program
-                       appends the newly downloaded file names to 'newerFiles.txt'. Use 'None'
-                       or 'Off' to disable this behavior.
+   -n, --new           Specify the action for newly downloaded files. By default, the program
+                       appends the newly downloaded file names to 'newerFiles.txt'. Use this
+                       option to change this behavior.
+
 Configuration file:
 
 Configuration file is a text file with each line providing a directive pair of
 KEY and VALUE separated by space and an optional equal sign '='.
 Comment lines start with '#' or ';' characters, no comment is allowed on a
-directive line. KEYS correspond to command line options. Allowed directive KEYS are:
-{VERBOSE, USER, PASSWD, DIRECTORY, BEGIN, NEWER_FILE}.
+directive line. KEYS correspond to command line options. Allowed directive KEYS set:
+{VERBOSE, USER, PASSWD, DIRECTORY, BEGIN, END, NEWER_FILE}.
 Unrecognized and duplicate directive 'KEYS' trigger error. You may set values to any
 number of KEYS or none.
 Default configuration file is {HOME}/getdiff.conf - user home directory. File is not
@@ -86,6 +105,8 @@ Keep in mind set command line option overrides corresponding configuration value
 
  BEGIN : same as --begin option.
 
+ END : same as --end option.
+
  USER : same as --user option.
 
  PASSWD : same as --passwd option.
@@ -96,17 +117,10 @@ Keep in mind set command line option overrides corresponding configuration value
 
 #### Option Arguments:
 ```
-URL for --source:
-This is the full URL to the region updates directory at geofabrik.de server.
-This starts with protocol followed by server name followed by continent and maybe
-country or area name at geofabrik.de server, ending with entry {area}-updates.
-where {area} is your area or country name.
-In all cases this path is where the latest 'state.txt' file is found.
-
 DIR for --directory:
 This is the root or parent directory for the program working directory; where
 program files are kept. Program creates its own working directory with the name
-'getdiff', by default under current user HOME directory. With this option
+'getdiff', by default under current user {HOME} directory. With this option
 user may change this default to different directory which MUST exist with read,
 write and execute permissions / ownership permissions.
 Path can NOT end with 'getdiff' entry.
@@ -117,19 +131,22 @@ This argument is needed the first time you use 'getdiff' and ignored afterward.
 NUM is the full SEQUENCE NUMBER for change file to start downloading from.
 Sequence number is listed in that change file corresponding 'state.txt' file.
 The 'state.txt' file has timestamp and sequenceNumber lines; timestamp indicates
-date and time for latest data included in the change file. The sequenceNumber is
+date and time for latest data included in that change file. The sequenceNumber is
 a unique number for the change file, it is [4 - 9] digits long number.
-Change and its corresponding 'state.txt' file names are the THREE least significant
-digits in the sequenceNumber. Know the last date for data included in your region
-data file you want to update, then examine state.txt files for date just after
-that one. Provide full sequenceNumber from that 'state.txt'.
+
+NUM for --end:
+This argument is the sequence number for change file to end or stop download at.
+Together with 'begin' set this provides a RANGE of change files to download.
+Note that both sequence numbers must be from the same GRANULARITY (minute, hour or day).
+Downloaded file list are appended to 'rangeList.txt' file in working directory.
 
 NAME for --user:
-SECRET for --passwd:
 Geofabrik internal server usage is restricted to account holders at openstreetmap.org.
 NAME is the user name for that account, you can use the email address used when
 you created your account with openstreetmap.org.
-SECRET is the password for that account.
+
+SECRET for --passwd:
+SECRET is the password for the account mentioned above.
 The string length for both NAME and SECTRET can not be longer than 64 characters.
 Those arguments are required only for geofabrik.de internal server usage.
 
@@ -137,12 +154,12 @@ FILE for --conf:
 FILE is user specified configuration file, must be in a directory with read and
 write permissions. Program will terminate if specified file is not accessible
 or empty - may have no setting at all; it can NOT have zero length bytes. See
-'Configuration file' section.
+'Configuration File' section.
 
 ACTION for --new:
 By default each time program downloads new files, it appends the newly downloaded
 file names to file 'newerFiles.txt' in its working directory. To stop this behaviour
-use one of 'None' or 'Off' for action.
+use this option (No argument is required on the command line).
 
 ```
 #### Setting --begin NUM argument:
