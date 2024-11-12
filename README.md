@@ -229,19 +229,8 @@ in one run or session.
 
 If you use this program and have any comment or question, please feel free to email me at: w_hammoudeh@hotmail.com
 
-#### Known Bugs:
-
-None are known. Does NOT mean it is free of bugs.
-
-#### Fixed:
-
-Ausgut 23/2023
-
-Relative path issue on the command line. Program still counts on the shell to expand paths starting with tilde character '~'.
-
 Enjoy
 
 Wael Hammoudeh
 
-December 10/2023
-
+November 11/2024
