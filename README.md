@@ -11,9 +11,7 @@
 
 
 # Getdiff
-Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.
-
-Differ files on Geofabrik servers are daily diff updates (.osc.gz, Gzip compressed OSM XML). They contain the changes of one day. Regional extract files can be updated with them.
+Program to fetch or download OpenStreetMaps differ files  also known as "change files" from remote server.
 
 The program is a command line tool written using C programming language intended to ease updating regional data extracts, can be called from scripts. Program does not update any data.
 
@@ -50,10 +48,10 @@ This program is designed to be part of an automation process to update OSM
 database or data file, program does not update any data by itself.
 
 Supported servers are:
-  https://download.geofabrik.de/
-  https://osm-internal.download.geofabrik.de/
-  https://planet.osm.org/
-  https://planet.openstreetmap.org/
+  - https://download.geofabrik.de/
+  - https://osm-internal.download.geofabrik.de/
+  - https://planet.osm.org/
+  - https://planet.openstreetmap.org/
 
 The program supports a configuration file and accepts input from the command
 line, configuration file or combination of both. Command line setting overrides
