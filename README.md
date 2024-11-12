@@ -1,11 +1,11 @@
 # Changes:
-  Current version: 0.01.77
-  New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between sequence numbers.
-  Implemented a lock file mechanism to limit work directory access to one instance of the program.
-  Fully supports OSM planet servers.
-  Removed "diff" directory from working directory. New downloads destination is based on server name and file path.
-  The downlod2File() in curl functions got a progress meter.
-  Improved and restructured code, hopefully it is easier to understand and follow.
+  - Current version: 0.01.77
+  - New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between sequence numbers.
+  - Implemented a lock file mechanism to limit work directory access to one instance of the program.
+  - Fully supports OSM planet servers.
+  - Removed "diff" directory from working directory. New downloads destination is based on server name and file path.
+  - The downlod2File() in curl functions got a progress meter.
+  - Improved and restructured code, hopefully it is easier to understand and follow.
 
 
 
