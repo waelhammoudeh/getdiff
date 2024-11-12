@@ -209,7 +209,7 @@ For an updating strategy; automation and implementation, check out my repository
 where "getdiff" is used along with bash scripts to automatically update an initialed and live overpass
 database.
 
-This program can be used with OSM planet servers; **not fully tested here**; try one of following URLs:
+This program can be used with OSM planet servers; try one of following URLs:
 ```
 https://planet.osm.org/replication/minute/
 https://planet.osm.org/replication/hour/
