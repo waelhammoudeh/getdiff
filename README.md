@@ -1,11 +1,14 @@
-# Update
-Improved code. Fixed error in getNewDiffersList().
+# Changes:
+ Current version: 0.01.77
+ New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between sequence numbers.
+ Implemented a lock file mechanism to limit work directory access to one instance of the program.
+ Fully supports OSM planet servers.
+ Removed "diff" directory from working directory. New downloads destination is based on server name and file path.
+ The downlod2File() in curl functions got a progress meter.
+ Improved and restructured code, hopefully it is easier to understand and follow.
 
-Please see Changes in "getdiff.h" file.
 
-Current program version: "0.01.42"
 
-Date: Feb. 4/2024
 
 # Getdiff
 Program to fetch or download OpenStreetMap differ files for a specified region (area) from "www.geofabrik.de" web site public or internal servers.
@@ -37,38 +40,6 @@ there are no immediate plans for its implementation. If you're interested in con
   - Refactored HTML parsing functions.
 
   - Implemented periodic time delay when downloading as not to overwhelm remote server.
-
-
-# Changes:
-
-The following command line arguments have changed as specified below:
-
-### source:
-  - URL argument is the internet address pointing at the region updates page at geofabrik.de server.
-
-### begin:
-  - NUM is the sequence number for change file to start download from.
-
-### new
-  - ACTION only accepted values for ACTION is one of ['none' or 'off'] case ignored.
-  The effect is to stop generating / appending to 'newerFiles.txt' file in working directory.
-
-### Entries in newerFiles.txt file:
-
-Entries for new downloaded files are prepended by a partial path, appending an
-entry line to the download "diff" directory path in your system results in the full
-path in your machine for the new downloaded files.
-An example of the new format is below:
-
-```
-  /005/637/617.osc.gz
-  /005/637/617.state.txt
-  /005/637/618.osc.gz
-  /005/637/618.state.txt
-  /005/637/619.osc.gz
-  /005/637/619.state.txt
-```
-
 
 ## Usage:
 Program accepts input from the command line, configuration file or combination of both.

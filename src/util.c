@@ -64,6 +64,212 @@ char *myStrdup(const char *src, char *filename, unsigned uLine){
 
 } /* END myStrdup() **/
 
+/* isGoodEntry():
+ *
+ * Definition:
+ * Entry is a component of file system path, delimited by slashes.
+ *
+ * Description:
+ * Validates a single entry based on the specified rules below:
+ *   1) Allowed set consists of alphabets (any case), numbers and the characters
+ *      period, dash and underscore.
+ *   2) Entry may not start or end with a dash or underscore, it also may not end
+ *      with a period character.
+ *   3) Entry string length is limited by MAX_ENTRY_LENGTH above; set to 255.
+ *   4) No consecutive periods are allowed in an entry.
+ *   5) If a period is found in an entry, then components are considered as separate
+ *      entries.
+ *   6) It is assumed that entry is free of leading and trailing spaces.
+ *
+ * Parameters:
+ * Character pointer to entry string to be validated.
+ *
+ * Return:
+ *   - ztSuccess for good entries.
+ *   - on error returns: ztNullPointer, ztFnameLong, ztFnameDisallowed, ztFnameMalformed.
+ *
+ * TODO: allow '~' as last character in file name only; so we can process emacs files!
+ ****************************************************************************************/
+
+int isGoodEntry(const char *entry){
+
+  char *allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                  "abcdefghijklmnopqrstuvwxyz"
+                  "0123456789-_.";
+
+  char  dash = '-';
+  char  underscore = '_';
+  char  period = '.';
+
+  if(! entry)
+
+    return ztNullPointer;
+
+  int length = strlen(entry);
+
+  if(length > MAX_ENTRY_LENGTH)
+
+    return ztFnameLong;
+
+  if(strspn(entry, allowed) != length)
+
+    return ztFnameDisallowed;
+
+  if( (length == 1) &&
+     ((entry[0] == dash) ||
+      (entry[0] == underscore) ||
+	  (entry[0] == period)))
+
+	 return ztFnameDisallowed;
+
+  if((entry[0] == dash || entry[length - 1] == dash))
+
+    return ztFnameMalformed;
+
+  if((entry[0] == underscore || entry[length - 1] == underscore))
+
+    return ztFnameMalformed;
+
+  if(entry[length - 1] == period)
+
+    return ztFnameMalformed;
+
+  /* do not allow consecutive periods **/
+  char *firstPeriod = strchr(entry, period);
+  char *next;
+
+  while(firstPeriod){
+
+	next = firstPeriod + 1;
+	if(next[0] == period)
+	  return ztFnameMalformed;
+
+	firstPeriod = strchr(firstPeriod + 1, period);
+  }
+
+  if(entry[0] == period)
+    entry++;
+
+  char *myEntry = STRDUP(entry);
+
+  if(strchr(myEntry, period)){
+
+    char *tkn;
+    char *saveptr;
+	int  result;
+
+	/* we use strtok_r here.
+	 * strtok() does not work here
+	 * multiple instances working on the SAME string **/
+    tkn = strtok_r(myEntry, ".", &saveptr);
+    while(tkn){
+
+      result = isGoodEntry(tkn);
+      if(result != ztSuccess){
+        free(myEntry);
+        return result;
+      }
+      tkn = strtok_r(NULL, ".", &saveptr);
+    }
+  }
+  free(myEntry);
+
+  return ztSuccess;
+
+} /* END isGoodEntry() **/
+
+int isGoodFilename(const char *filename){
+
+  if(!filename)
+
+	return ztNullPointer;
+
+  if(strlen(filename) > PATH_MAX)
+
+    return ztFnameLong;
+
+  /* file name may not end with a slash **/
+  if(filename[strlen(filename) - 1] == '/')
+
+    return ztFnameMalformed;
+
+  /* accept relative paths **/
+  char *relative[] = {"~/", "./", "../", NULL};
+  char **rel;
+
+  char *start = NULL; /* we test for this outside the loop **/
+
+  for(rel = relative; *rel; rel++){
+
+    if(strncmp(filename, *rel, strlen(*rel)) == 0){
+
+      start = STRDUP(filename + strlen(*rel));
+      /* we do NOT allow double slashes **/
+      if(start[0] == '/'){
+    	free(start);
+    	return ztFnameMalformed;
+      }
+
+      break;
+    }
+
+  }
+
+  if(!start)
+
+    start = strdup(filename);
+
+  /* handle multiple slashes **/
+  if(strstr(start, "//")){
+    free(start);
+    return ztFnameMalformed;
+  }
+
+  char *myPtr;
+  char *token = strtok_r(start, "/", &myPtr);
+
+  while (token) {
+
+    int result = isGoodEntry(token);
+    if (result != ztSuccess) {
+      free(start);
+      return result;
+    }
+    token = strtok_r(NULL, "/", &myPtr);
+  }
+
+  if(start)
+    free(start);
+
+  return ztSuccess;
+
+} /* END isGoodFilename() **/
+
+int isGoodDirName(const char *name){
+
+  if(!name)
+
+	return ztNullPointer;
+
+  int  result;
+  char *myCopy = STRDUP(name);
+
+  if(myCopy[strlen(myCopy) - 1] == '/')
+
+    myCopy[strlen(myCopy) - 1] = '\0';
+
+  if(myCopy[strlen(myCopy) - 1] == '/') /* duplicate slashes is an error **/
+
+    return ztFnameMalformed;
+
+  result = isGoodFilename(myCopy);
+
+  free(myCopy);
+
+  return result;
+
+} /* END isGoodDirName() **/
+
 /* isGoodPathPart(): is 'part' a good filename?
  * man pathchk program from core utilities.
  * see isGoodFilename() below.
@@ -115,145 +321,6 @@ int isGoodPathPart(const char *part){
   return ztSuccess;
 
 } /* END isGoodPathPart() **/
-
-/* isGoodFilename(): is good PATH + FILENAME.
- * name must start with slash since it is a path; we do not do path expansion
- * or substitution. Note that we get absolute path from the command line; because
- * the shell does path expansion and substitution for us.
- *
- * allowed set: [alphabets (upper & lower) plus / -_. ]
- *  - the slash character is only delimiter between consecutive entries
- *    it is an error for path to have multiple consecutive slashes.
- *  - hyphen & underscore can not be the first or the last character.
- *  - period can not be the last character.
- *
- *  - maximum filename length is defined by FNAME_MAX = 255
- *    name is assumed to be path + filename,
- *  - maximum string length for path is PATH_MAX,
- *    [PATH_MAX == 4096] in GNU C Library.
- *
- * NOTE1: any path part can be a real or link to directory / filename.
- * NOTE2: to check just the filename by itself use 'isGoodPathPart()'.
- *
- *******************************************************/
-int isGoodFilename(const char *name){
-
-  char    slash = '/';
-  char    period = '.';
-  char    *hasSlash;
-  char    *tmpBuf = NULL;
-  char    *mover;
-
-  ASSERTARGS(name);
-
-  if(strlen(name) > PATH_MAX)
-
-    return ztFnameLong;
-
-  if( ! strchr(name, slash) )
-
-    return ztStrNotPath;
-
-  if (name[0] == period) /* allow period to be first character **/
-
-    name++;
-
-  if(name[0] != slash)
-
-    return ztStrNotPath;
-
-  if(name[strlen(name) - 1] == slash)
-
-    return ztFnameSlashEnd;
-
-  tmpBuf = STRDUP(name);
-
-  hasSlash = strchr(tmpBuf, slash);
-
-  if ( ! hasSlash )
-
-    return isGoodPathPart(tmpBuf);
-
-  /* check for double - multiple slashes **/
-
-  while(hasSlash){
-
-    mover = hasSlash + 1;
-
-    if(mover[0] == slash)
-
-      return ztFnameMultiSlashes;
-
-    hasSlash = strchr(mover, slash);
-
-
-  }
-
-  /* check each part **/
-  char  *part;
-  int   result;
-
-  part = strtok (tmpBuf, "/");
-
-  while(part){
-
-    result = isGoodPathPart(part);
-
-    if(result != ztSuccess)
-
-      return result;
-
-    part = strtok(NULL, "/");
-
-  }
-
-  return ztSuccess;
-
-} /* END isGoodFilename() **/
-
-/* isGoodDirName():
- *
- *
- * return result of isGoodFilename()
- *
- *
- *
- *******************************************************/
-int isGoodDirName(const char *path){
-
-  char   *myCopy;
-  int    result;
-
-  if( ! path )
-
-    return ztInvalidArg;
-
-  myCopy = STRDUP(path);
-
-  if(SLASH_ENDING(myCopy))
-
-    myCopy[strlen(myCopy) - 1] = '\0';
-
-  if(SLASH_ENDING(myCopy)){
-
-    free(myCopy);
-    return ztFnameMultiSlashes;
-  }
-
-  /* we still need slash to make good directory name **/
-  if( ! strchr(myCopy, '/') ){
-
-    free(myCopy);
-    return ztStrNotPath;
-  }
-
-  result = isGoodFilename(myCopy);
-
-  free(myCopy);
-
-  return result;
-
-} /* END isGoodDirName() **/
 
 /* getParentDir(): function returns a pointer to parent directory of its argument.
  * parent directory is the path just before last slash.
@@ -832,11 +899,102 @@ char *prependParent(const char *name){
 
 } /* prependParent() **/
 
+/* appendEntry2Path(): appends the string 'name' to 'path' parameter.
+ * function allocates memory for 'dest'.
+ * Parameter 'path' must be a good directory name and parameter 'name'
+ * must be a good entry.
+ * string lengths of 'path' + 'name' must be less than PATH_MAX.
+ *
+ ***************************************************************************/
+int appendEntry2Path(char **dest, char const *path, char const *name){
+
+  char  *filepath;
+  char  tmpBuffer[PATH_MAX] = {0};
+  int   result;
+
+  ASSERTARGS(dest && path && name);
+
+  if(strlen(path) + strlen(name) > (PATH_MAX - 1)){
+
+    fprintf(stderr, "appendEntry2Path(): Error paths length larger than PATH_MAX in appendEntry2Path() function.\n"
+	    "String length of path and filename larger than PATH_MAX.\n"
+	    "Parameter 'path': <%s>\n"
+	    "Parameter 'filename': <%s>\n", path, name);
+    return ztFnameLong;
+  }
+
+result = isGoodEntry("gediff.conf");
+if(result != ztSuccess)
+	printf("@@@ isGoodEntry(\"gediff.conf\") result is: %s\n\n", ztCode2ErrorStr(result));
+
+  result = isGoodDirName(path);
+  if(result != ztSuccess){
+    fprintf(stderr, "appendEntry2Path(): Error failed isGoodDirName() for 'paths' parameter.\n");
+    return result;
+  }
+
+  result = isGoodEntry(name);
+  if(result != ztSuccess){
+    fprintf(stderr, "appendEntry2Path(): Error failed isGoodEntry() for 'name': <%s> parameter.\n", name);
+
+printf("appentName2Path(): PATH = %s\n"
+		"NAME = %s\n\n", path, name);
+    return result;
+  }
+
+  /* use one slash between entries **/
+  if(name[0] == '/')
+    name = name + 1;
+
+  if(SLASH_ENDING(path))
+    sprintf(tmpBuffer, "%s%s", path, name);
+  else
+    sprintf(tmpBuffer, "%s/%s", path, name);
+
+  filepath = strdup(tmpBuffer);
+
+  if( ! filepath){
+    fprintf(stderr, "appendEntry2Path(): Error failed strdup() in appendEntry2Path() function.\n");
+    return ztMemoryAllocate;
+  }
+
+  *dest = strdup(tmpBuffer);
+
+  return ztSuccess;
+
+} /* END appendEntry2Path() **/
+
+char *appendName2Dir(const char *dir, const char *name){
+
+  ASSERTARGS(dir && name);
+
+  char *newName = NULL;
+
+  if((strlen(dir) + strlen(name) + 1) > PATH_MAX)
+
+    return newName;
+
+  char buffer[PATH_MAX] = {0};
+
+  if(SLASH_ENDING(dir))
+    sprintf(buffer, "%s%s", dir, name);
+  else
+    sprintf(buffer, "%s/%s", dir, name);
+
+  newName = STRDUP(buffer);
+
+  return newName;
+
+} /* END appendName2Dir() **/
+
+
+
 /* removeSpaces(): removes leading and trailing space from its argument.
  *
  * NOTE: the argument 'str' is a POINTER to POINTER. str should be dynamically
- * allocated to have it cleaned in place, call removeSpaces2() below if this is not
- * the case with your string.
+ * allocated to have it cleaned in place, call removeSpaces2() below if this
+ * is not the case with your string.
+ *
  *********************************************************************/
 int removeSpaces(char **str){
 
@@ -956,46 +1114,64 @@ int isGoodPortString (const char *port){
 
 } /* END isGoodPortString() **/
 
-/* isOkayFormat4HTTPS(): is the URL string pointed to by 'source' argument
- * in good format for "HTTPS" protocol (scheme) URL?
- *   - string must start with 'https://'
- *   - the rest of the string with last slash from 'https://' included; must be
- *     good path name; that is "goodDirName()".
+/* isOkayFormat4URL():
  *
- * returns TRUE for good format or FALSE for bad format.
+ * this function replaces (removed) isOkayFormat4HTTPS()
  *
- *****************************************************************************/
-int isOkayFormat4HTTPS(char const *source){
+ ***************************************************************/
+int isOkayFormat4URL(char const *url){
 
-  char   *mySource;
-  char   *protocol = "https://";
-  char   *head, *tail;
-  int    result;
+  ASSERTARGS(url);
 
+  char *schemeTable[] = {"http://", "https://", "ftp://", "pop3://", NULL};
+  char **scheme;
 
-  ASSERTARGS(source);
+  char *myURL = NULL;
 
-  mySource = STRDUP(source);
+  if(hasUpper(url))
+    string2Lower(&myURL, url);
+  else
+	myURL = STRDUP(url);
 
-  removeSpaces(&mySource);
-
-  head = strstr(mySource, protocol);
-
-  if(! (head && (head == mySource)) )
-
+  if(!myURL)
     return FALSE;
 
-  tail = mySource + strlen(protocol) - 1; /* path MUST start with a slash **/
+  removeSpaces(&myURL);
 
-  result = isGoodDirName(tail);
-  if(result != ztSuccess){
-    fprintf(stderr, "isOkayFormat4HTTPS: Error source string failed isGoodDirName() function.\n");
-    return FALSE;
+  char *head;
+
+  /* must start with scheme / protocol in schemeTable **/
+  scheme = schemeTable;
+  while(*scheme){
+
+	head = strstr(myURL, *scheme);
+	if(head && (head == myURL))
+      break;
+
+	scheme++;
   }
 
-  return TRUE;
+  free(myURL);
 
-} /* END isOkayFormat4HTTPS() **/
+  if(! (*scheme) )
+
+    return FALSE;
+
+  /* must pass our isGoodDirName() after the scheme **/
+  char *path;
+  char *delimiter = "://";
+  int  result;
+
+  /* get path from original url string **/
+  path = strstr(url, delimiter) + strlen(delimiter);
+
+  result = isGoodDirName(path); /* leading & trailing slashes are optional **/
+  if(result != ztSuccess)
+
+	return FALSE;
+
+  return TRUE;
+}
 
 
 /* isGoodURL():
@@ -1268,7 +1444,6 @@ int isStrGoodDouble(char *str){
 
   return TRUE;
 }
-
 
 int mySpawn (char *prgName, char **argLst){
 
@@ -1602,71 +1777,92 @@ This function allocates memory for destination. Error is returned on memory
 failure.
 ******************************************************************************/
 
-int stringToLower (char **dest, char *str){
-
-  char  *mover;
+int string2Lower (char **dest, const char *str){
 
   ASSERTARGS (dest && str);
 
   if (strlen(str) == 0){
-    printf("stringToLower(): Error empty str argument! Length of zero.\n");
+    fprintf(stderr, "stringToLower(): Error empty str argument! Length of zero.\n");
     return ztInvalidArg;
   }
 
-  *dest = (char *) malloc (sizeof(char) * (strlen(str) + 1));
-  if (dest == NULL){
-    printf("stringToLower(): Error allocating memory.\n");
+  *dest = (char *) malloc (strlen(str) + 1);
+  if (*dest == NULL){
+    fprintf(stderr, "stringToLower(): Error allocating memory.\n");
     return ztMemoryAllocate;
   }
+//  memset(*dest, 0, sizeof(strlen(str) + 1));
 
-  strcpy (*dest, str);
+  char *src, *lower;
 
-  mover = *dest;
+  src = (char *) str;
+  lower = *dest;
 
-  while ( *mover ){
-    *mover = tolower(*mover);
-    mover++;
+  while(*src){
+	  *lower++ = tolower(*src);
+	  src++;
   }
+  *lower = '\0';
 
   return ztSuccess;
 
 }  /* END StringToLower() */
 
-int stringToUpper (char **dst, char *str){
-
-  char  *mover;
+int string2Upper (char **dst, const char *str){
 
   ASSERTARGS (dst && str);
 
   if (strlen(str) == 0){
-    printf("stringToUpper(): Error empty str argument! Length of zero.\n");
+    fprintf(stderr, "stringToUpper(): Error empty str argument! Length of zero.\n");
     return ztInvalidArg;
   }
 
-  *dst = (char *) malloc (sizeof(char) * (strlen(str) + 1));
-  if (dst == NULL){
-    printf ("stringToUpper(): Error, allocating memory.\n");
+  *dst = (char *) malloc (strlen(str) + 1);
+  if (*dst == NULL){
+    fprintf (stderr,"stringToUpper(): Error, allocating memory.\n");
     return ztMemoryAllocate;
   }
 
-  strcpy (*dst, str);
+  char *src, *upStr;
 
-  mover = *dst;
+  src = (char *) str;
+  upStr = *dst;
 
-  while ( *mover ){
-    if (*mover > 127){
-      printf ("stringToUpper(): Error!! A character is larger than largest ASCII 127 decimal.\n");
-      printf ("stringToUpper(): character is: <%c>, ASCII value: <%d>. String is: <%s>\n\n",
-	      *mover, *mover, str);
-      return ztInvalidArg;
-    }
-    *mover = toupper(*mover);
-    mover++;
+  while(*src){
+	  *upStr++ = toupper(*src);
+	  src++;
   }
+  *upStr = '\0';
 
   return ztSuccess;
 
 }  /* END stringToUpper() */
+
+int hasUpper(const char *str) {
+
+  ASSERTARGS(str);
+
+  while (*str) {
+    if (isupper((unsigned char)*str)) {
+      return TRUE;
+    }
+    str++;
+  }
+  return FALSE;
+}
+
+int hasLower(const char *str) {
+
+  ASSERTARGS(str);
+
+  while (*str) {
+    if (islower((unsigned char)*str)) {
+      return TRUE;
+    }
+    str++;
+  }
+  return FALSE;
+}
 
 /* mkOutFile(): make output file name, sets dest to givenName if it has a slash,
  * else it appends givenName to rootDir and then sets dest to appended string
@@ -2118,3 +2314,5 @@ char *arg2FullPath(const char *arg){
   return fullPath;
 
 } /* END arg2FullPath() **/
+
+

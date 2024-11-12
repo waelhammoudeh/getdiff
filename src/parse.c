@@ -25,10 +25,10 @@
  * use getcwd() library function.
  ***********************************************************************/
 
-int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
+int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
 
   int    result;
-  static const char *shortOptions = "c:u:p:s:d:b:vtn:hV";
+  static const char *shortOptions = "c:u:p:s:d:b:e:vtnhV";
 
   static const struct option longOptions[] = {
     {"version", 0, NULL, 'V'},
@@ -38,8 +38,9 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
     {"source", 1, NULL, 's'},
     {"directory", 1, NULL, 'd'},
     {"begin", 1, NULL, 'b'},
+	{"end", 1, NULL, 'e'},
     {"verbose", 0, NULL, 'v'},
-    {"new", 1, NULL, 'n'},
+    {"new", 0, NULL, 'n'},    /* do not require argument **/
     {"text", 0, NULL, 't'},
     {"help", 0, NULL, 'h'},
     {NULL, 0, NULL, 0}
@@ -48,10 +49,10 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
   int  opt = 0;
   int  longIndex = 0;
   int  confFlag, usrFlag, passwdFlag,
-    srcFlag, destFlag, beginFlag,
+    srcFlag, destFlag, beginFlag, endFlag,
     newFlag; /* do not allow same option twice */
 
-  confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = newFlag = 0;
+  confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = endFlag = newFlag = 0;
   /* This is ugly maybe!
    * It is easy to specify same option more than once with short option?! */
 
@@ -110,8 +111,6 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
         return ztUnknownError;
       }
 
-//fprintf(stdout, "%s: configure file with full path is: <%s>\n", progName, withPath);
-
       result = isGoodFilename(withPath);
       if (result != ztSuccess){
         fprintf(stderr, "%s: Error configure filename  <%s> is NOT good filename.\n"
@@ -126,7 +125,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
         return result;
       }
 
-      arguments->confFile = STRDUP(withPath);
+      arguments->configureFile = STRDUP(withPath);
 
       confFlag = 1;
       break;
@@ -173,7 +172,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 	return ztInvalidArg;
       }
 
-      if (isOkayFormat4HTTPS(optarg) == FALSE) {
+      if (isOkayFormat4URL(optarg) == FALSE) {
 	fprintf(stderr, "%s: Error invalid source URL string for source option.\n"
 		" Argument: [%s].\n", progName, optarg);
 	return ztInvalidArg;
@@ -184,7 +183,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
       break;
 
     case 'd':
-      /* this is the parent (root) for work directory without "gediff" entry **/
+      /* this is the parent (root) for work directory without "getdiff" entry **/
 
       if (destFlag){
 	fprintf(stderr, "%s: Error; duplicate root for work directory option!\n", progName);
@@ -233,6 +232,27 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
       beginFlag = 1;
       break;
 
+    case 'e':
+
+      if (endFlag){
+	fprintf(stderr, "%s: Error; duplicate \"end\" option!\n", progName);
+	return ztInvalidArg;
+      }
+
+      if(isGoodSequenceString(optarg) == TRUE){
+
+	arguments->endNumber = STRDUP(optarg);
+      }
+      else {
+	fprintf (stderr, "%s: Error, invalid sequence number for \"end\" argument.\n"
+		 "Valid sequence number is all digits with length between [4 - 9] digits and does not start with '0'.\n"
+		 "Invalid argument : [%s].\n", progName, optarg);
+	return ztInvalidArg;
+      }
+
+      endFlag = 1;
+      break;
+
     case 'n':
 
       if (newFlag){
@@ -240,14 +260,7 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 	return ztInvalidArg;
       }
 
-      /* the words 'none' or 'off' - in any case - turns this off **/
-      if( (strcasecmp(optarg, "none") == 0) ||(strcasecmp(optarg, "off") == 0) )
-
-	arguments->noNewDiffers = 1;
-
-      else
-
-	return ztInvalidArg;
+      arguments->newDifferOff = 1;
 
       newFlag = 1;
       break;
@@ -275,8 +288,8 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
   /* there should be no more arguments left **/
   if (optind != argc){
-    fprintf(stderr, "%s: Error, malformed command line.\n"
-	    "more arguments are left after getopt_long().\n", progName);
+    fprintf(stderr, "%s: Error, malformed command line. Did you forget a dash or inserted space(s) in arguments?\n"
+	    "More arguments are left after getopt_long().\n\n", progName);
     /* malformed command line, some reason:
      * single dash with long option,
      * space between dashes with long option,
@@ -288,4 +301,191 @@ int parseCmdLine(SETTINGS *arguments, int argc, char* const argv[]){
 
   return ztSuccess;
 
-}
+} /* END parseCmdLine() **/
+
+/* parseTimestampLine(): parses time string in timestamp line
+ *
+ *  timestamp=2023-06-04T20\:22\:01Z
+ *
+ * timeString parameter is a pointer to the line above.
+ *
+ * I am aware of strptime() function.
+ *
+ ************************************************************/
+int parseTimestampLine(struct tm *tmStruct, char *timeString){
+
+  ASSERTARGS(tmStruct && timeString);
+
+  char   *beginning = "timestamp=";
+  char   *myTimeString;
+  char   *allowed = "0123456789:TZ-\134"; /* 134 is Octal for forward slash **/
+
+  /* timeString must start with 'timestamp=' **/
+  if(timeString != strstr(timeString, beginning)){
+    fprintf(stderr, "parseStateTime(): Error 'timeString' parameter "
+	    "does not start with 'timestamp='.\n");
+    return ztInvalidArg;
+  }
+
+  /* copy DATE/TIME part only into myTimeString;
+   * starting after 'timestamp=' **/
+  myTimeString = STRDUP(timeString + strlen(beginning));
+
+  /* check for allowed characters **/
+  if(strspn(myTimeString, allowed) != strlen(myTimeString)){
+    fprintf(stderr, "%s: Error parseStateTime() parameter 'timeString' has "
+	    "disallowed character.\n", progName);
+    return ztDisallowedChar;
+  }
+
+  char  *yearTkn, *monthTkn, *dayTkn,
+    *hourTkn, *minuteTkn, *secondTkn;
+
+  int  year, month, day,
+    hour, minute, second;
+
+  char  *endPtr;
+
+  char  *delimiter = "-T:Z\134";
+
+  yearTkn = strtok(myTimeString, delimiter);
+  if(!yearTkn){
+    fprintf(stderr, "%s: Error failed to extract yearTkn.\n", progName);
+    return ztParseError;
+  }
+
+  monthTkn = strtok(NULL, delimiter);
+  if(!monthTkn){
+    fprintf(stderr, "%s: Error failed to extract monthTkn.\n", progName);
+    return ztParseError;
+  }
+
+  dayTkn = strtok(NULL, delimiter);
+  if(!dayTkn){
+    fprintf(stderr, "%s: Error failed to extract dayTkn.\n", progName);
+    return ztParseError;
+  }
+
+  hourTkn = strtok(NULL, delimiter);
+  if(!hourTkn){
+    fprintf(stderr, "%s: Error failed to extract hourTkn.\n", progName);
+    return ztParseError;
+  }
+
+  minuteTkn = strtok(NULL, delimiter);
+  if(!minuteTkn){
+    fprintf(stderr, "%s: Error failed to extract minuteTkn.\n", progName);
+    return ztParseError;
+  }
+
+  secondTkn = strtok(NULL, delimiter);
+  if(!secondTkn){
+    fprintf(stderr, "%s: Error failed to extract secondTkn.\n", progName);
+    return ztParseError;
+  }
+
+  year = (int) strtol(yearTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'yearTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, yearTkn);
+    return ztParseError;
+  }
+
+  month = (int) strtol(monthTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'monthTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, monthTkn);
+    return ztParseError;
+  }
+
+  day = (int) strtol(dayTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'dayTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, dayTkn);
+    return ztParseError;
+  }
+
+  hour = (int) strtol(hourTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'hourTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, hourTkn);
+    return ztParseError;
+  }
+
+  minute = (int) strtol(minuteTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'minuteTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, minuteTkn);
+    return ztParseError;
+  }
+
+  second = (int) strtol(secondTkn, &endPtr, 10);
+  if (*endPtr != '\0'){
+    fprintf(stderr, "%s: Error failed strtol() for 'secondTkn' in parseStateTime().\n"
+	    " Failed string: <%s>\n", progName, secondTkn);
+    return ztParseError;
+  }
+
+  /* fill members in struct tm **/
+  tmStruct->tm_year = year - 1900;
+
+  tmStruct->tm_mon = month - 1; /* month is zero based **/
+
+  tmStruct->tm_mday = day;
+
+  tmStruct->tm_hour = hour;
+
+  tmStruct->tm_min = minute;
+
+  tmStruct->tm_sec = second;
+
+  return ztSuccess;
+
+} /* END parseStateTime() **/
+
+/* parseSequenceLine(): extracts sequence number from sequence line.
+ *
+ * function allocates memory and sets sequenceSting pointer.
+ *
+ *
+ ***************************************************************************/
+
+int parseSequenceLine(char **sequenceString, const char *line){
+
+  ASSERTARGS(sequenceString && line);
+
+  /* get sequence number **/
+  char   *seqString;
+  char   *digits = "0123456789";
+  char   *mySeqStr;
+
+  *sequenceString = NULL; /* in case we fail **/
+
+  seqString = strchr(line, '=') + 1;
+  if(! seqString){
+    fprintf(stderr, "%s: Error failed to extract 'seqString'.\n", progName);
+    return ztParseError;
+  }
+
+  mySeqStr = STRDUP(seqString);
+
+  removeSpaces(&mySeqStr); /* just in case **/
+
+  /* all characters must be digits **/
+  if(strspn(mySeqStr, digits) != strlen(mySeqStr)){
+    fprintf(stderr, "%s: Error sequence string has non-digit character.\n", progName);
+    return ztParseError;
+  }
+
+  /* it can not be more than 9 characters long **/
+  if(strlen(mySeqStr) > 9){
+    fprintf(stderr, "%s: Error 'sequence string' has more than 9 digits.\n", progName);
+    return ztParseError;
+  }
+
+  /* set sequenceString destination pointer **/
+  *sequenceString = STRDUP(mySeqStr);
+
+  return ztSuccess;
+
+} /* END parseSequenceLine() **/

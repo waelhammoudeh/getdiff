@@ -48,6 +48,8 @@
 #include "fileio.h"
 #include "tmpFiles.h"
 
+#include "debug.h"
+
 #define LOG_UNSEEN
 //#undef LOG_UNSEEN
 
@@ -56,6 +58,11 @@ static COOKIE *cookie = NULL; /* private global variable **/
 
 int serverResponse = 0;
 
+FILE *cookieLogFP = NULL;
+
+#define SCRIPT_FILE        "oauth_cookie_client.py"
+#define JSON_FILE          "settings.json"
+#define COOKIE_FILE        "geofabrikCookie.txt"
 
 /* getCookieFile (): function retrieves OSM login cookie via "geofabrik" web server,
  *   function stores the cookie in a text file on disk.
@@ -67,15 +74,15 @@ int serverResponse = 0;
  *
  *   Function calls fork() then runs the script as the child process in a pipe
  *   with redirection of standard error to capture error messages by the
- *   parent process. In case of error; function calls  getResponseCode () function
+ *   parent process. In case of error; function calls  getResponseCode() function
  *   to parse error message for server response code.
  * Script error message example:
  *   POST https://www.openstreetmap.org/oauth/authorize, received HTTP code 403 but expected 200
  *
- *	In case of script failure; function sets global variable (int serverResponse) to
- *	received Response Code when possible. If we fail to parse error message for
- *	Response Code then function sets (int serverResponse) to zero.
- *	User (caller) should check serverResponse value on failure.
+ *      In case of script failure; function sets global variable (int serverResponse) to
+ *      received Response Code when possible. If we fail to parse error message for
+ *      Response Code then function sets (int serverResponse) to zero.
+ *      User (caller) should check serverResponse value on failure.
  *
  *
  * Geofabrik \Response codes I know:
@@ -83,7 +90,7 @@ int serverResponse = 0;
  *  429 --> too many requests
  *  500 --> internal server error
  *
- *	check written cookie file - can not be empty.
+ *      check written cookie file - can not be empty.
  *
  * Return:
  *   ztSuccess,
@@ -110,7 +117,7 @@ int serverResponse = 0;
  *
  **********************************************************************************/
 
-int getCookieFile (SETTINGS *settings){
+int getCookieFile (MY_SETTING *settings, COOKIE_FILES *cfiles){
 
   char  *argsList[5]; /* array of 5 pointers to character strings - uninitialized **/
 
@@ -132,7 +139,7 @@ int getCookieFile (SETTINGS *settings){
   int   scriptResult; /* returned result from pipeSpawnScript() */
 
   /* do not allow NULL pointers **/
-  ASSERTARGS (settings && settings->scriptFile && settings->jsonFile);
+  ASSERTARGS (settings && cfiles && cfiles->scriptFile && cfiles->jsonFile);
 
   /* global serverResponse is set if we can get it **/
   serverResponse = 0;
@@ -147,29 +154,29 @@ int getCookieFile (SETTINGS *settings){
   }
 
   /* write script file in our working directory **/
-  result = writeScript(settings->scriptFile);
+  result = writeScript(cfiles->scriptFile);
   if (result != ztSuccess){
     fprintf(stderr, "%s: Error failed to write script to file.\n", progName);
     return result;
   }
 
   /* write JSON setting file in our working directory **/
-  result = writeJSONfile(settings->jsonFile, settings->usr, settings->pswd);
+  result = writeJSONfile(cfiles->jsonFile, settings->usr, settings->pswd);
   if (result != ztSuccess){
     fprintf(stderr, "%s: Error failed to write JSON settings file.\n", progName);
-    removeFile(settings->scriptFile);
+    removeFile(cfiles->scriptFile);
     return result;
   }
 
   /* set the pointers in our argument list array - command line arguments. **/
   argsList[0] = STRDUP(pyExec);
 
-  argsList[1] = STRDUP(settings->scriptFile);
+  argsList[1] = STRDUP(cfiles->scriptFile);
 
-  sprintf (tmpBuf, "-s%s", settings->jsonFile);
+  sprintf (tmpBuf, "-s%s", cfiles->jsonFile);
   argsList[2] = STRDUP(tmpBuf);
 
-  sprintf (tmpBuf, "-o%s", settings->cookieFile);
+  sprintf (tmpBuf, "-o%s", cfiles->cookieFile);
   argsList[3] = STRDUP(tmpBuf);
 
   /* correct; no space between switch and its argument in above 2 sprintf() calls. **/
@@ -181,11 +188,11 @@ int getCookieFile (SETTINGS *settings){
 
   /* remove temporary files - no longer needed **/
 
-  result = removeFile(settings->scriptFile);
+  result = removeFile(cfiles->scriptFile);
   if (result != ztSuccess)
     fprintf(stderr, "%s: Warning failed to remove temporary script file(s)!\n", progName);
 
-  result = removeFile(settings->jsonFile);
+  result = removeFile(cfiles->jsonFile);
   if (result != ztSuccess)
     fprintf(stderr, "%s: Warning failed to remove temporary JSON file(s)!\n", progName);
 
@@ -197,7 +204,7 @@ int getCookieFile (SETTINGS *settings){
   if (scriptResult == ztSuccess){
 
     /* check cookie file status **/
-    result = isFileUsable(settings->cookieFile);
+    result = isFileUsable(cfiles->cookieFile);
     if(result == ztSuccess){
 
       serverResponse = 200; /* set global variable - we assume this! **/
@@ -212,13 +219,13 @@ int getCookieFile (SETTINGS *settings){
   /* scriptResult != ztSuccess; failed script result **/
   if(scriptErrorMessage == NULL){
 
-
-#ifdef LOG_UNSEEN
-    logUnseen (settings, "No error message: (scriptErrorMessage == NULL)", "NULL");
-#endif
-
+    /*
+      #ifdef LOG_UNSEEN
+      logUnseen (settings, "No error message: (scriptErrorMessage == NULL)", "NULL");
+      #endif
+    */
     fprintf (stderr, "%s: Error failed script with no error message"
-	     " (message pointer = NULL) in getCookieFile().\n", progName);
+             " (message pointer = NULL) in getCookieFile().\n", progName);
 
     return scriptResult;
   }
@@ -230,12 +237,12 @@ int getCookieFile (SETTINGS *settings){
 
     /* error message doesn't include markerStr -> unrecognized message
      * for now we log such error messages */
-
-#ifdef LOG_UNSEEN
-    sprintf (tmpBuf, "UNRECOGNIZED message: <%s>", scriptErrorMessage);
-    logUnseen (settings, tmpBuf, "No lastPart");
-#endif
-
+    /*
+      #ifdef LOG_UNSEEN
+      sprintf (tmpBuf, "UNRECOGNIZED message: <%s>", scriptErrorMessage);
+      logUnseen (settings, tmpBuf, "No lastPart");
+      #endif
+    */
     fprintf(stderr, "%s: Error failed script with UNRECOGNIZED server error"
             " message in getCookieFile()\n "
             " Server Error Message: <%s>.\n", progName, scriptErrorMessage);
@@ -256,39 +263,39 @@ int getCookieFile (SETTINGS *settings){
 
       case 403:
 
-	fprintf(stderr, "%s: Error received server response code 403; invalid credentials.\n"
-		"Wrong user name or password for OSM account.\n", progName);
+        fprintf(stderr, "%s: Error received server response code 403; invalid credentials.\n"
+                "Wrong user name or password for OSM account.\n", progName);
 
-	return ztResponse403;
-	break;
+        return ztResponse403;
+        break;
 
       case 429:
 
-	fprintf(stderr, "%s: Error received server response code 429; \"too many requests error.\"\n"
-		"Please do not use this program for some period of time - one hour maybe.\n\n"
-		"This program has a limit for how many requests it sends as not to overwhelm\n"
-		"the server. Please do not abuse this free service Geofabrik.de provides.\n", progName);
+        fprintf(stderr, "%s: Error received server response code 429; \"too many requests error.\"\n"
+                "Please do not use this program for some period of time - one hour maybe.\n\n"
+                "This program has a limit for how many requests it sends as not to overwhelm\n"
+                "the server. Please do not abuse this free service Geofabrik.de provides.\n", progName);
 
-	return ztResponse429;
-	break;
+        return ztResponse429;
+        break;
 
       case 500:
 
-	fprintf(stderr, "%s: Error received server response code 500; internal server error.\n"
-		"One of the two servers - geofabrik.de or openstreetmap.org - might be busy or down.\n",
-		progName);
+        fprintf(stderr, "%s: Error received server response code 500; internal server error.\n"
+                "One of the two servers - geofabrik.de or openstreetmap.org - might be busy or down.\n",
+                progName);
 
-	return ztResponse500;
-	break;
+        return ztResponse500;
+        break;
 
       default:
 
-	fprintf(stderr, "%s: Error received server response code < %d > from server.\n"
-		"This code could be from either servers - geofabrik.de or openstreetmap.org.\n"
-		"This code is not handled by this program.\n", progName, responseCode);
+        fprintf(stderr, "%s: Error received server response code < %d > from server.\n"
+                "This code could be from either servers - geofabrik.de or openstreetmap.org.\n"
+                "This code is not handled by this program.\n", progName, responseCode);
 
-	return ztResponseUnknown;
-	break;
+        return ztResponseUnknown;
+        break;
 
       } /* end switch(responseCode) **/
 
@@ -297,11 +304,12 @@ int getCookieFile (SETTINGS *settings){
     }
     else{ /* failed to get response code from error message **/
 
-#ifdef LOG_UNSEEN
-      sprintf (tmpBuf, "Failed to get response code from error message: <%s>", scriptErrorMessage);
-      logUnseen (settings, tmpBuf, lastPart);
-#endif
-
+      /*
+	#ifdef LOG_UNSEEN
+	sprintf (tmpBuf, "Failed to get response code from error message: <%s>", scriptErrorMessage);
+	logUnseen (settings, tmpBuf, lastPart);
+	#endif
+      */
       return scriptResult;
 
     }
@@ -332,7 +340,7 @@ int day2num (char *day){
 
   ASSERTARGS (day);
 
-  int	i = 0;
+  int   i = 0;
   while(myTable[i].str){
 
     if (strcmp(myTable[i].str, day) == 0)
@@ -370,7 +378,7 @@ int month2num (char *month){
 
   ASSERTARGS (month);
 
-  int	i = 0;
+  int   i = 0;
   while(myTable[i].str){
 
     if (strcmp(myTable[i].str, month) == 0)
@@ -383,23 +391,76 @@ int month2num (char *month){
   return (-1);
 }
 
-void printCookie(COOKIE *ck){
+#define EXPLAIN_TIME
+//#undef EXPLAIN_TIME
+
+void fprintCookie(FILE *file, COOKIE *ck){
 
   ASSERTARGS (ck);
 
-  printf("printCookie(): Cookie members are:\n\n");
+  FILE  *fPointer = stdout;
+
+  if(file)  fPointer = file;
+
+  fprintf(fPointer, "printCookie(): Cookie members are:\n\n");
 
   if (ck->token)
-    printf("Login Token is: <%s>\n\n", ck->token);
+    fprintf(fPointer, "Login Token is: <%s>\n\n", ck->token);
   else
-    printf("Login Token is NOT set.\n");
+    fprintf(fPointer, "Login Token is NOT set.\n");
 
   if(ck->expireTimeStr)
-    printf("expireTimeStr is: <%s>\n\n", ck->expireTimeStr);
+    fprintf(fPointer, "expireTimeStr is: <%s>\n\n", ck->expireTimeStr);
   else
-    printf("expireTimeStr is NOT set.\n");
+    fprintf(fPointer, "expireTimeStr is NOT set.\n");
 
-  /* TODO: incomplete FIXME **/
+  fprintf(fPointer, "expireSeconds is: <%ld>\n\n", ck->expireSeconds);
+
+  char buffer[80];
+
+  strftime(buffer, 80, "%c", &(ck->expireTM));
+
+  fprintf(fPointer, "expireTM \"fromatted by strftime()\": <%s>\n\n", buffer);
+
+#ifdef EXPLAIN_TIME
+  fprintf(fPointer, "Note that time is shown as HH:MM:SS\n"
+	  "Using 24 hours; please read all three!\n\n");
+
+  struct tm *localExpireTimePtr, *gmExpireTimePtr;
+  /* localtime() & gmtime() allocate memory for this; we do NOT.
+   * this means we need to allocate memory for our own structure
+   * then copy structure before calling another time function in
+   * the c library if we need to keep different structures around. **/
+
+  gmExpireTimePtr = gmtime(&(ck->expireSeconds));
+
+  strftime(buffer, 80, "%c", gmExpireTimePtr);
+
+  fprintf(fPointer, "Greenwich Expire Time: <%s>\n\n", buffer);
+
+  localExpireTimePtr = localtime(&(ck->expireSeconds));
+
+  strftime(buffer, 80, "%c", localExpireTimePtr);
+
+  fprintf(fPointer, "Local Expire Time:     <%s>\n\n", buffer);
+
+  time_t  currentTimeValue;
+  struct tm *gmCurrentTime, *localCurrentTime;
+
+  time(&currentTimeValue);
+
+  gmCurrentTime = gmtime(&currentTimeValue);
+
+  strftime(buffer, 80, "%c", gmCurrentTime);
+
+  fprintf(fPointer, "Greenwich Current Time: <%s>\n\n", buffer);
+
+  localCurrentTime = localtime(&currentTimeValue);
+
+  strftime(buffer, 80, "%c", localCurrentTime);
+
+  fprintf(fPointer, "Local Current Time:     <%s>\n\n", buffer);
+#endif
 
   return;
 }
@@ -424,16 +485,18 @@ int isExpiredCookie(COOKIE *ck){
 
   currentGMT = time(&currentGMT);
 
+  /* time() may return -1 which means it is NOT available, check it **/
+
   hours2Expire = (ck->expireSeconds - currentGMT) / SEC_PER_HOUR;
 
   /**
-  if(hours2Expire > 0)
+     if(hours2Expire > 0)
 
-    fprintf(stdout,"isExpiredCookie(): Cookie expires in: <%d> hour(s).\n", hours2Expire);
+     fprintf(stdout,"isExpiredCookie(): Cookie expires in: <%d> hour(s).\n", hours2Expire);
 
-  else
+     else
 
-    fprintf(stdout,"isExpiredCookie(): Cookie expired: <%d> hour(s) ago.\n", (-1 * hours2Expire));
+     fprintf(stdout,"isExpiredCookie(): Cookie expired: <%d> hour(s) ago.\n", (-1 * hours2Expire));
   ********/
 
   if(hours2Expire < 2)
@@ -463,7 +526,7 @@ int isExpiredCookie(COOKIE *ck){
 int parseCookieFile (COOKIE *dstCookie, const char *filename){
 
   /* example short cookie file -- login-token part was cut short to fit here */
-  /* gf_download_oauth="login|2018-04-12|mmPsXFi3-ftGnxdDpv_pI-CVXmmZDi6SU_vNgpuEsl4c0NK_w=="; expires=Wed, 16 Feb 2022 17:51:27 GMT; HttpOnly; Path=/; Secure 	*/
+  /* gf_download_oauth="login|2018-04-12|mmPsXFi3-ftGnxdDpv_pI-CVXmmZDi6SU_vNgpuEsl4c0NK_w=="; expires=Wed, 16 Feb 2022 17:51:27 GMT; HttpOnly; Path=/; Secure  */
   /* my fields:
    *  - fileMarker : "gf_download_oauth=\"login|"
    *  - loginToken : "2018-04-12|mmPsXFi3-ftGnxdDpv_pI-CVXmmZDi6SU_vNgpuEsl4c0NK_w==\""
@@ -481,10 +544,10 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
   char  *semicol = ";";
 
   char  *loginToken,
-        *expireToken,
-        *acceptProto, /* *formatToken, **/
-        *pathToken,
-        *sFlagToken;
+    *expireToken,
+    *acceptProto, /* *formatToken, **/
+    *pathToken,
+    *sFlagToken;
 
   char  *timeStr;
 
@@ -496,7 +559,7 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
   result = isFileUsable(filename);
   if (result != ztSuccess){
     fprintf(stderr, "%s: Error parseCookieFile() filename argument <%s> not usable.\n",
-	    progName, filename);
+            progName, filename);
     return result;
   }
 
@@ -504,7 +567,7 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
   filePtr = fopen ( filename, "r");
   if ( filePtr == NULL){
     fprintf (stderr, "%s: Error parseCookieFile() could not access file! <%s>\n",
-	     progName, filename);
+             progName, filename);
     printf("System error message: %s\n\n", strerror(errno));
     return ztOpenFileError;
   }
@@ -519,9 +582,11 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
     if (numLines > MAX_COOKIE_LINES){
 
       fprintf (stderr, "%s: Error parseCookieFile() found multiple lines: [%d] in cookie file: <%s>\n",
-	       progName, numLines, filename);
+               progName, numLines, filename);
       fclose(filePtr);
-      return ztInvalidArg;
+
+      return ztNotCookieFile;
+      //return ztInvalidArg;
     }
 
   } /* end while() **/
@@ -599,11 +664,19 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
   dstCookie->expireTimeStr = STRDUP(timeStr);
 
   /* call parseTimeStr() which sets other members in cookie **/
-  result = parseTimeStr (dstCookie, timeStr);
+  result = parseTimeStr (&(dstCookie->expireTM), timeStr);
   if (result != ztSuccess){
     fprintf(stderr, "%s: Error parseCookie() failed call to parseTimeStr()\n", progName);
     return result;
   }
+
+  /* fill expireSeconds member by converting filled 'expireTM' structure to
+   * time_t time value in seconds **/
+  dstCookie->expireSeconds = makeTimeGMT(&(dstCookie->expireTM));
+
+  if(dstCookie->expireSeconds == -1) /* check return from makeTimeGMT() **/
+
+    return ztParseError;
 
   return ztSuccess;
 }
@@ -616,25 +689,26 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
  *
  */
 
-int parseTimeStr (COOKIE *cookie, char const *str){
+//int parseTimeStr (COOKIE *cookie, char const *str){
+int parseTimeStr (struct tm *expireTM, char const *str){
 
   char  *mystr;
   char  *space = "\040\t"; /* space set: [space & tab] **/
   char  *colon = ":";
 
   char  *allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                   "abcdefghijklmnopqrstuvwxyz"
-                   "0123456789,:\040";
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789,:\040";
 
   /* not all alphabets - upper & lower cases - are needed. LAZY **/
 
   char  *dwTkn, // day of week
-        *dmTkn, // day of month
-        *monTkn,
-        *yearTkn,
-        *hrTkn,
-        *minTkn,
-        *secTkn;
+    *dmTkn, // day of month
+    *monTkn,
+    *yearTkn,
+    *hrTkn,
+    *minTkn,
+    *secTkn;
 
   int dayWeekDigit; /* day of week as number [0, 6] 0=Sun **/
   int dayMonthDigit;
@@ -646,15 +720,17 @@ int parseTimeStr (COOKIE *cookie, char const *str){
 
   char *endPtr;
 
-  ASSERTARGS (cookie && str);
+  ASSERTARGS (expireTM && str);
+
+  memset(expireTM, 0, sizeof(struct tm));
 
   /* get our own copy of 'str' parameter - macro terminates program on failure. **/
   mystr = STRDUP(str);
 
   /* check for allowed characters **/
   if(strspn(mystr, allowed) != strlen(mystr)){
-	fprintf(stderr, "%s: Error parseTimeStr() parameter 'str' has "
-			"disallowed character.\n", progName);
+    fprintf(stderr, "%s: Error parseTimeStr() parameter 'str' has "
+	    "disallowed character.\n", progName);
     return ztDisallowedChar;
   }
 
@@ -685,7 +761,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   if ( *endPtr != '\0'){
 
     fprintf(stderr, "%s: Error converting 'dmTkn' string to integer in parseTimeStr().\n"
-	    " Failed string: %s\n", progName, dmTkn);
+            " Failed string: %s\n", progName, dmTkn);
     return ztInvalidArg;
   }
 
@@ -699,7 +775,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   monthDigit = month2num(monTkn);
   if (monthDigit == -1){
     fprintf(stderr, "%s: Error failed month2num() function.\n"
-	    "Failed string: %s\n", progName, monTkn);
+            "Failed string: %s\n", progName, monTkn);
     return ztInvalidArg;
   }
 
@@ -713,7 +789,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   if ( *endPtr != '\0'){
 
     fprintf(stderr, "%s: Error converting 'yearTkn' string to integer in parseTimeStr().\n"
-	    " Failed string: %s\n", progName, yearTkn);
+            " Failed string: %s\n", progName, yearTkn);
     return ztInvalidArg;
   }
 
@@ -727,7 +803,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   if ( *endPtr != '\0'){
 
     fprintf(stderr, "%s: Error converting 'hrTkn' string to integer in parseTimeStr().\n"
-	    " Failed string: %s\n", progName, hrTkn);
+            " Failed string: %s\n", progName, hrTkn);
     return ztInvalidArg;
   }
 
@@ -741,7 +817,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   if ( *endPtr != '\0'){
 
     fprintf(stderr, "%s: Error converting 'minTkn' string to integer in parseTimeStr().\n"
-	    " Failed string: %s\n", progName, minTkn);
+            " Failed string: %s\n", progName, minTkn);
     return ztInvalidArg;
   }
 
@@ -755,7 +831,7 @@ int parseTimeStr (COOKIE *cookie, char const *str){
   if ( *endPtr != '\0'){
 
     fprintf(stderr, "%s: Error converting 'secTkn' string to integer in parseTimeStr().\n"
-	    " Failed string: %s\n", progName, secTkn);
+            " Failed string: %s\n", progName, secTkn);
     return ztInvalidArg;
   }
 
@@ -773,32 +849,33 @@ int parseTimeStr (COOKIE *cookie, char const *str){
    *
    ***************************************************************************/
 
-  cookie->expireTM.tm_year = yearDigit - 1900;
+  expireTM->tm_year = yearDigit - 1900;
 
-  cookie->expireTM.tm_mon = monthDigit;
+  expireTM->tm_mon = monthDigit;
 
-  cookie->expireTM.tm_mday = dayMonthDigit;
+  expireTM->tm_mday = dayMonthDigit;
 
-  cookie->expireTM.tm_wday = dayWeekDigit; /* mktime() ignores tm_wday & tm_yday members **/
+  expireTM->tm_wday = dayWeekDigit; /* mktime() ignores tm_wday & tm_yday members **/
 
-  cookie->expireTM.tm_hour = hrDigit;
+  expireTM->tm_hour = hrDigit;
 
-  cookie->expireTM.tm_min = minDigit;
+  expireTM->tm_min = minDigit;
 
-  cookie->expireTM.tm_sec = secDigit;
+  expireTM->tm_sec = secDigit;
 
   /* fill expireSeconds member by converting filled 'expireTM' structure to
    * time_t time value in seconds **/
-  cookie->expireSeconds = makeTimeGMT(&(cookie->expireTM));
+  /*  cookie->expireSeconds = makeTimeGMT(&(cookie->expireTM));
 
-  if(cookie->expireSeconds == -1) /* check return from makeTimeGMT() **/
+      if(cookie->expireSeconds == -1)
 
-	return ztParseError;
-
+      return ztParseError;
+  */
   return ztSuccess;
 
 } /* END parseTimeStr() **/
 
+int fd2Close = -1;
 
 /* pipeSpawnScript(): runs script in a pipe AND gets script STDERR output
  * in char **outputString variable
@@ -828,11 +905,11 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
    ******************************************************************/
 
   pid_t childPid;
-  int	fds[2];          /* pipe fds are in alphabetical order (0->read & 1->write) */
-  FILE	*scriptTerminal; /* so we can use fgets() */
-  int	waitStatus;      /* exit status; code */
-  int	result;
-  char	temBuf[1024] = {0};
+  int   fds[2];          /* pipe fds are in alphabetical order (0->read & 1->write) */
+  FILE  *scriptTerminal; /* so we can use fgets() */
+  int   waitStatus;      /* exit status; code */
+  int   result;
+  char  temBuf[1024] = {0};
 
   errno = 0;
 
@@ -843,7 +920,7 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
 
     perror ("pipe");
     fprintf (stderr, "%s: Error failed system call to pipe()\n", progName);
-    // TODO: get errno and provide better error message
+
     return ztFailedSysCall;
   }
 
@@ -852,11 +929,16 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
 
     perror ("fork");
     fprintf (stderr, "%s: Error failed system call to fork()\n", progName);
-    // TODO: get errno and provide better error message
+
     return ztFailedSysCall;
   }
 
   if (childPid == (pid_t) 0){ // this is the child, do child work
+
+    if(fd2Close != -1){
+      fprintf(stdout, "Cookie has a locked2CloseFD set by user; closing...\n");
+      close(fd2Close);
+    }
 
     // close the pipe read end
     close (fds[0]);
@@ -880,10 +962,10 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
 
     /* The execv function returns only if an error occurs. */
     fprintf (stderr, "%s: Error: I am the CHILD in pipeSpawnScript():\n"
-	     "If you see this then there was an error in execv() call...\n", progName);
+             "If you see this then there was an error in execv() call...\n", progName);
     fprintf (stderr, "%s: Error in pipeSpawnScript(): an error occurred in"
-	     " execv() ... aborting!\n",
-	     progName);
+             " execv() ... aborting!\n",
+             progName);
     abort();  // TODO: return error AND remove abort()
 
     fflush(scriptTerminal);
@@ -906,27 +988,27 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
     }
 
     else { /*  WEXITSTATUS(waitStatus) != EXIT_SUCCESS
-	    * failed script -> get its error text message */
+            * failed script -> get its error text message */
 
       // convert script output terminal to FILE * ,,, so we can use fgets() function
       scriptTerminal = fdopen (fds[0], "r");
 
       if ( ! scriptTerminal ){
 
-	perror ("fdopen");
-	fprintf (stderr, "%s: Error returned from fdopen() call.\n", progName);
-	return ztFailedSysCall;
+        perror ("fdopen");
+        fprintf (stderr, "%s: Error returned from fdopen() call.\n", progName);
+        return ztFailedSysCall;
       }
 
       while ( !feof (scriptTerminal)) // script writes only ONE line, still use while()
 
-	fgets (temBuf, 1023, scriptTerminal);
+        fgets (temBuf, 1023, scriptTerminal);
 
       /* maybe there is nothing to get or read! */
       if (strlen(temBuf) == 0){
 
-	*outputString = NULL; /* make sure it is NULL in this case */
-	return ztChildProcessFailed;
+        *outputString = NULL; /* make sure it is NULL in this case */
+        return ztChildProcessFailed;
       }
 
       // remove linefeed character
@@ -935,8 +1017,8 @@ int pipeSpawnScript (const char *prog, char* const argList[], char **outputStrin
       *outputString = (char *) malloc ((strlen(temBuf) + 1) * sizeof(char));
       if ( *outputString == NULL){
 
-	fprintf(stderr, "%s: Error allocating memory in pipeSpawnScript().\n", progName);
-	return ztMemoryAllocate;
+        fprintf(stderr, "%s: Error allocating memory in pipeSpawnScript().\n", progName);
+        return ztMemoryAllocate;
       }
 
       strcpy (*outputString, temBuf);
@@ -999,7 +1081,7 @@ int getResponseCode (int *code, char *msg){
   if (strlen(msg) == 0){
 
     fprintf (stderr, "%s: Error in getResponseCode(): Empty string in msg parameter.\n",
-	     progName);
+             progName);
     return ztEmptyString;
   }
 
@@ -1009,7 +1091,7 @@ int getResponseCode (int *code, char *msg){
   if ( ! subStr1 || (subStr1 != msg)){
 
     fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
-	     progName, msg);
+             progName, msg);
     return ztInvalidArg;
   }
 
@@ -1018,7 +1100,7 @@ int getResponseCode (int *code, char *msg){
   if ( ! subStr2 || (strcmp(subStr2, expectedStr) != 0)){
 
     fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
-	     progName, msg);
+             progName, msg);
     return ztInvalidArg;
   }
 
@@ -1036,7 +1118,7 @@ int getResponseCode (int *code, char *msg){
   if ( ! codeStr ){
 
     fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
-	     progName, msg);
+             progName, msg);
     return ztInvalidArg;
   }
 
@@ -1047,7 +1129,7 @@ int getResponseCode (int *code, char *msg){
   if ( *endPtr != '\0' ){ /* may have something other than digits */
 
     fprintf (stderr, "%s: Error in getResponseCode(): invalid msg parameter: <%s>\n",
-	     progName, msg);
+             progName, msg);
     return ztParseError; //ztBadResponse;
   }
 
@@ -1060,73 +1142,6 @@ int getResponseCode (int *code, char *msg){
   return ztSuccess;
 }
 
-void logUnseen(SETTINGS *settings, char *msg, char *lastPart) {
-
-  char  *unseenName = "UNSEEN_RESPONSE.txt";
-  FILE  *unseenFilePtr;
-  char  *myTime;
-  pid_t  myPid;
-  char  *text;
-  char  tmpBuf[PATH_MAX];
-
-  ASSERTARGS(settings);
-
-  errno = 0;
-
-  sprintf(tmpBuf, "%s/%s", settings->workDir, unseenName);
-  unseenFilePtr = fopen(tmpBuf, "a");
-  if (unseenFilePtr == NULL) {
-    fprintf(stderr,
-	    "%s: Error could not open UNSEEN_RESPONSE log file! <%s>\n",
-	    progName, tmpBuf);
-    fprintf(stderr, "System error message: %s\n\n", strerror(errno));
-    // return ztOpenFileError;
-  } else { /* we have opened file */
-
-    myTime = formatC_Time();
-    fprintf(unseenFilePtr, "%s: UNSEEN ERROR started at: %s\n", progName,
-	    myTime);
-
-    myPid = getpid();
-    myTime = formatMsgHeadTime();
-
-    if (msg) {
-
-      text = "Received error message from script: ";
-      fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
-      fprintf(unseenFilePtr, "   <%s>\n\n", msg);
-
-      if (lastPart) {
-
-	text = "lastPart was: ";
-	fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid,
-		text);
-	fprintf(unseenFilePtr, "   <%s>\n\n", lastPart);
-      } else { /* no lastPart */
-
-	text = "Could NOT get lastPart from error message text.";
-	fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid,
-		text);
-      }
-    } else { /* empty msg */
-
-      text = "EMPTY error message from script! EMPTY. ";
-      fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
-    }
-
-    text = "Current program settings below:";
-    fprintf(unseenFilePtr, "%s [%d] %s\n", myTime, (int) myPid, text);
-
-    printSettings(unseenFilePtr, settings);
-
-    fprintf(unseenFilePtr, "++++++++++++++ Done Unseen ++++++++++++\n\n");
-
-    fflush(unseenFilePtr);
-    fclose(unseenFilePtr);
-  }
-
-  return;
-}
 
 /* getCookieRetry ():
  *
@@ -1144,17 +1159,67 @@ void logUnseen(SETTINGS *settings, char *msg, char *lastPart) {
  *  ztResponse429,
  *  ztResponse500,
  *
+ *  NOTE: IMPORTANT
+ *  Since Geofabrik switched to OAuth 2.0 in February 2024 and starting using
+ *  their new python script to get OSM cookie, I have NOT been able to get a
+ *  server response code form this newer script, the script exit code is almost
+ *  always 0, exit code is 1 when missing password.
  *
- */
+ *  So, we can not do retry based on response or exit codes for the time being.
+ *  We test the received file, if it is NOT a cookie file we retry ONE time
+ *  after the delay time.
+ *
+ *  New return code "ztNotCookieFile" when received file is NOT a cookie file.
+ *
+ *******************************************************************************/
 
-int getCookieRetry (SETTINGS *settings){
+int getCookieRetry (MY_SETTING *settings, COOKIE_FILES *cfiles){
 
-  int 	result;
+  int   result;
   int   delayTime = 1 * 30; /* time in seconds **/
 
-  ASSERTARGS(settings && settings->usr && settings->pswd);
+  ASSERTARGS(settings && settings->usr && settings->pswd && cfiles);
 
-  result = getCookieFile(settings);
+  result = getCookieFile(settings, cfiles);
+
+  if(result != ztSuccess){
+    fprintf(stdout, "getCookieRetry():: Failed getCookieFile() - Script failed probably! Retrying after delay.\n");
+    if(cookieLogFP)
+      logMessage(cookieLogFP,"getCookieRetry():: Failed getCookieFile() - Script failed probably! Retrying after delay");
+
+    sleep(delayTime);
+
+    result = getCookieFile(settings, cfiles);
+  }
+  else if( (result == ztSuccess) && (isCookieFile(cfiles->cookieFile) == FALSE) ){
+    fprintf(stdout, "getCookieRetry():: Received file is NOT a cookie file. Retrying after delay.\n");
+    if(cookieLogFP)
+      logMessage(cookieLogFP,"getCookieRetry():: Received file is NOT a cookie file. Retrying after delay");
+
+    sleep(delayTime);
+
+    result = getCookieFile(settings, cfiles);
+  }
+
+  int cookieStatus = isCookieFile(cfiles->cookieFile);
+
+  fprintf(stdout, "getCookieRetry():: Function is Done. Cookie file status is: %s\n",
+	  cookieStatus ? "Good Cookie File" : "Not a cookie file");
+  if(cookieLogFP){
+    logMessage(cookieLogFP,"getCookieRetry()::Function is Done. Cookie file status is below.");
+    logMessage(cookieLogFP, cookieStatus ? "Good Cookie File" : "Not a cookie file");
+  }
+
+  if(cookieStatus == FALSE)
+
+    return ztNotCookieFile;
+
+  else
+
+    return result; /* nothing else we can do! **/
+
+  /* CODE BELOW IS NOT EXECUTED - used to work with old script! **/
+
   if(result == ztSuccess)
 
     return result;
@@ -1163,23 +1228,23 @@ int getCookieRetry (SETTINGS *settings){
   if( ! serverResponse ){
 
     fprintf(stderr, "%s: Error failed getCookieFile() function without Server Response Code!\n"
-	    "Function failed for: <%s>, giving up.\n", progName, ztCode2Msg(result));
+            "Function failed for: <%s>, giving up.\n", progName, ztCode2Msg(result));
     return result;
   }
   else if (serverResponse == 500){
 
     fprintf(stderr, "%s: Error failed getCookieFile() function with Server Response Code 500.\n"
-	    "Retrying in <%d> seconds.\n", progName, delayTime);
+            "Retrying in <%d> seconds.\n", progName, delayTime);
 
     sleep(delayTime);
 
-    result = getCookieFile(settings);
+    result = getCookieFile(settings, cfiles);
   }
   else{
 
     fprintf(stderr, "%s: Error failed getCookieFile() function. Server Response Code was not 500.\n"
-	    "Function failed for: <%s>. Retry is only for response 500.\n",
-	    progName, ztCode2Msg(result));
+            "Function failed for: <%s>. Retry is only for response 500.\n",
+            progName, ztCode2Msg(result));
     return result;
   }
 
@@ -1187,11 +1252,84 @@ int getCookieRetry (SETTINGS *settings){
 
 } /* END getCookieRetry() */
 
-int initialCookie(SETTINGS *settings){
+/* doCookie():
+ *  - python script provided by Geofabrik is used to download login cookie.
+ *  - login cookie is saved to 'geofabrikCookie.txt' file in program workDir.
+ *  - cookie file is parsed into 'COOKIE' structure.
+ *  - cookie file is NOT replaced until it has expired - about 48 hours.
+ *  - usr & pswd are NOT used (tested) when existing cookie is not expired.
+ *
+ ******************************************************************************/
 
-  int   result;
+int doCookie(MY_SETTING *settings, SKELETON *dirs){
 
-  ASSERTARGS(settings && settings->usr && settings->pswd && settings->cookieFile);
+  ASSERTARGS(settings && settings->usr && settings->pswd &&
+	     dirs && dirs->workDir && dirs->tmp);
+
+  int result;
+  int preExist;
+  int removedFlag = 0;
+
+  COOKIE_FILES cfiles;
+
+  result = cookieSetFilenames(&cfiles, dirs);
+  if(result != ztSuccess){
+    fprintf(stderr, "%s: Error failed cookieSetFilenames().\n", progName);
+    return result;
+  }
+
+  result = isFileUsable(cfiles.cookieFile);
+
+  preExist = (result == ztSuccess);
+
+  if(preExist){
+    fprintf(stdout, "%s: doCookie():: Checking pre-existing cookie file for its expiration time.\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "doCookie():: Checking pre-existing cookie file for its expiration time.");
+
+    if( ! isCookieFile(cfiles.cookieFile)){
+
+      /* this was added for the Geofabrik new python script! new script does NOT
+       * provide any error message on failure or sets any server response code!
+       *************************************************************************/
+
+      fprintf(stdout, "%s: doCookie():: Pre-exiting file is NOT cookie file, removing.\n", progName);
+      if(cookieLogFP)
+        logMessage(cookieLogFP, "doCookie():: Pre-exiting file is NOT cookie file, removing.");
+
+      remove(cfiles.cookieFile);
+      removedFlag = 1;
+    }
+  }
+
+  /* if cookie file was NOT found OR it was REMOVED; get new cookie file **/
+
+  if(! preExist || removedFlag){
+
+    result = getCookieRetry(settings, &cfiles);
+    if(result == ztNotCookieFile){
+      fprintf(stderr, "%s: Error, getCookieRetry() failed to retrieve a cookie file!\n"
+	      "Most likely this is for invalid user or password, "
+	      "please double check both before retrying.\n", progName);
+      if(cookieLogFP)
+        logMessage(cookieLogFP, "Error, getCookieRetry() failed to retrieve a cookie file!\n"
+		   " Most likely this is for invalid user or password,\n"
+		   " please double check both before retrying.");
+
+      return result;
+    }
+    else if(result != ztSuccess){
+      fprintf(stderr, "%s: Error, failed getCookieRetry() for:\n %s\n", progName, ztCode2Msg(result));
+      if(cookieLogFP){
+        logMessage(cookieLogFP, "Error, failed getCookieRetry() for:");
+        logMessage(cookieLogFP, ztCode2Msg(result));
+      }
+
+      return result;
+    }
+  }
+
+  /* now we have cookie file: old (pre-exist) or new file **/
 
   if( ! cookie ){
 
@@ -1200,59 +1338,108 @@ int initialCookie(SETTINGS *settings){
       fprintf(stderr, "%s: Error allocating memory in initialCookie().\n", progName);
       return ztMemoryAllocate;
     }
-    memset(cookie, 0, sizeof(COOKIE));
   }
+  memset(cookie, 0, sizeof(COOKIE));
 
-  result = isFileUsable(settings->cookieFile);
+  result = parseCookieFile(cookie, cfiles.cookieFile);
   if(result != ztSuccess){
-
-    result = getCookieRetry(settings);
-    if(result != ztSuccess){
-
-      fprintf(stderr, "%s: Error failed getCookieRetry() function.\n", progName);
-      return result;
-    }
-  }
-
-  int notCookieFileFlag = 0;
-  int expiredFlag = 0;
-
-  result = parseCookieFile(cookie, settings->cookieFile);
-
-  /* parseCookieFile() may return ztNotCookieFile -
-   * we retrieve a new file in this case **/
-  notCookieFileFlag = (result == ztNotCookieFile);
-
-
-  if(result == ztSuccess){
-
-    /* expiredFlag is set only when parseCookieFile() returns ztSuccess **/
-    expiredFlag = isExpiredCookie(cookie) == TRUE;
-    if(!expiredFlag)
-
-      return ztSuccess;
-  }
-
-  if(notCookieFileFlag || expiredFlag){
-
-    result = getCookieRetry(settings);
-    if(result != ztSuccess){
-
-      fprintf(stderr, "%s: Error failed getCookieRetry() function.\n", progName);
-      return result;
-    }
-  }
-
-  result = parseCookieFile(cookie, settings->cookieFile);
-  if(result != ztSuccess){
-
     fprintf(stderr, "%s: Error failed parseCookieFile() function.\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "Error failed parseCookieFile() function.");
+
     return result;
+  }
+
+  if(fVerbose){
+    fprintCookie(stdout, cookie);
+    if(fLogPtr)
+      fprintCookie(fLogPtr, cookie);
+  }
+
+  if(isExpiredCookie(cookie) == FALSE){
+
+    return ztSuccess;
+  }
+
+  // expired cookie, get a new one
+  fprintf(stdout, "%s: Current cookie has expired, retrieving new cookie file.\n", progName);
+  if(cookieLogFP)
+    logMessage(cookieLogFP, "Current cookie has expired, retrieving new cookie file.");
+
+  result = getCookieRetry(settings, &cfiles);
+  if(result == ztNotCookieFile){
+    fprintf(stderr, "%s: Error, getCookieRetry() failed to retrieve a cookie file!\n"
+	    "Most likely this is for invalid user or password, "
+	    "please double check both before retrying.\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "Error, getCookieRetry() failed to retrieve a cookie file!\n"
+		 " Most likely this is for invalid user or password,\n"
+		 " please double check both before retrying.");
+
+    return result;
+  }
+  else if(result != ztSuccess){
+    fprintf(stderr, "%s: Error, failed getCookieRetry() for:\n %s\n", progName, ztCode2Msg(result));
+    if(cookieLogFP){
+      logMessage(cookieLogFP, "Error, failed getCookieRetry() for:");
+      logMessage(cookieLogFP, ztCode2Msg(result));
+    }
+
+    return result;
+  }
+
+  memset(cookie, 0, sizeof(COOKIE));
+
+  result = parseCookieFile(cookie, cfiles.cookieFile);
+  if(result != ztSuccess){
+    fprintf(stderr, "%s: Error failed parseCookieFile() function.\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "Error failed parseCookieFile() function.");
+
+    return result;
+  }
+
+  /* test NEW cookie for expiration time - should never happen case! **/
+  if(isExpiredCookie(cookie) == TRUE){
+    fprintf(stderr, "%s: Error; fatal NEW retrieved cookie has expired time!\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "Error; fatal NEW retrieved cookie has expired time!");
+
+    return ztExpiredCookie;
   }
 
   return ztSuccess;
 
-} /* END initialCookie() **/
+} /* END doCookie() **/
+
+int cookieSetFilenames(COOKIE_FILES *cfiles, SKELETON *dirs){
+
+  ASSERTARGS(cfiles && dirs);
+
+  memset(cfiles, 0, sizeof(COOKIE_FILES));
+
+  cfiles->cookieFile = appendName2Dir(dirs->workDir, COOKIE_FILE);
+  if(! cfiles->cookieFile){
+    fprintf(stderr, "cookieSetFilenames(): Error failed appendName2Dir() for cookieFile.\n");
+    return ztMemoryAllocate;
+  }
+
+  cfiles->scriptFile = appendName2Dir(dirs->tmp, SCRIPT_FILE);
+  if(! cfiles->scriptFile){
+    fprintf(stderr, "cookieSetFilenames(): Error failed appendName2Dir() for scriptFile.\n");
+    return ztMemoryAllocate;
+  }
+
+  cfiles->jsonFile = appendName2Dir(dirs->tmp, JSON_FILE);
+  if(! cfiles->jsonFile){
+    fprintf(stderr, "cookieSetFilenames(): Error failed appendName2Dir() for jsonFile.\n");
+    return ztMemoryAllocate;
+  }
+
+  return ztSuccess;
+
+} /* END cookieSetFilenames() **/
+
 
 char *getCookieToken(){
 
@@ -1260,7 +1447,7 @@ char *getCookieToken(){
 
   if(! (cookie && cookie->token) ){
     fprintf(stderr, "getCookieToken(): Error; COOKIE structure is not initialized."
-	    " Call initialCookie() first.\n");
+            " Call initialCookie() first.\n");
     return NULL;
   }
 
@@ -1283,12 +1470,99 @@ void destroyCookie(){
 
 } /* END destroyCookie() **/
 
-int isGoodCookieFile(char *name){
+int isCookieFile(char *name){
 
-  /* TODO: write function **/
+  ASSERTARGS(name);
 
-  return ztSuccess;
-}
+  FILE  *filePtr;
+  char  myLine[PATH_MAX] = {0};
+
+  char  *fileMarker = "gf_download_oauth=login|";
+  char  *strings[] = {"expires=", "HttpOnly", "Path=/", "Secure", NULL};
+  char  semiColon = ';';
+
+  /* assume file exists **/
+  errno = 0;
+  filePtr = fopen (name, "r");
+  if(filePtr == NULL){
+    fprintf (stderr, "%s: Error failed fopen() in isCookieFile()!\n", progName);
+    fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "Error failed fopen() in isCookieFile().");
+    return FALSE;
+  }
+
+  /* cookie file has exactly one line, size is 300+ characters
+   * (well less than PATH_MAX length, return FALSE when more lines are found **/
+
+  int numLines = 0;
+  while (fgets(myLine, PATH_MAX - 1, filePtr)){
+
+    numLines++;
+
+    if (numLines > MAX_COOKIE_LINES){
+
+      fprintf (stderr, "%s: Error in isCookieFile() function: multiple lines found in file.\n",progName);
+      if(cookieLogFP)
+        logMessage(cookieLogFP, "isCookieFile():: Error: multiple lines found in file.");
+
+      fclose(filePtr);
+      return FALSE;
+    }
+  } /* end while() **/
+
+  fclose(filePtr);
+
+  /* must start with 'fileMarker' string **/
+  char *subStr;
+
+  subStr = strstr(myLine, fileMarker);
+  if( ! (subStr && (subStr == myLine)) ){
+    fprintf (stderr, "%s: Error in isCookieFile(): file does not start with string 'gf_download_oauth=login|'.\n", progName);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "isCookieFile():: Error: file does not start with string 'gf_download_oauth=login|'.");
+
+    return FALSE;
+  }
+
+  char *pointer;
+  int  count = 0;
+
+  pointer = myLine;
+
+  while (strchr(pointer, semiColon)){
+
+    count++;
+    pointer = strchr(pointer, semiColon) + 1;
+  }
+
+  if(count != 4){
+    fprintf (stderr, "%s: Error in isCookieFile(): file does not have exactly 4 semi-colons, count is: %d\n", progName, count);
+    if(cookieLogFP)
+      logMessage(cookieLogFP, "isCookieFile():: Error: file does not have exactly 4 semi-colons.");
+
+    return FALSE;
+  }
+
+  char **mover;
+
+  mover = strings;
+  while(*mover){
+
+    if( ! strstr(myLine, *mover)){
+      fprintf (stderr, "%s: Error in isCookieFile(): line does not contain sub-string: '%s'.\n", progName, *mover);
+      if(cookieLogFP)
+        logMessage(cookieLogFP, "isCookieFile():: Error: line does not contain a required sub-string.");
+
+      return FALSE;
+    }
+
+    mover++;
+  }
+
+  return TRUE;
+
+} /* END isCookieFile() **/
 
 /* makeTimeGMT():
  *
@@ -1321,16 +1595,16 @@ time_t makeTimeGMT(struct tm *tm){
 
   ASSERTARGS(tm);
 
-/*
-  printf("tm->tm_year: <%d>\n"
-         "tm->tm_mon: <%d>\n"
-	 "tm->tm_mday: <%d>\n"
-	 "tm->tm_hour: <%d>\n"
-	 "tm->tm_min: <%d>\n"
-	 "tm->tm_sec: <%d>\n",
-	 tm->tm_year, tm->tm_mon, tm->tm_mday,
-	 tm->tm_hour, tm->tm_min, tm->tm_sec);
-*****************************************/
+  /*
+    printf("tm->tm_year: <%d>\n"
+    "tm->tm_mon: <%d>\n"
+    "tm->tm_mday: <%d>\n"
+    "tm->tm_hour: <%d>\n"
+    "tm->tm_min: <%d>\n"
+    "tm->tm_sec: <%d>\n",
+    tm->tm_year, tm->tm_mon, tm->tm_mday,
+    tm->tm_hour, tm->tm_min, tm->tm_sec);
+  *****************************************/
   
   /* check members values:
    * year, month, day of month, hour, minute and seconds. **/
@@ -1384,8 +1658,8 @@ time_t makeTimeGMT(struct tm *tm){
   ret = mktime(tm);
 
   if(ret == -1){
-	perror("The call to mktime() failed!");
-	fprintf(stderr, "System error message: %s\n\n", strerror(errno));
+    perror("The call to mktime() failed!");
+    fprintf(stderr, "System error message: %s\n\n", strerror(errno));
   }
 
   if (tz) {

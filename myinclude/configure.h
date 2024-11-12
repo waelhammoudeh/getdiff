@@ -39,6 +39,11 @@ typedef enum CONF_TYPE_ {
 
 } CONF_TYPE;
 
+typedef struct CT2STRING_ {
+	CONF_TYPE ct;
+	char str[16];
+} CT2STRING;
+
 /* Notes:
  * NAME_CT : tested for string length only using #define MAX_USER_NAME 128
  * NONE_CT: accepted values ['none', 'off'] case ignored
@@ -95,6 +100,6 @@ char *myfgets(char **destStr, int *lineNumber, FILE *filePtr);
 
 int file2LineInfoList(DLIST *list, char const *filename);
 
-
+char *ct2Str(CONF_TYPE ct);
 
 #endif /*END CONFIGURE_H_ **/

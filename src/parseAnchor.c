@@ -18,7 +18,10 @@
 
 /* parseHtmlFile():
  * Parses ANCHOR TAGS in html input file pointed to by 'filename' parameter.
- * Extracted strings are inserted into a SORTED string list parameter 'destList'.
+ * Extracted strings are inserted into a ALPHABETICALLY SORTED string list
+ * specified by parameter 'destList'.
+ *
+ * Caller initials 'destList'; it is assumed to be empty string list.
  *
  ****************************************************************************/
 

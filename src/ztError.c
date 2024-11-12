@@ -24,6 +24,10 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
    "ztInvalidArg",
    "Invalid argument for specified option."},
 
+  {ztInvalidUsage,
+   "ztInvalidUsage",
+   "Invalid usage of function or program."},
+
   {ztUnknownOption,
    "ztUnknownOption",
    "Unknown option specified."},
@@ -52,6 +56,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
   {ztStringNotFound,
    "ztStringNotFound",
    "String not found in list or file"
+  },
+
+  {ztNullPointer,
+   "ztNullPointer",
+   "Null pointer is encountered, null parameter maybe in function."
   },
 
   {ztMalformedStr,
@@ -184,6 +193,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
   {ztFnameSlashEnd,
    "ztFnameSlashEnd",
    "Filename can not end with a slash character"},
+
+  {ztFnameMalformed,
+   "ztFnameMalformed",
+   "Entry can not start or end with period, underscore or dash character. Only one period per entry."
+  },
 
   {ztStrNotPath,
    "ztStrNotPath",
@@ -338,6 +352,11 @@ ZT_ERROR_ENTRY    ztErrorTable[] = {
   {ztNoCookieToken,
    "ztNoCookieToken",
    "Missing cookie token, failed getCookieToken() with NULL result"},
+
+  {ztExpiredCookie,
+   "ztExpiredCookie",
+   "Tested cookie structure has expired time"
+  },
 
   {ztNoCurlSession,
    "ztNoCurlSession",

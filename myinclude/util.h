@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <limits.h>
 
-
 #ifndef DLIST_H_
 #include "list.h"
 #endif
@@ -41,8 +40,19 @@
 
 /* maximum string length for one entry in filename & path.
  * NOTE: ONE entry only string length - one part of path or file name alone.
- * NOTE: FILENAME_MAX is defined somewhere in GNU library to be PATH_MAX. **/
+ * NOTE: FILENAME_MAX is defined somewhere in GNU library to be PATH_MAX.
+ *
+ * FIXME:: to be removed (use MAX_ENTRY_LENGTH instead.
+ *
+ **********************************************************************/
 #define FNAME_MAX 255
+
+
+#define MAX_ENTRY_LENGTH 255
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 /* sane mode for making directory */
 #define MK_DIR_MODE   (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
@@ -85,11 +95,13 @@ char *myStrdup(const char *src, char *filename, unsigned uLine);
 
 #define STRDUP(x) myStrdup(x, __FILE__, __LINE__)
 
-int isGoodPathPart(const char *part);
+int isGoodEntry(const char *entry);
 
 int isGoodFilename(const char *name);
 
 int isGoodDirName(const char *path);
+
+int isGoodPathPart(const char *part);
 
 char *getParentDir(char const *path);
 
@@ -117,18 +129,22 @@ char *prependCWD(const char *name);
 
 char *prependParent(const char *name);
 
+int appendEntry2Path(char **dest, char const *path, char const *name);
+
+char *appendName2Dir(const char *dir, const char *name);
+
+
+
+
 int removeSpaces(char **str);
 
 char  *removeSpaces2(char *str);
 
 int isGoodPortString (const char *port);
 
-int isOkayFormat4HTTPS(char const *source);
+int isOkayFormat4URL(char const *url);
 
 char* dropExtension(char *str);
-
-
-
 
 int IsEntryDir (char const *entry);
 
@@ -163,9 +179,13 @@ int myGetDirDL (DLIST *dstDL, char *dir);
 
 char* getFormatTime (void);
 
-int stringToUpper (char **dst, char *str);
+int string2Upper (char **dst, const char *str);
 
-int stringToLower (char **dest, char *str);
+int string2Lower (char **dest, const char *str);
+
+int hasUpper(const char *str);
+
+int hasLower(const char *str);
 
 int isGoodURL (const char *str);
 

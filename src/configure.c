@@ -93,6 +93,7 @@ int confErrLineNum;
  *****************************************************************************/
 
 /* initialConf(): function verifies CONF_ENTRY array setup by caller / client.
+ *                function then sets index member before exiting.
  *
  * Caller provide the key string and its CONF_TYPE.
  *
@@ -194,7 +195,8 @@ int isOkayKey(char const *key){
 
 void fprintCEntry(FILE *toFile, CONF_ENTRY *entry){
 
-  FILE    *fPtr;
+  FILE  *fPtr;
+  char  *ctStr;
 
   ASSERTARGS(entry);
 
@@ -216,65 +218,9 @@ void fprintCEntry(FILE *toFile, CONF_ENTRY *entry){
   else
     fprintf(fPtr, "Value is not set.\n");
 
-  if ( ! OK_CONF_TYPE(entry->ctype))
+  ctStr = ct2Str(entry->ctype);
 
-    fprintf(fPtr, "Configure Type is invalid.\n");
-
-  else {
-
-    fprintf(fPtr, "Configure Type is:");
-
-    switch (entry->ctype) {
-    case FILE_CT:
-
-      fprintf(fPtr, "FILE_CT.\n");
-      break;
-
-    case DIR_CT:
-
-      fprintf(fPtr, "DIR_CT.\n");
-      break;
-
-    case INET_URL_CT:
-
-      fprintf(fPtr, "INET_URL_CT.\n");
-      break;
-
-    case PORT_CT:
-
-      fprintf(fPtr, "PORT_CT.\n");
-      break;
-
-    case NAME_CT:
-
-      fprintf(fPtr, "NAME_CT.\n");
-      break;
-
-    case BOOL_CT:
-
-      fprintf(fPtr, "BOOL_CT.\n");
-      break;
-
-    case NONE_CT:
-
-      fprintf(fPtr, "NONE_CT.\n");
-      break;
-
-    case DIGITS9_CT:
-
-      fprintf(fPtr, "DIGITS9_CT.\n");
-      break;
-
-    case ANY_CT:
-
-      fprintf(fPtr, "ANY_CT.\n");
-      break;
-
-    default:
-
-      break;
-    }
-  }
+  fprintf(fPtr, "Configure Type is: %s\n", ctStr);
 
   fprintf(fPtr, "Index is: %d.\n\n", entry->index);
 
@@ -658,6 +604,8 @@ void fprintLineInfoList(FILE *dstFP, DLIST *list){
 
   }
 
+  fprintf(filePtr, "fprintLineInfoList(): Done.\n\n");
+
   return;
 
 } /* END fprintLineInfoList() **/
@@ -698,6 +646,7 @@ int configureGetValues(CONF_ENTRY *ceArray, int *numFound, char *confFile){
     fprintf(stderr, "configureGetValues(): Error failed file2LineInfoList() function.\n");
     return result;
   }
+//fprintLineInfoList(stdout, confList);
 
   /* configure file maybe empty or all comments - nothing to do. **/
   if(DL_SIZE(confList) == 0){
@@ -710,7 +659,7 @@ int configureGetValues(CONF_ENTRY *ceArray, int *numFound, char *confFile){
   /* get key and value tokens **/
   char    *delimiterKey = "=\040\t"; /* set [= SPACE and TAB] **/
   char    *keyTok;
-  char    *delimiterValue = "=\040\t\r\n";
+  char    *delimiterValue = "=\r\n"; /* removed \040\t */
   char    *valueTok;
   ELEM    *elem;
   LINE_INFO    *lineInfo;
@@ -748,6 +697,12 @@ int configureGetValues(CONF_ENTRY *ceArray, int *numFound, char *confFile){
       fprintf(stderr, "configureGetValues(): Error failed to get key token or value token.\n");
       return ztParseError;
     }
+
+    /* remove leading and trailing spaces **/
+    // removeSpaces(&keyTok); strtok() does this - space is in delimiters character set
+    removeSpaces(&valueTok);
+
+
 /*
 printf("configureGetValues():\n"
 		"   lineInfo->string :   <%s>\n"
@@ -838,6 +793,11 @@ int setConfValue(CONF_ENTRY *entry, char const *value){
 
   ASSERTARGS(entry && value);
 
+/*
+printf("setConfValue(): value to set: <%s>\n", value);
+printf("setConfValue(): set in entry with key is: <%s>\n\n", entry->key);
+*/
+
   if(strlen(value) == 0)
 
     return ztInvalidArg;
@@ -866,8 +826,8 @@ int setConfValue(CONF_ENTRY *entry, char const *value){
 
   case INET_URL_CT:
 
-    if(isOkayFormat4HTTPS(value) != TRUE)
-
+//    if(isOkayFormat4HTTPS(value) != TRUE)
+    if(isOkayFormat4URL(value) != TRUE)
       return ztConfInvalidValue;
 
     break;
@@ -922,7 +882,7 @@ int setConfValue(CONF_ENTRY *entry, char const *value){
       (strspn(value, allowed) != strlen(value)) ||
 	  value[0] == '0'){
 
-      fprintf (stderr, "Error in configuration file; invalid sequence number for \"BEGIN\" value.\n"
+      fprintf (stderr, "Error in configuration file; invalid sequence number value.\n"
                        "Valid sequence number is all digits with length between [4 - 9] "
                        "digits and does not start with '0'.\n"
                        "Invalid value found: [%s].\n", value);
@@ -945,3 +905,42 @@ int setConfValue(CONF_ENTRY *entry, char const *value){
   return ztSuccess;
 
 } /* END setConfValue() **/
+
+/*
+FILE_CT= 1,
+DIR_CT,
+INET_URL_CT,
+PORT_CT,
+NAME_CT,
+BOOL_CT,
+NONE_CT,
+DIGITS9_CT,
+ANY_CT,
+INVALID_CT
+
+*/
+
+CT2STRING CT_STR_TABLE[] = {
+
+  {FILE_CT, "FILE_CT"},
+  {DIR_CT, "DIR_CT"},
+  {INET_URL_CT, "INET_URL_CT"},
+  {PORT_CT, "PORT_CT"},
+  {NAME_CT, "NAME_CT"},
+  {BOOL_CT, "BOOL_CT"},
+  {NONE_CT, "NONE_CT"},
+  {DIGITS9_CT, "DIGITS9_CT"},
+  {ANY_CT, "ANY_CT"},
+  {INVALID_CT, "INVALID_CT"}
+
+};
+
+char *ct2Str(CONF_TYPE ct){
+
+  if((ct < 1) || (ct > INVALID_CT - 1))
+
+    return CT_STR_TABLE[INVALID_CT - 1].str;
+
+  return CT_STR_TABLE[ct - 1].str;
+
+} /* END ct2Str() **/

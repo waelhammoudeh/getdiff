@@ -53,7 +53,8 @@
  *
  *********************************/
 
-#define VERSION "0.01.43"
+//#define VERSION "0.01.43" up to "0.01.77"
+#define VERSION "0.01.77"
 
 /* maximum allowed number of change files to download per invocation **/
 #define MAX_OSC_DOWNLOAD 61
@@ -67,116 +68,154 @@
 
 extern  char    *progName;
 extern  int     fVerbose;
-
-typedef struct SETTINGS_ {
-
-  char   *usr;
-  char   *pswd;
-  char   *source;
-  char   *rootWD;
-  char   *workDir;
-  char   *diffDir;
-  char   *confFile;
-  char   *logFile;
-  char   *newDiffersFile;
-
-  char   *scriptFile;
-  char   *jsonFile;
-  char   *cookieFile;
-
-  char   *startNumber;
-
-  char   *prevStateFile;
-  char   *latestStateFile;
-  char   *prevSeqFile;
-
-  char   *htmlFile;
-
-  char   *tstSrvr;
-  int    noNewDiffers;
-  int    verbose;
-  int    textOnly; /* flag, when set download 'state.txt' files only; no change files! **/
-
-} SETTINGS;
+extern  FILE   *fLogPtr;
 
 
-typedef struct PATH_PARTS_ {
+typedef struct SKELETON_ {
 
-  char   path[13];
-  char   childPath[10];
-  char   parentPath[6];
+  char *workDir;
+  char *tmp;
 
-  char   parentEntry[4];
-  char   childEntry[4];
-  char   file[4];
+  char *geofabrik;
+  char *planet;
+  char *planetMin;
+  char *planetHour;
+  char *planetDay;
 
-} PATH_PARTS;
+} SKELETON;
 
+typedef struct GD_FILES_ { // get differ files
 
-typedef struct STATE_INFO_{
+  // non-temporary files
+  char *lockFile;
+  char *logFile;
+  char *previousSeqFile; // ID; sequence number
+  char *prevStateFile;   // member to be removed
+  char *newDiffersFile;
+  char *rangeFile;
 
-  struct tm timestampTM;
-  char      *sequenceNumber;
-  char      *originalSequenceOSM; /* not used **/
+  // temporary files
+  char *latestStateFile;
 
-  time_t     timeValue;
-  PATH_PARTS *pathParts;
+} GD_FILES;
+
+typedef struct MY_SETTING_ {
+
+  char *source;
+  char *rootWD;
+  char *configureFile;
+  char *usr;
+  char *pswd;
+  char *startNumber;
+  char *endNumber;
+
+  int verbose;
+  int newDifferOff;
+
+  int textOnly;
+
+} MY_SETTING;
+
+typedef struct URL_PARTS_ { // not used?
+	char scheme[8];
+	char server[64];
+	char dpage[64]; // differs page (where latest state.txt file is found)
+} URL_PARTS;
+
+#define STATE_EXT ".state.txt"
+#define CHANGE_EXT ".osc.gz"
+
+typedef struct PATH_PART_ {
+
+  char sequenceNum[10];
+
+  char rootEntry[5];  /* 3 characters (digits) + ending slash character
+                         for both rootEntry & parentEntry. **/
+  char parentEntry[5];
+  char fileEntry[4];  /* fileEntry does NOT end with slash **/
+
+  char parentPath[10]; /* Parent Page / differs directory listing **/
+  char filePath[16];
+
+} PATH_PART;
+
+typedef struct STATE_INFO_ {
+
+  char timeString[24];
+  char seqNumStr[10];
+  char originalSeqStr[10];
+
+  int  isGeofabrik;
+
+  PATH_PART *pathPart;
+  struct tm *timestampTM;
+  time_t    timeValue;
 
 } STATE_INFO;
 
+int getSettings(MY_SETTING *settings, int argc, char* const argv[]);
 
-void printSettings(FILE *toFile, SETTINGS *settings);
+int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]);
 
-char *appendName2Path(char const *path, char const *name);
+int setupFilesys(SKELETON *directories, GD_FILES *files, const char *root);
 
-int updateSettings (SETTINGS *settings, CONF_ENTRY confEntries[]);
+int buildDirectories(SKELETON *dir, const char *where);
 
-int setFilenames(SETTINGS *settings);
+int setFilenames(GD_FILES *gdFiles, SKELETON *dir);
 
-int isOkaySource(CURLU *curlSourceHandle);
+int chkRequired(MY_SETTING *settings, char *prevStateFile);
 
-int logMessage(FILE *to, char *msg);
+int isSourceSupported(char const *source);
+
+int isSupportedScheme(const char *scheme);
+
+int isSupportedServer(const char *servername);
+
+int isPlanetPath(const char *path);
+
+int isGeofabrikPath(const char *path);
+
+char *setDiffersDirPrefix(SKELETON *skl, const char *src);
+
+char *getLoginToken(MY_SETTING *setting, SKELETON *myDir);
+
+PATH_PART *initialPathPart(void);
+
+void zapPathPart(void **pathPart);
+
+STATE_INFO *initialStateInfo();
+
+void zapStateInfo(STATE_INFO **si);
 
 int stateFile2StateInfo(STATE_INFO *stateInfo, const char *filename);
 
 int isStateFileList(STRING_LIST *list);
 
-int parseTimestampLine(struct tm *tmStruct, char *timeString);
+char *stateFile2SequenceString(const char *filename);
 
-int parseSequenceLine(char **sequenceString, const char *line);
+int sequence2PathPart(PATH_PART *pathPart, const char *sequenceStr);
 
 int isGoodSequenceString(const char *string);
 
-int readStartID(char **idString, char *filename);
-
-int writeStartID (char *idStr, char *filename);
-
-//int myDownload(CURLU *parseHandle, CURL *downloadHandle, char *remotePathSuffix, char *localFile);
 int myDownload(char *remotePathSuffix, char *localFile);
 
-int seq2PathParts(PATH_PARTS *pathParts, const char *sequenceStr);
+char *fetchLatestSequence(char *remoteName, char *localDest);
 
-void fprintPathParts(FILE *file, PATH_PARTS *pp);
+int areNumsGoodPair(const char *startNum, const char *endNum);
 
-STATE_INFO *initialStateInfo();
+int isRemoteFile(char *remoteSuffix);
 
-int getNewDiffersList(STRING_LIST *downloadList, PATH_PARTS *startPP,
-		             PATH_PARTS *latestPP, SETTINGS *settings, int includeStartFiles);
+int areAdjacentStrings(char *sourceSuffix, char *firstStr, char *secondStr);
 
-int insertFileWithPath(STRING_LIST *toList, ELEM *startElem, char *path);
+int isEndNewer(PATH_PART *startPP, PATH_PART *endPP);
 
-int downloadFiles(STRING_LIST *completed, STRING_LIST *downloadList, SETTINGS *settings);
+int makeOsmDir(PATH_PART *startPP, PATH_PART *latestPP, const char *rootDir);
 
-int makeOsmDir(PATH_PARTS *startPP, PATH_PARTS *latestPP, const char *rootDir);
+int getDiffersList(STRING_LIST *destList, PATH_PART *startPP, PATH_PART *endPP);
 
-void printfWriteMsg(char *msg,FILE *tof);
+int downloadFilesList(STRING_LIST *completed, STRING_LIST *downloadList, char *localDestPrefix, int textOnly);
 
-int writeNewerFiles(char const *toFile, STRING_LIST *list);
-
-int getHeader(const char *tofile, const char *pathSuffix);
-
-int getListHeaders(STRING_LIST *list, SETTINGS *settings);
-
+int getParentPage(STRING_LIST *destList, char *parentSuffix);
 
 
 #endif /* GETDIFF_H_ */

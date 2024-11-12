@@ -14,6 +14,7 @@ typedef enum ZT_EXIT_CODE_ {
   ztSuccess = 0,
   ztMissingArg,
   ztInvalidArg,
+  ztInvalidUsage,
   ztUnknownOption,
   ztOptionMissingArg,
   ztMalformedCML,
@@ -21,6 +22,7 @@ typedef enum ZT_EXIT_CODE_ {
   ztEmptyString,
   ztNotString,
   ztStringNotFound,
+  ztNullPointer,
 
   ztMalformedStr,
   ztInvalidLatValue,
@@ -57,6 +59,8 @@ typedef enum ZT_EXIT_CODE_ {
   ztFnamePeriod,
   ztFnameMultiSlashes,
   ztFnameSlashEnd,
+
+  ztFnameMalformed, // replaces ztFnameHyphen, ztFnameUnderscore & ztFnamePeriod,
 
   ztStrNotPath,
   ztNoRelativePath,
@@ -106,6 +110,7 @@ typedef enum ZT_EXIT_CODE_ {
 
   ztNotCookieFile,
   ztNoCookieToken,
+  ztExpiredCookie,
 
   ztNoCurlSession,
   ztOldCurl,
