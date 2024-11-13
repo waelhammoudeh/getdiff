@@ -368,6 +368,15 @@ int main(int argc, char *argv[]){
     fprintf(stdout, "%s: Range download requested.\n", progName);
     logMessage(fLogPtr, "Range download requested.");
 
+    fprintf(stdout, "%s: Start sequence number: %s\n", progName, startSequenceNum);
+    fprintf(stdout, "%s: End sequence number: %s\n", progName, endSequenceNum);
+
+    logMessage(fLogPtr, "Start sequence number is below:");
+    logMessage(fLogPtr, startSequenceNum);
+
+    logMessage(fLogPtr, "End sequence number is below:");
+    logMessage(fLogPtr, endSequenceNum);
+
     /* firstUse flag is ignored here; startSequenceNum used is 'begin' argument.
      * handle case we do nothing **/
     if(strcmp(startSequenceNum, endSequenceNum) == 0){
@@ -380,10 +389,8 @@ int main(int argc, char *argv[]){
   }
   else{ // no 'end' argument
 
-    if(fVerbose){
-      fprintf(stdout, "%s: Getting latest 'state.txt' file from remote ...\n", progName);
-      logMessage(fLogPtr, "Getting latest 'state.txt' file from remote ...");
-    }
+    fprintf(stdout, "%s: Getting latest 'state.txt' file from remote ...\n", progName);
+    logMessage(fLogPtr, "Getting latest 'state.txt' file from remote ...");
 
     endSequenceNum = fetchLatestSequence(STATE_FILE, myFiles.latestStateFile);
     /* fetch latest sequence number from remote server; it is in 'state.txt'
@@ -397,29 +404,25 @@ int main(int argc, char *argv[]){
       goto EXIT_CLEAN;
     }
 
-    if(fVerbose){
-      fprintf(stdout, "%s: End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum: %s\n",
+    fprintf(stdout, "%s: End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum: %s\n",
               progName, endSequenceNum);
-      logMessage(fLogPtr, "End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum is below:");
-      logMessage(fLogPtr, endSequenceNum);
-    }
+    logMessage(fLogPtr, "End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum is below:");
+    logMessage(fLogPtr, endSequenceNum);
 
     if(firstUse){
 
       startSequenceNum = mySetting.startNumber;
-      if(fVerbose){
-        fprintf(stdout, "%s: Program first use; start sequence number is 'begin' argument: %s.\n",
+
+      fprintf(stdout, "%s: Program first use; start sequence number is 'begin' argument: %s.\n",
                 progName, startSequenceNum);
-        logMessage(fLogPtr, "Program first use; start sequence number is 'begin' argument: --below.");
-        logMessage(fLogPtr, startSequenceNum);
-      }
+      logMessage(fLogPtr, "Program first use; start sequence number is 'begin' argument: --below.");
+      logMessage(fLogPtr, startSequenceNum);
+
     }
     else { // not first use
 
-      if(fVerbose){
-        fprintf(stdout, "%s: Not first use for program, reading previous ID for start sequence number.\n", progName);
-        logMessage(fLogPtr, "Not first use for program, reading previous ID for start sequence number.");
-      }
+      fprintf(stdout, "%s: Reading previous sequence ID for start sequence number.\n", progName);
+      logMessage(fLogPtr, "Reading previous sequence ID for start sequence number.");
 
       startSequenceNum = readPreviousID(myFiles.previousSeqFile);
 
@@ -431,8 +434,8 @@ int main(int argc, char *argv[]){
         goto EXIT_CLEAN;
       }
 
-      fprintf(stdout, "%s: startSequenceNum is set as previousID : %s\n", progName, startSequenceNum);
-      logMessage(fLogPtr, "startSequenceNum is set as previousID : -- below");
+      fprintf(stdout, "%s: startSequenceNum is set as previousSeqID : %s\n", progName, startSequenceNum);
+      logMessage(fLogPtr, "startSequenceNum is set as previousSeqID : -- below");
       logMessage(fLogPtr, startSequenceNum);
 
       fUsingPreviousID = 1;
@@ -454,10 +457,10 @@ int main(int argc, char *argv[]){
 
   result = areNumsGoodPair(startSequenceNum, endSequenceNum);
   if(result == ztFileNotFound){
-    fprintf(stderr, "%s: Error failed areNumbsGoodPair() with file not found error! "
-            "Please note that Geofabrik does not keep differ files for ever.\n", progName);
-    logMessage(fLogPtr, "Error failed areNumbsGoodPair() with file not found error! "
-               "Please note that Geofabrik does not keep differ files for ever.");
+    fprintf(stderr, "%s: Error failed areNumbsGoodPair() with file not found error from remote server!\n"
+            "Please note that Geofabrik does not keep differ files for very long time.\n", progName);
+    logMessage(fLogPtr, "Error failed areNumbsGoodPair() with file not found error from remote server!");
+    logMessage(fLogPtr, "Please note that Geofabrik does not keep differ files for very long time.");
 
     value2Return = result;
     goto EXIT_CLEAN;
@@ -543,12 +546,12 @@ int main(int argc, char *argv[]){
 
     fprintf(stdout, "%s: Warning, trimming over-sized list ...\n"
             "New differs list size is: <%d> change files; trimming to maximum allowed per run <%d>\n"
-            "Please wait at least 60 minutes for a rerun to fetch the rest.\n"
+            "Please wait at least 30 minutes for a rerun to fetch the rest.\n"
             "This is so we do not overwhelm the server and to avoid sending too many requests.\n",
             progName, (DL_SIZE(newDiffersList) / 2), MAX_OSC_DOWNLOAD);
 
     logMessage(fLogPtr, "Trimming new differs list to 61 change files. "
-               "Please wait at least 60 minutes before a rerun.");
+               "Please wait at least 30 minutes before a rerun.");
 
     char  *removedString; /* pointer to data in removed element **/
 
@@ -600,9 +603,9 @@ int main(int argc, char *argv[]){
     }
   } //end if(size big)
 
-  /* make sure we have local directories set for new differ files,
-   * directory entries are made as needed for start & end files.
-   ******************************************************************/
+  /* make sure we have local directories setup for new differ files,
+   * directory entries are made as needed for start & end sequence numbers.
+   **********************************************************************/
   result = makeOsmDir(&startSeqPP, &endSeqPP, diffDestPrefix);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed makeOsmDir().\n", progName);
@@ -623,6 +626,9 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
 
+  fprintf(stdout, "%s: Downloading <%d> files...\n\n", progName, DL_SIZE(newDiffersList));
+  logMessage(fLogPtr, "Downloading files...");
+
   result = downloadFilesList(completedList, newDiffersList, diffDestPrefix, mySetting.textOnly);
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed downloadFilesList().\n", progName);
@@ -631,6 +637,9 @@ int main(int argc, char *argv[]){
     value2Return = result;
     goto EXIT_CLEAN;
   }
+
+  fprintf(stdout, "%s: Download complete.\n\n", progName);
+  logMessage(fLogPtr, "Download complete.");
 
   char *toFile;
 
@@ -651,8 +660,8 @@ int main(int argc, char *argv[]){
       goto EXIT_CLEAN;
     }
 
-    fprintf(stdout, "%s: Wrote completed list to: %s\n", progName, toFile);
-    logMessage(fLogPtr, "Wrote completed list to below:");
+    fprintf(stdout, "%s: Wrote (appended) completed list to file: %s\n", progName, toFile);
+    logMessage(fLogPtr, "Wrote (appended) completed list to file below:");
     logMessage(fLogPtr, toFile);
 
   }

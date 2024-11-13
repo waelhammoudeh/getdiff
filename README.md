@@ -1,14 +1,13 @@
 # Changes:
   - Current version: 0.01.77
-  - New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between sequence numbers.
+  - New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between specified sequence numbers.
   - Implemented a lock file mechanism to limit work directory access to one instance of the program.
   - Fully supports OSM planet servers.
   - Removed "diff" directory from working directory. New downloads destination is based on server name and file path.
+    **NOTE:** My "op_update_db.sh" script has been updated to use the new path, use updated script.
   - The downlod2File() in curl functions got a progress meter.
+  - Code to retrieve cookie (using Geofabrik python script) handles no output from the latest script. New script does not provide any output of any kind!
   - Improved and restructured code, hopefully it is easier to understand and follow.
-
-
-
 
 # Getdiff
 Program to fetch or download OpenStreetMaps differ files  also known as "change files" from remote server.
@@ -27,17 +26,6 @@ Simply navigate to that directory and run the command 'make' to build the progra
 Please note that the makefile currently doesn't perform checks for the minimum required version of "libcurl."
 Implementing such checks in the makefile has proven to be challenging and problematic. While using "autotools" could be a potential solution,
 there are no immediate plans for its implementation. If you're interested in contributing to this aspect, your volunteer efforts would be appreciated.
-
-## Improvements
-  - Utilized change files sequence number to locate files on remote servers and on local machine.
-
-  - C-Library time functions are used to compare dates.
-
-  - Improved Curl Library function calls and error handling.
-
-  - Refactored HTML parsing functions.
-
-  - Implemented periodic time delay when downloading as not to overwhelm remote server.
 
 ## Usage:
 
