@@ -402,29 +402,29 @@ void fprintCookie(FILE *file, COOKIE *ck){
 
   if(file)  fPointer = file;
 
-  fprintf(fPointer, "printCookie(): Cookie members are:\n\n");
+  fprintf(fPointer, "fprintCookie(): Cookie members are:\n\n");
 
   if (ck->token)
-    fprintf(fPointer, "Login Token is: <%s>\n\n", ck->token);
+    fprintf(fPointer, "  Login Token is: <%s>\n\n", ck->token);
   else
-    fprintf(fPointer, "Login Token is NOT set.\n");
+    fprintf(fPointer, "  Login Token is NOT set.\n");
 
   if(ck->expireTimeStr)
-    fprintf(fPointer, "expireTimeStr is: <%s>\n\n", ck->expireTimeStr);
+    fprintf(fPointer, "  expireTimeStr is: <%s>\n", ck->expireTimeStr);
   else
-    fprintf(fPointer, "expireTimeStr is NOT set.\n");
+    fprintf(fPointer, "  expireTimeStr is NOT set.\n");
 
-  fprintf(fPointer, "expireSeconds is: <%ld>\n\n", ck->expireSeconds);
+  fprintf(fPointer, "  expireSeconds is: <%ld>\n", ck->expireSeconds);
 
   char buffer[80];
 
   strftime(buffer, 80, "%c", &(ck->expireTM));
 
-  fprintf(fPointer, "expireTM \"fromatted by strftime()\": <%s>\n\n", buffer);
+  fprintf(fPointer, "  expireTM \"fromatted by strftime()\": <%s>\n\n", buffer);
 
 #ifdef EXPLAIN_TIME
-  fprintf(fPointer, "Note that time is shown as HH:MM:SS\n"
-	  "Using 24 hours; please read all three!\n\n");
+  fprintf(fPointer, "  Note that time is shown as HH:MM:SS\n"
+	  "  Using 24 hours; please read all three!\n\n");
 
   struct tm *localExpireTimePtr, *gmExpireTimePtr;
   /* localtime() & gmtime() allocate memory for this; we do NOT.
@@ -436,13 +436,13 @@ void fprintCookie(FILE *file, COOKIE *ck){
 
   strftime(buffer, 80, "%c", gmExpireTimePtr);
 
-  fprintf(fPointer, "Greenwich Expire Time: <%s>\n\n", buffer);
+  fprintf(fPointer, "  Greenwich Expire Time: <%s>\n", buffer);
 
   localExpireTimePtr = localtime(&(ck->expireSeconds));
 
   strftime(buffer, 80, "%c", localExpireTimePtr);
 
-  fprintf(fPointer, "Local Expire Time:     <%s>\n\n", buffer);
+  fprintf(fPointer, "  Local Expire Time:     <%s>\n\n", buffer);
 
   time_t  currentTimeValue;
   struct tm *gmCurrentTime, *localCurrentTime;
@@ -453,14 +453,16 @@ void fprintCookie(FILE *file, COOKIE *ck){
 
   strftime(buffer, 80, "%c", gmCurrentTime);
 
-  fprintf(fPointer, "Greenwich Current Time: <%s>\n\n", buffer);
+  fprintf(fPointer, "  Greenwich Current Time: <%s>\n", buffer);
 
   localCurrentTime = localtime(&currentTimeValue);
 
   strftime(buffer, 80, "%c", localCurrentTime);
 
-  fprintf(fPointer, "Local Current Time:     <%s>\n\n", buffer);
+  fprintf(fPointer, "  Local Current Time:     <%s>\n\n", buffer);
 #endif
+
+  fprintf(fPointer, "fprintCookie(): Done.\n\n");
 
   return;
 }

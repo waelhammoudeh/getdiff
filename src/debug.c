@@ -44,7 +44,7 @@ void fprintPathPart(FILE *file, PATH_PART *pp){
 
 } /* END fprintPathPart() **/
 
-void fprintStateInfo2(FILE *toStream, STATE_INFO *si){
+void fprintStateInfo(FILE *toStream, STATE_INFO *si){
 
   FILE *toFP = stdout;
 
@@ -152,8 +152,8 @@ int logMessage(FILE *to, char *msg){
 
 } /* END logMessage() **/
 
-#define OK_TEMPLATE "member \"%s\" is set to: %s\n"
-#define NEG_TEMPLATE "member \"%s\" is not set.\n"
+#define OK_TEMPLATE "  member \"%s\" is set to: %s\n"
+#define NEG_TEMPLATE "  member \"%s\" is not set.\n"
 
 void fprintSkeleton(FILE *toFP, SKELETON *skl){
 
@@ -315,19 +315,19 @@ void fprintSetting(FILE *toFP, MY_SETTING *settings){
     fprintf(destFP, NEG_TEMPLATE, "endNumber");
 
   if(settings->verbose)
-    fprintf(destFP, "member \"verbose\" is On.\n");
+    fprintf(destFP, "  member \"verbose\" is On.\n");
   else
-    fprintf(destFP, "member \"verbose\" is Off.\n");
+    fprintf(destFP, "  member \"verbose\" is Off.\n");
 
   if(settings->newDifferOff)
-    fprintf(destFP, "member \"newDifferOff\" is On.\n");
+    fprintf(destFP, "  member \"newDifferOff\" is On.\n");
   else
-    fprintf(destFP, "member \"newDifferOff\" is Off.\n");
+    fprintf(destFP, "  member \"newDifferOff\" is Off.\n");
 
   if(settings->textOnly)
-    fprintf(destFP, "member \"textOnly\" is On.\n");
+    fprintf(destFP, "  member \"textOnly\" is On.\n");
   else
-    fprintf(destFP, "member \"textOnly\" is Off.\n");
+    fprintf(destFP, "  member \"textOnly\" is Off.\n");
 
   fprintf(destFP, "fprintSetting() is Done.\n\n");
 

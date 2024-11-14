@@ -278,8 +278,8 @@ void showHelp(void){
     "to the same path on the local machine as that on the remote server. \n"
 
     STYLE_BOLD
-	"Please note that \"diff\" directory is no longer created or used.\n\n"
-	STYLE_NO_BOLD
+    "Please note that \"diff\" directory is no longer created or used.\n\n"
+    STYLE_NO_BOLD
 
 
     "The 'newerFiles.txt' file in the working directory acts as a \"bucket\" storing a list\n"
@@ -288,11 +288,11 @@ void showHelp(void){
     "file to apply the update and remove 'newerFiles.txt' file when done; effectively\n"
     "emptying the \"bucket\".\n\n"
 
-	"When using the 'range' function, program appends a list of downloaded files to file\n"
-	"'rangeList.txt' in its working directory.\n\n"
+    "When using the 'range' function, program appends a list of downloaded files to file\n"
+    "'rangeList.txt' in its working directory.\n\n"
 
-    "Program writes progress messages to its log file in working directory, using 'verbose'\n"
-    "option will write progress messages to the terminal also.\n\n"
+    "Program writes minimal progress messages to terminal and log file in working directory,"
+    "using 'verbose' option will generate extra messages for debugging.\n\n"
 
 
     "Program writes the following files in its working directory:\n\n"
@@ -301,6 +301,7 @@ void showHelp(void){
     " - getdiff.log: program log file, you need to empty it once in awhile.\n"
     " - newerFiles.txt: our \"bucket\" file, your script need to empty it.\n"
     " - previous.seq: sequence number of last downloaded change file.\n"
+	" - latest.state.txt: state file for latest successfully downloaded file.\n"
     " - rangeList.txt: list of downloaded files when using 'range' function.\n\n"
 
 	"Temporary files are written to 'tmp' directory under the program directory.\n\n"

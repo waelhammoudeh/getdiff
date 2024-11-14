@@ -114,8 +114,6 @@ int main(int argc, char *argv[]){
     return ztInvalidUsage;
   }
 
-  fprintf(stdout, "%s: Got lock Okay, lockFD is: %d\n", progName, lockFD);
-
   /* Note that we pass 'lockFD' to cookie.c functions if we have to use'em below with:
    *
    *   fd2CloseFD = lockFD; // let fork()ed child release it -- cookie.c
@@ -124,6 +122,8 @@ int main(int argc, char *argv[]){
 
   if (mySetting.verbose == 1){ /* set global 'fVerbose' & make some noise! **/
     fVerbose = 1;
+    fprintf(stdout, "%s: Starting...\n", progName);
+    fprintf(stdout, "%s: Got lock Okay, lockFD is: %d\n", progName, lockFD);
     fprintSetting(stdout, &mySetting);
     fprintSkeleton(stdout, &myDir);
     fprintGdFiles(stdout, &myFiles);
@@ -220,8 +220,8 @@ int main(int argc, char *argv[]){
     return ztFatalError;
   }
   if(fVerbose){
-    fprintf(stdout, "%s: New differs will be saved to: %s\n", progName, diffDestPrefix);
-    logMessage(fLogPtr, "New differs will be saved to directory below:");
+    fprintf(stdout, "%s: Download destination for new differs: %s\n", progName, diffDestPrefix);
+    logMessage(fLogPtr, "Download destination for new differs is below:-");
     logMessage(fLogPtr, diffDestPrefix);
   }
 
@@ -395,6 +395,7 @@ int main(int argc, char *argv[]){
     endSequenceNum = fetchLatestSequence(STATE_FILE, myFiles.latestStateFile);
     /* fetch latest sequence number from remote server; it is in 'state.txt'
      * file found at program required 'source' argument with name 'state.txt'.
+     * initially placed in our 'tmpDir', on success moved to our 'workDir'.
      ************************************************************************/
     if(!endSequenceNum){
       fprintf(stderr, "%s: Error failed fetchLatestSequence().\n", progName);
@@ -404,9 +405,9 @@ int main(int argc, char *argv[]){
       goto EXIT_CLEAN;
     }
 
-    fprintf(stdout, "%s: End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum: %s\n",
+    fprintf(stdout, "%s: End Sequence Number is set to sequence number from 'latest.state.txt' file; endSequenceNum: %s\n",
               progName, endSequenceNum);
-    logMessage(fLogPtr, "End Sequence Number is set to sequence number from latest 'state.txt'; endSequenceNum is below:");
+    logMessage(fLogPtr, "End Sequence Number is set to sequence number from 'latest.state.txt' file; endSequenceNum is below:");
     logMessage(fLogPtr, endSequenceNum);
 
     if(firstUse){
@@ -421,8 +422,8 @@ int main(int argc, char *argv[]){
     }
     else { // not first use
 
-      fprintf(stdout, "%s: Reading previous sequence ID for start sequence number.\n", progName);
-      logMessage(fLogPtr, "Reading previous sequence ID for start sequence number.");
+      fprintf(stdout, "%s: Reading 'previous.seq' file (ID file) for start sequence number.\n", progName);
+      logMessage(fLogPtr, "Reading 'previous.seq file (ID file) for start sequence number.");
 
       startSequenceNum = readPreviousID(myFiles.previousSeqFile);
 
@@ -434,8 +435,8 @@ int main(int argc, char *argv[]){
         goto EXIT_CLEAN;
       }
 
-      fprintf(stdout, "%s: startSequenceNum is set as previousSeqID : %s\n", progName, startSequenceNum);
-      logMessage(fLogPtr, "startSequenceNum is set as previousSeqID : -- below");
+      fprintf(stdout, "%s: startSequenceNum is set from 'previous.seq' file: %s\n", progName, startSequenceNum);
+      logMessage(fLogPtr, "startSequenceNum is set as 'previous.seq' file, value below:");
       logMessage(fLogPtr, startSequenceNum);
 
       fUsingPreviousID = 1;
@@ -698,6 +699,24 @@ int main(int argc, char *argv[]){
     if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed writeStartID().\n", progName);
       logMessage(fLogPtr, "Error failed writeStartID().");
+
+      value2Return = result;
+      goto EXIT_CLEAN;
+    }
+
+    /* move latest.state.txt from our /tmp to working directory
+     * rename() function is used to move the file. **/
+
+    char permLocation[1024] = {0};
+    if(SLASH_ENDING(myDir.workDir))
+      sprintf(permLocation, "%s%s", myDir.workDir, LATEST_STATE_FILE);
+    else
+      sprintf(permLocation, "%s/%s", myDir.workDir, LATEST_STATE_FILE);
+
+    result = renameFile(myFiles.latestStateFile, permLocation);
+    if(result != ztSuccess){
+      fprintf(stderr, "%s: Error failed rename() to move latest state file.\n", progName);
+      logMessage(fLogPtr, "Error failed rename() to move latest state file.");
 
       value2Return = result;
       goto EXIT_CLEAN;
@@ -2508,13 +2527,15 @@ int areNumsGoodPair(const char *startNum, const char *endNum){
 
 } /* END areNumsGoodPair() **/
 
-/* isRemoteFile(): is file available - exist - on remote server
+/* isRemoteFile2(): is file available - exist - on remote server?
  *
  * - function tries to retrieve 'header' ONLY for file from remote server
  * - if 'header' was NOT found, then file does NOT exist on remote
- * - 'header' is saved to workDir with appended ".Header" to filename.
+ * - 'header' is saved to tmpDir with appended ".Header" to filename.
  *
- *******************************************************************/
+ * Caller should check returns for any error.
+ *
+ ******************************************************************/
 
 int isRemoteFile(char *remoteSuffix){
 
@@ -2523,58 +2544,58 @@ int isRemoteFile(char *remoteSuffix){
   ASSERTARGS(remoteSuffix && toDir);
 
   int  result;
-  CURLUcode curluCode; /* returned type by curl_url_get() & curl_url_set() **/
 
-  char *currentPath;
-  char remoteFile[PATH_MAX] = {0};
+  /* this function uses myDownload() to get header for file from remote:
+     prototype: int myDownload(char *remotePathSuffix, char *localFile)
+     first argument is our argument here 'remoteSuffix' we make string
+     for the second argument, saving header to 'tmpDir'.
+  *********************************************************************/
 
   char localFile[PATH_MAX] = {0};
 
-
-  curluCode = curl_url_get (curlParseHandle, CURLUPART_PATH, &currentPath, 0);
-  if (curluCode != CURLUE_OK){
-    fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n", progName);
-    logMessage(fLogPtr, "Error failed curl_url_get() for path part.");
-
-    return ztFailedLibCall;
-  }
-
-  /* make 'path' part replacement - avoiding multiple slashes **/
-  if(remoteSuffix[0] == '/')
-    remoteSuffix++;
-
-  if(SLASH_ENDING(currentPath))
-    sprintf(remoteFile, "%s%s", currentPath, remoteSuffix);
-  else
-    sprintf(remoteFile, "%s/%s", currentPath, remoteSuffix);
-
-  /* replace 'path' part in parse handle **/
-  curluCode = curl_url_set (curlParseHandle, CURLUPART_PATH, remoteFile, 0);
-  if (curluCode != CURLUE_OK){
-    fprintf(stderr, "%s: Error failed curl_url_set() for path part.\n", progName);
-    logMessage(fLogPtr, "Error failed curl_url_set() for path part.");
-
-    return ztFailedLibCall;
-  }
-
-  /* make string for header file! use temporary file in /tmp **/
   if(SLASH_ENDING(toDir))
     sprintf(localFile, "%s%s.Header", toDir, lastOfPath(remoteSuffix));
   else
     sprintf(localFile, "%s/%s.Header", toDir, lastOfPath(remoteSuffix));
 
-  result = getRemoteHeader(localFile, downloadHandle, curlParseHandle);
+  /* set 2 options in global 'downloadHandle': CURLOPT_NOBODY & CURLOPT_HEADER **/
 
-  // restore 'path' part in parse handle
-  curluCode = curl_url_set (curlParseHandle, CURLUPART_PATH, currentPath, 0);
-  if (curluCode != CURLUE_OK){
-    fprintf(stderr, "%s: Error failed curl_url_set() for path part.\n", progName);
-    logMessage(fLogPtr, "Error failed curl_url_set() for path part.");
+  CURLcode curlCode;
+
+  curlCode = curl_easy_setopt(downloadHandle, CURLOPT_NOBODY, 1L);
+  if (curlCode != CURLE_OK){
+    fprintf(stderr, "%s: Error failed curl_easy_setopt() for CURLOP_NOBODY.\n", progName);
+    logMessage(fLogPtr, "Error failed curl_easy_setopt() for CURLOP_NOBODY.");
 
     return ztFailedLibCall;
   }
 
-  curl_free((void *) currentPath);
+  curlCode = curl_easy_setopt(downloadHandle, CURLOPT_HEADER, 1L);
+  if (curlCode != CURLE_OK){
+    fprintf(stderr, "%s: Error failed curl_easy_setopt() for CURLOP_HEADER.\n", progName);
+    logMessage(fLogPtr, "Error failed curl_easy_setopt() for CURLOP_HEADER.");
+
+    return ztFailedLibCall;
+  }
+
+  result = myDownload(remoteSuffix, localFile);
+
+  /* restore 2 options to defaults **/
+  curlCode = curl_easy_setopt(downloadHandle, CURLOPT_NOBODY, 0L);
+  if (curlCode != CURLE_OK){
+    fprintf(stderr, "%s: Error failed curl_easy_setopt() for CURLOP_NOBODY (unset).\n", progName);
+    logMessage(fLogPtr, "Error failed curl_easy_setopt() for CURLOP_NOBODY (unset).");
+
+    return ztFailedLibCall;
+  }
+
+  result = curl_easy_setopt(downloadHandle, CURLOPT_HEADER, 0L);
+  if (curlCode != CURLE_OK){
+    fprintf(stderr, "getRemoteHeader(): Error failed curl_easy_setopt() for CURLOP_HEADER (restore).\n");
+    logMessage(fLogPtr, "getRemoteHeader(): Error failed curl_easy_setopt() for CURLOP_HEADER (restore).");
+
+    return ztFailedLibCall;
+  }
 
 #ifdef REMOVE_TMP
   remove(localFile);
@@ -2590,7 +2611,7 @@ int isRemoteFile(char *remoteSuffix){
 
   return result;
 
-} /* END isRemoteFile() **/
+} /* END isRemoteFile2() **/
 
 /* areAdjacentStrings(): are firstStr & secondStr adjacent in string list?
  * string list is constructed from sourceSuffix.

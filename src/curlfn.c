@@ -1864,8 +1864,7 @@ int getRemoteHeader(char *localName, CURL *handle, CURLU *parseHandle){
 	  writeLogCurl(curlLogtoFP, "getRemoteHeader(): error failed download2FileRetry().");
   }
 
-
-// restore options to defaults
+  // restore options to defaults
   result = curl_easy_setopt(handle, CURLOPT_NOBODY, 0L);
   if (result != CURLE_OK){
     fprintf(stderr, "getRemoteHeader(): Error failed curl_easy_setopt() for CURLOP_NOBODY (unset).\n");
@@ -1906,7 +1905,9 @@ int progressCallback(void *userPtr, curl_off_t downloadTotal, curl_off_t downloa
 
   int numCol = w.ws_col;
 
-  int meterWidth = numCol - 12; /* downloadTotal fills this up 100% **/
+  int reservedCols = 12; // let line end show Now/Total unit KB MB?
+
+  int meterWidth = numCol - reservedCols; /* downloadTotal fills this up 100% **/
 
   double ratioReceived = ((double)downloadNow / (double)downloadTotal) * 100;
 
