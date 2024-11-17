@@ -644,8 +644,32 @@ int main(int argc, char *argv[]){
 
   char *toFile;
 
-  if(mySetting.endNumber)
+  if(mySetting.endNumber){
     toFile = myFiles.rangeFile;
+
+    if(strstr(sourceURL, "planet")){
+
+      /* prepend [minute | hour | day] to path from PLANET source
+       * this is done when using RANGE function and for server
+       * is planet server
+       * granularity
+       *****************************************************/
+      char *granularity = lastOfPath(sourceURL);
+
+      result = prependGranularity(&completedList, granularity);
+      if(result != ztSuccess){
+        fprintf(stderr, "%s: Error failed prependGranularity() function.\n", progName);
+        logMessage(fLogPtr, "Error failed prependGranularity() function.");
+
+        value2Return = result;
+        goto EXIT_CLEAN;
+      }
+      fprintf(stdout, "%s: Prepended granularity \"%s\" to path in completedList.\n",
+    		          progName, lastOfPath(sourceURL));
+      logMessage(fLogPtr, "Prepended granularity \"below\" to path in completedList.");
+      logMessage(fLogPtr, lastOfPath(sourceURL));
+    }
+  }
   else if(mySetting.newDifferOff == FALSE)
     toFile = myFiles.newDiffersFile;
   else
@@ -3057,7 +3081,8 @@ int downloadFilesList(STRING_LIST *completed, STRING_LIST *downloadList, char *l
 
     /* increment sleep time after each 4 files **/
     else if( (iCount % 4) == 0 )
-      sleepSeconds += SLEEP_INTERVAL;
+// disable increasing delay     sleepSeconds += SLEEP_INTERVAL;
+      sleepSeconds = SLEEP_INTERVAL;
 
     else ;
 
@@ -3153,3 +3178,51 @@ int getParentPage(STRING_LIST *destList, char *parentSuffix){
 
 } /* END getParentPage() **/
 
+int prependGranularity(STRING_LIST **list, char *what){
+
+  /* TODO: what should be one of [minute | hour | day] ONLY **/
+
+  ASSERTARGS(list && what);
+
+  STRING_LIST *oldList;
+  STRING_LIST *newList;
+
+  oldList = *list;
+
+  if(!oldList || !TYPE_STRING_LIST(oldList)){
+	fprintf(stderr, "%s: Error invalid argument for parameter 'list' in prependGranularity().\n", progName);
+	logMessage(fLogPtr, "Error invalid argument for parameter 'list' in prependGranularity().");
+	return ztInvalidArg;
+  }
+
+  newList = initialStringList();
+  if(!newList){
+	fprintf(stderr, "%s: Error failed initialStringList().\n", progName);
+	logMessage(fLogPtr, "Error failed initialStringList().");
+	return ztMemoryAllocate;
+  }
+
+  char buffer[1024];
+  char *oldStr, *newStr;
+
+  ELEM *elem;
+
+  elem = DL_HEAD(oldList);
+  while(elem){
+
+	oldStr = (char *)DL_DATA(elem);
+	sprintf(buffer, "/%s%s", what, oldStr);
+	newStr = STRDUP(buffer);
+
+	insertNextDL(newList, DL_TAIL(newList), (void *) newStr);
+
+    elem = DL_NEXT(elem);
+  }
+
+  zapStringList((void **) &oldList);
+
+  *list = newList;
+
+  return ztSuccess;
+
+} /* END prependGranularity() **/

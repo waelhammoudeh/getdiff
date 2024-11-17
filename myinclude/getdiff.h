@@ -217,5 +217,7 @@ int downloadFilesList(STRING_LIST *completed, STRING_LIST *downloadList, char *l
 
 int getParentPage(STRING_LIST *destList, char *parentSuffix);
 
+int prependGranularity(STRING_LIST **list, char *what);
+
 
 #endif /* GETDIFF_H_ */
