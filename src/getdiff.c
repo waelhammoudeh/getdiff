@@ -379,13 +379,14 @@ int main(int argc, char *argv[]){
 
     /* firstUse flag is ignored here; startSequenceNum used is 'begin' argument.
      * handle case we do nothing **/
-    if(strcmp(startSequenceNum, endSequenceNum) == 0){
+/*    if(strcmp(startSequenceNum, endSequenceNum) == 0){
       fprintf(stdout, "%s: Start sequence number equals end sequence number! Nothing to do; exiting.\n", progName);
       logMessage(fLogPtr, "Start sequence number equals end sequence number! Nothing to do; exiting.");
 
       value2Return = ztSuccess;
       goto EXIT_CLEAN;
     }
+*/
   }
   else{ // no 'end' argument
 
