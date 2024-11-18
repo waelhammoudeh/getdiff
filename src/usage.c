@@ -50,6 +50,8 @@ void showHelp(void){
     "                       This argument is required for first time use and ignored afterward.\n"
     "   -e, --end NUM       Specify sequence number for change file to stop downloading at.\n"
     "                       With 'begin NUM' above set, this provides a range of change files to download\n"
+    "                       When 'end' equals 'begin', that change file and its corresponding state.txt\n"
+    "                       are downloaded.\n"
     "   -u, --user NAME     Specify OSM account user name. Required for geofabrik internal server.\n"
     "   -p, --passwd SECRET Specify the password for the account above.\n"
     "   -c, --conf FILE     Configuration file to use, default {HOME}/getdiff.conf \n"
@@ -128,6 +130,7 @@ void showHelp(void){
 
       "This argument is the sequence number for change file to end or stop download at.\n"
       "Together with 'begin' set this provides a RANGE of change files to download.\n"
+      "With 'end' equals 'begin'; that change file and its corresponding state.txt are downloaded.\n"
       "Note that both sequence numbers must be from the same GRANULARITY (minute, hour or day).\n"
       "Downloaded file list are appended to 'rangeList.txt' file in working directory.\n\n";
 
