@@ -9,11 +9,9 @@
  *  corresponding 'state.txt' files from the internet.
  *
  *******************************************************************/
-/* #define _GNU_SOURCE required for strcasestr() **/
-//#define _GNU_SOURCE
 
-//#define REMOVE_TMP
-#undef REMOVE_TMP
+#define REMOVE_TMP
+//#undef REMOVE_TMP
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,31 +32,6 @@
 
 #include "debug.h"
 
-/* those names should not be changed; I use defines for them **/
-#define WORK_ENTRY         "getdiff"
-#define CONF_NAME          "getdiff.conf"
-
-#define LOCK_FILE          ".lock.getdiff"
-#define LOG_NAME           "getdiff.log"
-#define PREV_SEQ_FILE      "previous.seq"
-
-/* previous.state.txt to be removed **/
-#define PREV_STATE_FILE    "previous.state.txt"
-
-#define NEW_DIFFERS        "newerFiles.txt"
-#define RANGE_FILE         "rangeList.txt"
-#define LATEST_STATE_FILE  "latest.state.txt"
-
-#define HTML_EXT            ".html"
-
-/* "state.txt" is remote filename **/
-#define STATE_FILE         "state.txt"
-
-/* TEST_SITE test connection; list? google, osm & geofabrik **/
-#define TEST_SITE          "www.geofabrik.de"
-#define INTERNAL_SERVER    "osm-internal.download.geofabrik.de"
-
-
 /*global variables **/
 char   *progName = NULL;
 int    fVerbose = 0;
@@ -68,8 +41,8 @@ int    fUsingPreviousID = 0;
 /* curl easy handle and curl parse handle **/
 static CURL   *downloadHandle = NULL;
 static CURLU  *curlParseHandle = NULL;
-static char const *sourceURL = NULL;
-static char const *tmpDir = NULL;
+static char   *sourceURL = NULL;
+static char   *tmpDir = NULL;
 
 int main(int argc, char *argv[]){
 
@@ -85,6 +58,7 @@ int main(int argc, char *argv[]){
 
   /* get settings from command line & configuration file, function will fail
    * if work directory is not accessible - among other reasons.
+   * help is handled in parseCmdLine().
    ************************************************************************/
   result = getSettings(&mySetting, argc, argv);
   if(result != ztSuccess){
@@ -92,14 +66,21 @@ int main(int argc, char *argv[]){
     return result;
   }
 
-  SKELETON myDir;
-  GD_FILES myFiles;
+  /* source argument is required **/
+  if(! mySetting.source){
+    fprintf (stderr, "%s: Error missing required  remote 'source url' argument.\n",
+             progName);
+    return ztMissingArg;
+  }
 
   /* create program directories and setup filenames.
    * Files are NOT created here; just filenames are setup.
    * Now we know where previous sequence file is to check
    * for program first run status - is start number required?
    ********************************************************/
+  SKELETON myDir;
+  GD_FILES myFiles;
+
   result = setupFilesys(&myDir, &myFiles, mySetting.rootWD);
   if(result != ztSuccess){
     fprintf (stderr, "%s: Error failed setupFilesys() function.\n", progName);
@@ -120,21 +101,6 @@ int main(int argc, char *argv[]){
    *
    **********************************************************************************/
 
-  if (mySetting.verbose == 1){ /* set global 'fVerbose' & make some noise! **/
-    fVerbose = 1;
-    fprintf(stdout, "%s: Starting...\n", progName);
-    fprintf(stdout, "%s: Got lock Okay, lockFD is: %d\n", progName, lockFD);
-    fprintSetting(stdout, &mySetting);
-    fprintSkeleton(stdout, &myDir);
-    fprintGdFiles(stdout, &myFiles);
-  }
-
-  result = chkRequired(&mySetting, myFiles.previousSeqFile);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed chkRequired() function.\n", progName);
-    return result;
-  }
-
   /* open log file and write start heading.
    * fLogPtr is global in this file; used by other functions. **/
   fLogPtr = initialLog(myFiles.logFile);
@@ -143,7 +109,15 @@ int main(int argc, char *argv[]){
     return ztOpenFileError;
   }
 
-  if(fVerbose){ //log current settings
+  if (mySetting.verbose == 1){ /* set global 'fVerbose' & make some noise! **/
+    fVerbose = 1;
+
+    fprintf(stdout, "%s: Starting...\n", progName);
+    fprintf(stdout, "%s: Got lock Okay, lockFD is: %d\n", progName, lockFD);
+    fprintSetting(stdout, &mySetting);
+    fprintSkeleton(stdout, &myDir);
+    fprintGdFiles(stdout, &myFiles);
+
     fprintSetting(fLogPtr, &mySetting);
     fprintSkeleton(fLogPtr, &myDir);
     fprintGdFiles(fLogPtr, &myFiles);
@@ -152,6 +126,62 @@ int main(int argc, char *argv[]){
   /* let our curl and cookie functions use our log file **/
   curlLogtoFP = fLogPtr;
   cookieLogFP = fLogPtr;
+
+  /* set global "sourceURL" variable:
+   * convert source string to lower case - in 'sourceURL'.
+   * curl URL parser is used to verify source URL.
+   ******************************************************/
+  result = string2Lower((char **) &sourceURL, mySetting.source);
+  if(!sourceURL){
+    fprintf(stderr, "%s: Error failed string2Lower() function.\n", progName);
+    return result;
+  }
+
+  CURLUcode   curluResult; /* parser returned type from curl_url_get() & curl_url_set() **/
+  int   useInternal;
+  char  *secToken = NULL; /* needed for geofabrik internal server **/
+  char  *host = NULL;
+  char  *path = NULL;
+
+  int         value2Return = ztSuccess; /* value to return at EXIT_CLEAN **/
+
+  /* checked in EXIT_CLEAN **/
+  STRING_LIST *newDiffersList = NULL;
+  STRING_LIST *completedList = NULL;
+
+  result = initialCurlSession();
+  if (result != ztSuccess){
+    fprintf(stderr, "%s: Error failed initialCurlSession() function.\n", progName);
+    logMessage(fLogPtr, "Error failed initialCurlSession() function.");
+
+    return result;
+  }
+  else
+    logMessage(fLogPtr, "Initialed curl session okay.");
+
+  /* get curl parse handle using sourceURL - in LOWER case **/
+  curlParseHandle = initialURL(sourceURL);
+  if (! curlParseHandle ){
+    fprintf(stderr, "%s: Error failed initialURL() function.\n", progName);
+    logMessage(fLogPtr,"Error failed initialURL() function.");
+
+    value2Return = ztFailedLibCall;
+    goto EXIT_CLEAN;
+  }
+
+  if(fVerbose){
+    fprintf(stdout, "%s: Acquired curl parse handle with initialURL() function okay.\n", progName);
+    logMessage(fLogPtr, "Acquired curl parse handle with initialURL() function okay.");
+  }
+
+  result = chkRequired(&mySetting, myFiles.previousSeqFile);
+  if(result != ztSuccess){
+    fprintf(stderr, "%s: Error failed chkRequired() function.\n", progName);
+    logMessage(fLogPtr, "Error failed chkRequired() function.");
+
+    value2Return = result;
+    goto EXIT_CLEAN;
+  }
 
   /* if newer files is turned off by user AND we find an old file in
    * working directory, we rename it by appending ".old~" extension
@@ -189,34 +219,22 @@ int main(int argc, char *argv[]){
   /* remove {workDir}/previous.state.txt if found - no longer used
    * we have been writing "previous.seq" file since last version. **/
   if(isFileUsable(myFiles.prevStateFile) == ztSuccess){
-	remove(myFiles.prevStateFile);
+	removeFile(myFiles.prevStateFile);
 	fprintf(stdout, "%s: Removed <%s> file; using 'previous.seq' now.\n", progName, myFiles.prevStateFile);
 	logMessage(fLogPtr, "Removed <previous.state.txt> file from work directory; using 'previous.seq' now.");
   }
 
-  /* set global "sourceURL" variable:
-   * convert source string to lower case - in 'sourceURL';
-   * this avoids many calls to string2Lower() and mistakes.
-   *
-   ******************************************************/
-  result = string2Lower((char **) &sourceURL, mySetting.source);
-  if(!sourceURL){
-    fprintf(stderr, "%s: Error failed string2Lower() function.\n", progName);
-    logMessage(fLogPtr, "Error failed string2Lower() function.");
-    return result;
-  }
-
   /* set tmpDir; some functions write their own temporary files **/
-  tmpDir = myDir.tmp;
+  tmpDir = STRDUP(myDir.tmp);
 
   char *diffDestPrefix; /* new differs destination on local machine;
-                           Prefix: first or start part of the path
-                           Suffix: second or end part of the path **/
+                           Prefix: first (start part of the path)
+                           Suffix: second (end part of the path) **/
 
   diffDestPrefix = setDiffersDirPrefix(&myDir, sourceURL);
   if(!diffDestPrefix){
-    fprintf(stderr, "%s: Error failed getDiffersDirPrefix() function.\n", progName);
-    logMessage(fLogPtr, "Error failed getDiffersDirPrefix() function.");
+    fprintf(stderr, "%s: Error failed setDiffersDirPrefix() function.\n", progName);
+    logMessage(fLogPtr, "Error failed setDiffersDirPrefix() function.");
     return ztFatalError;
   }
   if(fVerbose){
@@ -224,39 +242,6 @@ int main(int argc, char *argv[]){
     logMessage(fLogPtr, "Download destination for new differs is below:-");
     logMessage(fLogPtr, diffDestPrefix);
   }
-
-  CURLUcode   curluResult; /* parser returned type from curl_url_get() & curl_url_set() **/
-  int         value2Return = ztSuccess; /* value to return at EXIT_CLEAN **/
-
-  result = initialCurlSession();
-  if (result != ztSuccess){
-    fprintf(stderr, "%s: Error failed initialCurlSession() function.\n", progName);
-    logMessage(fLogPtr, "Error failed initialCurlSession() function.");
-
-    return result;
-  }
-  else
-    logMessage(fLogPtr, "Initialed curl session okay.");
-
-  /* get curl parse handle using sourceURL - in LOWER case **/
-  curlParseHandle = initialURL(sourceURL);
-  if (! curlParseHandle ){
-    fprintf(stderr, "%s: Error failed initialURL() function.\n", progName);
-    logMessage(fLogPtr,"Error failed initialURL() function.");
-
-    value2Return = ztFailedLibCall;
-    goto EXIT_CLEAN;
-  }
-
-  if(fVerbose){
-    fprintf(stdout, "%s: Acquired curl parse handle with initialURL() function okay.\n", progName);
-    logMessage(fLogPtr, "Acquired curl parse handle with initialURL() function okay.");
-  }
-
-  int   useInternal;
-  char  *secToken = NULL; /* needed for geofabrik internal server **/
-  char  *host = NULL;
-  char  *path = NULL;
 
   /* use curl parse handle to retrieve 'host' to set useInternal flag,
    * get 'path' also, used down below in the code.
@@ -270,7 +255,6 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
 
-  /* path part is needed further down, get it now */
   curluResult = curl_url_get(curlParseHandle, CURLUPART_PATH, &path, 0);
   if (curluResult != CURLUE_OK ) {
     fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n", progName);
@@ -289,7 +273,7 @@ int main(int argc, char *argv[]){
 
   if(useInternal){ /* set cookie; login token from cookie file. see 'cookie.c' file **/
 
-    fd2Close = lockFD; // let fork()ed child release it -- cookie.c
+    fd2Close = lockFD; // let fork()ed child release it; child inherits fd -- cookie.c
 
     if(fVerbose)
       fprintf(stdout, "%s: Geofabrik Internal Server is in use, calling getLoginToken() function...\n", progName);
@@ -398,8 +382,10 @@ int main(int argc, char *argv[]){
     endSequenceNum = fetchLatestSequence(STATE_FILE, myFiles.latestStateFile);
     /* fetch latest sequence number from remote server; it is in 'state.txt'
      * file found at program required 'source' argument with name 'state.txt'.
-     * initially placed in our 'tmpDir', on success moved to our 'workDir'.
+     * initially placed in our 'tmpDir' AND then moved to working directory
+     * farther down!
      ************************************************************************/
+
     if(!endSequenceNum){
       fprintf(stderr, "%s: Error failed fetchLatestSequence().\n", progName);
       logMessage(fLogPtr, "Error failed fetchLatestSequence().");
@@ -451,6 +437,8 @@ int main(int argc, char *argv[]){
       fprintf(stdout, "%s: No new differs from server; latest sequence number equals previous sequence number; exiting.\n", progName);
       logMessage(fLogPtr, "No new differs from server; latest sequence number equals previous sequence number; exiting.");
 
+      removeFile(myFiles.latestStateFile); // this should be the same file as in our work directory
+
       value2Return = ztSuccess;
       goto EXIT_CLEAN;
     }
@@ -498,8 +486,6 @@ int main(int argc, char *argv[]){
 
     return result;
   }
-
-  STRING_LIST *newDiffersList = NULL;
 
   newDiffersList = initialStringList();
   if(!newDiffersList){
@@ -619,8 +605,6 @@ int main(int argc, char *argv[]){
     goto EXIT_CLEAN;
   }
 
-  STRING_LIST *completedList = NULL;
-
   completedList = initialStringList();
   if(!completedList){
     fprintf(stderr, "%s: Error failed initialStringList().\n", progName);
@@ -671,6 +655,7 @@ int main(int argc, char *argv[]){
     		          progName, lastOfPath(sourceURL));
       logMessage(fLogPtr, "Prepended granularity \"below\" to path in completedList.");
       logMessage(fLogPtr, lastOfPath(sourceURL));
+      fflush(NULL);
     }
   }
   else if(mySetting.newDifferOff == FALSE)
@@ -678,7 +663,7 @@ int main(int argc, char *argv[]){
   else
     toFile = NULL;
 
-  if(!mySetting.textOnly && toFile){
+  if(!mySetting.textOnly && toFile){ //no list file is written with TEXT_ONLY option!
     result = writeNewerFiles(toFile, completedList);
     if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed writeNewerFiles().\n", progName);
@@ -757,19 +742,37 @@ int main(int argc, char *argv[]){
           DL_SIZE(completedList), diffDestPrefix);
   logMessage(fLogPtr, logBuff);
 
- EXIT_CLEAN:
+EXIT_CLEAN:
 
-  if(downloadHandle)
-    easyCleanup(downloadHandle);
+  if(sourceURL){
+	free(sourceURL);
+	sourceURL = NULL;
+  }
 
-  if(host)
+  if(tmpDir){
+	free(tmpDir);
+	tmpDir = NULL;
+  }
+
+  if(host){
     curl_free(host);
+    host = NULL;
+  }
 
-  if(path)
+  if(path){
     curl_free(path);
+    path = NULL;
+  }
 
-  if(curlParseHandle)
+  if(downloadHandle){
+    easyCleanup(downloadHandle);
+    downloadHandle = NULL;
+  }
+
+  if(curlParseHandle){
     urlCleanup(curlParseHandle);
+    curlParseHandle = NULL;
+  }
 
   closeCurlSession();
 
@@ -782,10 +785,23 @@ int main(int argc, char *argv[]){
   if(fLogPtr){
     /* write "DONE" footer to log file **/
     logMessage(fLogPtr, "DONE");
+
     fclose(fLogPtr);
+
+    fLogPtr = NULL;
+    curlLogtoFP = NULL;
+    cookieLogFP = NULL;
   }
 
   releaseLock(lockFD);
+
+  removeFile(myFiles.lockFile);
+
+  zapSetting(&mySetting);
+
+  zapSkeleton(&myDir);
+
+  zapGd_files(&myFiles);
 
   return value2Return;
 
@@ -862,6 +878,8 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
 
     settings->configureFile = STRDUP(defConfFile);
 
+  free(defConfFile);
+
   result = isFileUsable(settings->configureFile);
 
   if(result != ztSuccess)
@@ -870,7 +888,7 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
             " file not specified by user and default configuration file is not usable.\n"
             " Checked for configure file <%s>\n"
             " File is not usable for: <%s>\n",
-            progName, defConfFile, ztCode2Msg(result));
+            progName, settings->configureFile, ztCode2Msg(result));
 
   int  haveConfArgs = (settings->usr && settings->pswd &&
                        settings->source && settings->rootWD &&
@@ -938,6 +956,8 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
       fprintf(stderr, "%s: Error failed mergeConfigure() function.\n", progName);
       return result;
     }
+
+    // TODO: zap conf entries() :: reverse initialConf(confEntries, 8);
 
   } /* end if(... process configuration file ...) **/
 
@@ -1085,193 +1105,15 @@ int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]){
 
 } /* END mergeConfigure() **/
 
-int setupFilesys(SKELETON *directories, GD_FILES *files, const char *root){
-
-  int result;
-
-  ASSERTARGS(directories && files && root);
-
-  memset(directories, 0, sizeof(SKELETON));
-
-  result = buildDirectories(directories, root);
-  if(result != ztSuccess){
-    fprintf (stderr, "%s: Error failed buildFS() function.\n", progName);
-    return result;
-  }
-
-  memset(files, 0, sizeof(GD_FILES));
-
-  result = setFilenames(files, directories);
-  if(result != ztSuccess){
-    fprintf (stderr, "%s: Error failed setFilenames() function.\n", progName);
-    return result;
-  }
-
-  return ztSuccess;
-
-} /* END setupFilesys() **/
-
-/* buildDirectories():
- *  - creates and sets members in dir structure under where:
- *    where/getdiff
- *    where/getdiff/tmp
- *    where/getdiff/geofabrik
- *    where/getdiff/planet
- *    where/getdiff/planet/minute
- *    where/getdiff/planet/hour
- *    where/getdiff/planet/day
- *
- *  Note:
- ********************************************************/
-
-int buildDirectories(SKELETON *dir, const char *where){
-
-  ASSERTARGS(dir && where);
-
-  char *gd = "getdiff/";
-  char *gf = "geofabrik/";
-  char *plt = "planet/";
-  char *plM = "planet/minute/";
-  char *plH = "planet/hour/";
-  char *plD = "planet/day/";
-  char *tmp = "tmp/";
-
-  char buffer[512] = {0};
-  char myRoot[512] = {0};
-
-  int numDir = 7;
-  int index;
-
-  char *dirArray[numDir];
-  int  result;
-
-  if(SLASH_ENDING(where))
-    sprintf(myRoot, "%s%s", where, gd);
-  else
-    sprintf(myRoot, "%s/%s", where, gd);
-
-  dir->workDir = STRDUP(myRoot);
-
-  index = 0;
-  dirArray[index] = dir->workDir;
-
-  sprintf(buffer, "%s%s", myRoot, tmp);
-  dir->tmp= STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->tmp;
-
-  sprintf(buffer, "%s%s", myRoot, gf);
-  dir->geofabrik = STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->geofabrik;
-
-  sprintf(buffer, "%s%s", myRoot, plt);
-  dir->planet = STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->planet;
-
-  sprintf(buffer, "%s%s", myRoot, plM);
-  dir->planetMin = STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->planetMin;
-
-  sprintf(buffer, "%s%s", myRoot, plH);
-  dir->planetHour = STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->planetHour;
-
-  sprintf(buffer, "%s%s", myRoot, plD);
-  dir->planetDay = STRDUP(buffer);
-
-  index++;
-  dirArray[index] = dir->planetDay;
-
-  for(index = 0; index < numDir; index++){
-    result = myMkDir(dirArray[index]);
-    if(result != ztSuccess){
-      fprintf(stderr, "%s: Error failed myMkDir() for directory: <%s>.\n", progName, dirArray[index]);
-      return result;
-    }
-  }
-
-  return ztSuccess;
-
-} /* END buildDirectories() **/
-
-int setFilenames(GD_FILES *gdFiles, SKELETON *dir){
-
-  ASSERTARGS(gdFiles && dir && dir->workDir && dir->tmp);
-
-  gdFiles->lockFile = appendName2Dir(dir->workDir, LOCK_FILE);
-  if(! gdFiles->lockFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for lockFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->logFile = appendName2Dir(dir->workDir, LOG_NAME);
-  if(! gdFiles->logFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for logFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->previousSeqFile = appendName2Dir(dir->workDir, PREV_SEQ_FILE);
-  if(! gdFiles->previousSeqFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for previousSeqFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->prevStateFile = appendName2Dir(dir->workDir, PREV_STATE_FILE);
-  if(! gdFiles->prevStateFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for prevStateFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->newDiffersFile = appendName2Dir(dir->workDir, NEW_DIFFERS);
-  if(! gdFiles->newDiffersFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for newDiffersFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->rangeFile = appendName2Dir(dir->workDir, RANGE_FILE);
-  if(! gdFiles->rangeFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for rangeFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  gdFiles->latestStateFile = appendName2Dir(dir->tmp, LATEST_STATE_FILE);
-  if(! gdFiles->latestStateFile){
-    fprintf(stderr, "%s: Error failed appendName2Dir() for latestStateFile.\n", progName);
-    return ztMemoryAllocate;
-  }
-
-  return ztSuccess;
-
-} /* END setFilenames2() **/
-
 int chkRequired(MY_SETTING *settings, char *previousFile){
 
   ASSERTARGS(settings && previousFile);
 
   int result;
 
-  /* source argument is required **/
-  if(! settings->source){
-    fprintf (stderr, "%s: Error missing required  remote 'source url' argument.\n",
-             progName);
-    return ztMissingArg;
-  }
-  if(fVerbose && hasUpper(settings->source)){ /* too much noise? **/
-    fprintf(stdout, "%s: Please note that it is customarily to use "
-            "all lower case letters for source URL string.\n", progName);
-  }
-
-  /* source must be supported **/
-  if( isSourceSupported(settings->source) != ztSuccess){
+  /* source must be supported; curl URL parser is used. **/
+  if( isSourceSupported(sourceURL, curlParseHandle) != ztSuccess){
+//  if( isSourceSupported_old(sourceURL) != ztSuccess){
     fprintf (stderr, "%s: Error specified source URL is not supported by this program.\n", progName);
     return ztInvalidArg;
   }
@@ -1288,21 +1130,11 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
   /* user name and password argument are required when
    * geofabrik internal server is in use **/
 
-  char *lowerSource; /* use strstr() not strcasestr() **/
-
-  result = string2Lower(&lowerSource, settings->source);
-  if(result != ztSuccess){
-    fprintf(stdout, "%s: Error faile string2Lower() function.\n", progName);
-    return result;
-  }
-
   int useInternal = 0;
 
-  if(strstr(lowerSource, INTERNAL_SERVER))
+  if(strstr(sourceURL, INTERNAL_SERVER))
 
     useInternal = 1;
-
-  free(lowerSource);
 
   if(useInternal && ( ! settings->usr)){
     fprintf(stderr, "%s: Error missing 'usr' argument;\n"
@@ -1347,422 +1179,6 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
   return ztSuccess;
 
 } /* END chkRequired() **/
-
-/* isSourceSupported(): checks source string using CURLU handle.
- * assumes handle was initialed with FULL URL source string.
- *
- * FULL URL string has set parts: scheme, host and path.
- *
- * furthermore function assumes LOWER CASE strings in above parts.
- *
- * return: ztSuccess when source is supported.
- *
- * Accepted sources:
- *
- * https://download.geofabrik.de/{AREA_COUNTRY}/[???]/{AREA_COUNTRY}-updates/
- * https://osm-internal.download.geofabrik.de/{AREA_COUNTRY}/[???]/{AREA_COUNTRY}-updates/
- *
- * https://planet.osm.org/replication/[minute|day|hour]/
- * https://planet.openstreetmap.org/replication/[minute|day|hour]/
- *
- * real examples for geofabrik server:
- *
- * https://download.geofabrik.de/north-america/us/arizona-updates/
- * https://download.geofabrik.de/north-america/us/california-updates/
- *
- * https://download.geofabrik.de/north-america/mexico-updates/
- *
- * https://download.geofabrik.de/africa/egypt-updates/
- * https://download.geofabrik.de/asia/india-updates/
- * https://download.geofabrik.de/europe/france-updates/
- *
- **************************************************************/
-
-int isSourceSupported(char const *source){
-
-  CURLU       *srcCurluHandle;
-  CURLUcode   curluCode;
-  int         result;
-
-  /* all are ASSUMED in lower case **/
-  char *lowerSource;
-  char *scheme = NULL;
-  char *host = NULL;
-  char *path = NULL;
-
-  ASSERTARGS(source);
-
-  result = string2Lower(&lowerSource, source);
-  if(!lowerSource){
-    fprintf(stderr, "Error failed string2Lower() function.\n");
-    return ztMemoryAllocate;
-  }
-
-  result = initialCurlSession();
-  if (result != ztSuccess){
-    fprintf(stderr, "Error failed initialCurlSession() function.\n");
-    return result;
-
-  }
-
-  /* get curl parse handle using our lowerSource **/
-  srcCurluHandle = initialURL(lowerSource);
-  if (! srcCurluHandle){
-    fprintf(stderr, "Error failed initialURL() function.\n");
-
-    free(lowerSource);
-    closeCurlSession();
-    return ztFailedLibCall;
-  }
-
-  curluCode = curl_url_get(srcCurluHandle, CURLUPART_SCHEME, &scheme, 0);
-  if (curluCode != CURLUE_OK) {
-    fprintf(stderr, "%s: Error failed curl_url_get() for scheme part.\n"
-            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
-
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztFailedLibCall;
-  }
-
-  curluCode = curl_url_get(srcCurluHandle, CURLUPART_HOST, &host, 0);
-  if (curluCode != CURLUE_OK) {
-    fprintf(stderr, "%s: Error failed curl_url_get() for server part.\n"
-            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
-
-    curl_free(scheme);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztFailedLibCall;
-  }
-
-  curluCode = curl_url_get(srcCurluHandle, CURLUPART_PATH, &path, 0);
-  if ( curluCode != CURLUE_OK ) {
-    fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n"
-            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
-
-    curl_free(scheme);
-    curl_free(host);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztFailedLibCall;
-  }
-
-  if( ! isSupportedScheme(scheme)){
-    fprintf(stderr, "%s: Error unsupported 'scheme' in source; scheme: <%s>\n", progName, scheme);
-
-    curl_free(scheme);
-    curl_free(host);
-    curl_free(path);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztInvalidArg;
-  }
-
-  if( ! isSupportedServer(host)){
-    fprintf(stderr, "%s: Error unsupported 'server' in source; server: <%s>\n", progName, host);
-
-    curl_free(scheme);
-    curl_free(host);
-    curl_free(path);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztInvalidArg;
-  }
-
-  if(strstr(host, "planet") && ! isPlanetPath(path)){
-    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
-
-    curl_free(scheme);
-    curl_free(host);
-    curl_free(path);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztInvalidArg;
-  }
-
-  if(strstr(host, "geofabrik") && ! isGeofabrikPath(path)){
-    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
-
-    curl_free(scheme);
-    curl_free(host);
-    curl_free(path);
-    free(lowerSource);
-
-    urlCleanup(srcCurluHandle);
-    closeCurlSession();
-
-    return ztInvalidArg;
-  }
-
-  curl_free(scheme);
-  curl_free(host);
-  curl_free(path);
-  free(lowerSource);
-
-  urlCleanup(srcCurluHandle);
-  closeCurlSession();
-
-  return ztSuccess;
-
-} /* END isSourceSupported() **/
-
-/* isSupportedScheme():
- *
- * returns TRUE or FALSE
- * assumes LOWER CASE string in scheme
- *
- ****************************************************************/
-
-int isSupportedScheme(const char *scheme){
-
-  ASSERTARGS(scheme);
-
-  char *supportedSchemes[] = {"http", "https", NULL};
-
-  char **mover = supportedSchemes;
-
-  while(*mover){
-
-    if(strcmp(*mover, scheme) == 0){
-
-      return TRUE;
-    }
-
-    mover++;
-  }
-
-  return FALSE;
-
-} /* END isSupportedScheme() **/
-
-/* isSupportedServer():
- *
- * returns TRUE or FALSE
- * assumes LOWER CASE string in server
- *
- ****************************************************************/
-int isSupportedServer(const char *server) {
-
-  ASSERTARGS(server);
-
-  /* Array of supported servers **/
-  char *supportedServers[] = {
-    "planet.openstreetmap.org",
-    "planet.osm.org",
-    "osm-internal.download.geofabrik.de",
-    "download.geofabrik.de",
-    NULL
-  };
-
-  char  **mover;
-
-  for(mover = supportedServers; *mover; mover++){
-
-    if(strcmp(*mover, server) == 0){
-
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-
-} /* END isSupportedServer() **/
-
-/* isPlanetPath():
- *
- * returns TRUE or FALSE
- * assumes LOWER CASE string in path
- *
- * https://planet.osm.org/replication/[minute|day|hour]/
- * https://planet.openstreetmap.org/replication/[minute|day|hour]/
- *
- ****************************************************************/
-int isPlanetPath(const char *path){
-
-  ASSERTARGS(path);
-
-  int  result;
-  char *myPath;
-
-  char *entry1 = "replication";
-  char *entry2Array[] = {"day", "hour", "minute", NULL};
-  char **mover;
-
-  char *myLastEntry, *myFirstEntry;
-
-  result = isGoodDirName(path); /* applies strict rules including rejecting
-                                   space character and multiple slashes **/
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed isGoodDirName() in isPlanetPath() for 'path': <%s>\n",
-            progName, path);
-
-    return FALSE;
-  }
-
-  myPath = STRDUP(path); /* function allocates memory, exits program on failure! **/
-
-  myLastEntry = lastOfPath(myPath); /* lastOfPath() BEFORE strtok() **/
-
-  if(!myLastEntry){
-    fprintf(stderr, "%s: Error failed lastOfPath() in isPlanetPath().\n", progName);
-    free(myPath);
-
-    return FALSE;
-  }
-
-  myFirstEntry = strtok(myPath, "/");
-
-  if(!myFirstEntry){
-    fprintf(stderr, "%s: Error failed strtok() in isPlanetPath().\n", progName);
-    free(myPath);
-    free(myLastEntry);
-
-    return FALSE;
-  }
-
-  if(strcmp(myFirstEntry, entry1) != 0){
-    fprintf(stderr, "%s: Error invalid first entry of path in isPlanetPath().\n", progName);
-    free(myPath);
-    free(myLastEntry);
-
-    return FALSE;
-  }
-
-  mover = entry2Array;
-
-  while(*mover){
-    if(strcmp(*mover, myLastEntry) == 0){
-      free(myPath);
-      free(myLastEntry);
-
-      return TRUE;
-    }
-    mover++;
-  }
-
-  free(myPath);
-  free(myLastEntry);
-
-  fprintf(stderr, "%s: Error invalid last entry of path in isPlanetPath().\n", progName);
-
-  return FALSE;
-
-} /* END isPlanetPath() **/
-
-/* isGeofabrikPath():
- *
- * returns TRUE or FALSE
- * assumes LOWER CASE string in path
- *
- ****************************************************************/
-int isGeofabrikPath(const char *path){
-
-  ASSERTARGS(path);
-
-  int  result;
-  char *myPath;
-
-  /* first entry in path must be one in list **/
-  char *entry1Array[] = {
-    "africa", "antarctica",
-    "asia", "australia-oceania",
-    "central-america", "europe",
-    "north-america", "south-america",
-    NULL};
-
-  /* last entry in path must end with '-updates' string **/
-  char *lastEntryMark = "-updates";
-
-  char *myFirstEntry;
-  char *myLastEntry;
-
-
-  result = isGoodDirName(path); /* applies strict rules including rejecting
-                                   space character and multiple slashes **/
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed isGoodDirName() in isGeofabrikPath() for 'path': <%s>\n",
-            progName, path);
-    return FALSE;
-  }
-
-  myPath = STRDUP(path); /* function allocates memory **/
-
-  myLastEntry = lastOfPath(myPath); /* function allocates memory **/
-
-  if(!myLastEntry){
-    fprintf(stderr, "%s: Error failed lastOfPath() in isGeofabrikPath().\n", progName);
-    free(myPath);
-
-    return FALSE;
-  }
-
-  char *lastDash;
-
-  lastDash = strrchr(myLastEntry, '-');
-
-  if(!lastDash){
-    fprintf(stderr, "%s: Error failed to find dash in last entry in isGeofabrikPath().\n", progName);
-    free(myPath);
-    free(myLastEntry);
-
-    return FALSE;
-  }
-
-  if(strcmp(lastEntryMark, lastDash) != 0){
-    fprintf(stderr, "%s: Error last entry does not end with '-updates' in isGeofabrikPath().\n", progName);
-    free(myPath);
-    free(myLastEntry);
-
-    return FALSE;
-  }
-
-  myFirstEntry = strtok(myPath, "/");
-  if(!myFirstEntry){
-    fprintf(stderr, "%s: Error failed strtok() in isGeofabrikPath().\n", progName);
-    free(myPath);
-    free(myLastEntry);
-
-    return FALSE;
-  }
-
-  char **mover = entry1Array;
-
-  for(; *mover; mover++){
-    if(strcmp(*mover, myFirstEntry) == 0){
-      free(myPath);
-      free(myLastEntry);
-
-      return TRUE;
-    }
-  }
-
-  free(myPath);
-  free(myLastEntry);
-
-  fprintf(stdout, "%s: Error first entry is NOT a continent in isGeofabrikPath().\n", progName);
-
-  return FALSE;
-
-} /* END isGeofabrikPath() **/
 
 char *setDiffersDirPrefix(SKELETON *skl, const char *src){
 
@@ -1819,250 +1235,6 @@ char *getLoginToken(MY_SETTING *setting, SKELETON *myDir){
 
 } /* END getLoginTiken() **/
 
-PATH_PART *initialPathPart(void){
-
-  PATH_PART *newPP;
-
-  newPP = (PATH_PART*) malloc(sizeof(PATH_PART));
-
-  if( !newPP)
-
-    return newPP;
-
-  memset(newPP, 0, sizeof(PATH_PART));
-
-  return newPP;
-
-} /* END initialPathPart() **/
-
-void zapPathPart(void **pathPart){
-
-  ASSERTARGS(pathPart);
-
-  PATH_PART *myPP;
-
-  myPP = (PATH_PART *) *pathPart;
-
-  if (!myPP) return;
-
-  memset(myPP, 0, sizeof(PATH_PART));
-
-  free(myPP);
-
-  return;
-
-} /* END zapPathPart() **/
-
-STATE_INFO *initialStateInfo(){
-
-  STATE_INFO *tmpSI, *newSI = NULL;
-
-  tmpSI = (STATE_INFO *)malloc(sizeof(STATE_INFO));
-  if(!tmpSI)
-    return newSI;
-
-  memset(tmpSI, 0, sizeof(STATE_INFO));
-
-  tmpSI->pathPart = (PATH_PART *) initialPathPart();
-  if (!tmpSI->pathPart){
-    free(tmpSI);
-    return newSI;
-  }
-
-  tmpSI->timestampTM = (struct tm *)malloc(sizeof(struct tm));
-  if(!tmpSI->timestampTM){
-    free(tmpSI->pathPart);
-    free(tmpSI);
-    return newSI;
-  }
-
-  newSI = tmpSI;
-
-  return newSI;
-
-} /* END initialStateInfo2() **/
-
-void zapStateInfo(STATE_INFO **si){
-
-  STATE_INFO *mySI = *si;
-
-  if(!mySI) return;
-
-  if(mySI->timestampTM){
-    memset(mySI->timestampTM, 0, sizeof(struct tm));
-    free(mySI->timestampTM);
-  }
-
-  if(mySI->pathPart){
-    memset(mySI->pathPart, 0, sizeof(PATH_PART));
-    free(mySI->pathPart);
-  }
-
-  memset(mySI, 0, sizeof(STATE_INFO));
-  free(mySI);
-
-  return;
-
-} /* END zapStateInfo() **/
-
-/* stateFile2StateInfo(): reads & parses 'state.txt' pointed to by filename
- * then fills STATE_INFO structure pointed to by 'stateInfo'.
- *
- * caller initials 'stateInfo'.
- *
- *************************************************************************/
-
-int stateFile2StateInfo(STATE_INFO *stateInfo, const char *filename){
-
-  int   result;
-
-  ASSERTARGS(stateInfo && filename);
-
-  /* read state.txt file into a STRING_LIST **/
-  STRING_LIST   *fileStrList;
-
-  fileStrList = initialStringList();
-  if( ! fileStrList){
-    fprintf(stderr, "%s: Error failed initialStringList() function.\n", progName);
-    logMessage(fLogPtr, "Error failed initialStringList() function.");
-
-    return ztMemoryAllocate;
-  }
-
-  result = file2StringList(fileStrList, filename);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed file2StringList() function.\n", progName);
-    logMessage(fLogPtr, "Error failed file2StringList() function.");
-    zapStringList((void **) &fileStrList);
-
-    return result;
-  }
-
-  /* file2StringList() returns an error when 'filename' is empty,
-   * but check list anyway **/
-  if(isStateFileList(fileStrList) == FALSE){
-    fprintf(stderr, "%s: Error failed isStateFileList() test.\n", progName);
-    logMessage(fLogPtr, "Error failed isStateFileList() test.");
-    zapStringList((void **) &fileStrList);
-
-    return ztInvalidArg;
-  }
-
-  /* set character pointers for lines (strings) to parse **/
-  char  *timeLine = NULL;
-  char  *sequenceLine = NULL;
-  char  *originalSeqLine = NULL;
-
-  char *timeMark = "timestamp=";
-  char *seqMark = "sequenceNumber=";
-
-  char *originalPrefix = "# original OSM minutely replication sequence number";
-
-  ELEM  *elem = NULL;
-  char  *line = NULL;
-
-  elem = DL_HEAD(fileStrList);
-  while(elem){
-
-    line = (char *) DL_DATA(elem);
-
-    if(strncmp(line, timeMark, strlen(timeMark)) == 0)
-      timeLine = line;
-
-    if(strncmp(line, seqMark, strlen(seqMark)) == 0)
-      sequenceLine = line;
-
-    if(strncmp(line, originalPrefix, strlen(originalPrefix)) == 0)
-
-      originalSeqLine = line;
-
-    elem = DL_NEXT(elem);
-  }
-
-  if(!(timeLine && sequenceLine)){
-    fprintf(stderr, "%s: Error failed to retrieve required time line and/or sequence line.\n", progName);
-    logMessage(fLogPtr, "Error failed to retrieve required time line and/or sequence line.");
-
-    zapStringList((void **) &fileStrList);
-    return ztMalformedFile;
-  }
-
-  /* extract data from lines **/
-  if(originalSeqLine){
-
-    char *originalSeqNum = originalSeqLine + strlen(originalPrefix) + 1;
-
-    if( ! isGoodSequenceString(originalSeqNum)){
-      fprintf(stderr, "%s: Error invalid sequence string in original sequence number.\n", progName);
-      logMessage(fLogPtr,"Error invalid sequence string in original sequence number.");
-      zapStringList((void **) &fileStrList);
-
-      return ztParseError;
-    }
-
-    strcpy(stateInfo->originalSeqStr, originalSeqNum);
-    stateInfo->isGeofabrik = 1;
-
-  }
-
-  char *sequenceString;
-
-  sequenceString = sequenceLine + strlen("sequenceNumber=");
-
-  if( ! isGoodSequenceString(sequenceString)){
-    fprintf(stderr, "%s: Error invalid sequence string in sequence line.\n", progName);
-    logMessage(fLogPtr,"Error invalid sequence string in sequence line.");
-    zapStringList((void **) &fileStrList);
-
-    return ztParseError;
-  }
-
-  strcpy(stateInfo->seqNumStr, sequenceString);
-
-  result = parseTimestampLine(stateInfo->timestampTM, timeLine);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed parseStateTime() function.\n", progName);
-    logMessage(fLogPtr, "Error failed parseStateTime() function.");
-    zapStringList((void **) &fileStrList);
-
-    return result;
-  }
-
-  /* parsed timeLine okay; set string **/
-  char *timeString;
-
-  timeString = timeLine + strlen("timestamp=");
-
-  strcpy(stateInfo->timeString, timeString);
-
-  /* convert tm structure to time value;
-   * storing result in timeValue member
-   * check returned value from makeTimeGMT()
-   ******************************************/
-
-  stateInfo->timeValue = makeTimeGMT(stateInfo->timestampTM);
-  if(stateInfo->timeValue == -1){
-    fprintf(stderr, "%s: Error failed makeTimeGMT() function.\n", progName);
-    logMessage(fLogPtr, "Error failed makeTimeGMT() function.");
-    zapStringList((void **) &fileStrList);
-
-    return ztInvalidArg; // function fails with invalid value (in any member)
-  }
-
-  result = sequence2PathPart(stateInfo->pathPart, stateInfo->seqNumStr);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed sequence2PathPart() function.\n", progName);
-    logMessage(fLogPtr, "Error failed sequence2PathPart() function.");
-    zapStringList((void **) &fileStrList);
-
-    return result;
-  }
-
-  zapStringList((void **) &fileStrList);
-  return ztSuccess;
-
-} /* END stateFile2StateInfo() **/
-
 /* isStateFileList():
  *  - must be a STRING_LT
  *  - must have exactly THREE lines
@@ -2107,106 +1279,6 @@ int isStateFileList(STRING_LIST *list){
   return FALSE;
 
 } /* END isStateFileList() **/
-
-/* stateFile2SequenceString():
- * returns sequence string from state file with 'filename'.
- *
- ************************************************************/
-
-char *stateFile2SequenceString(const char *filename){
-
-  ASSERTARGS(filename);
-
-  char *sequenceString = NULL;
-  int  result;
-
-  STATE_INFO *si;
-
-  si = initialStateInfo();
-  if(!si){
-    fprintf(stderr, "%s: Error failed initialStateInfo().\n", progName);
-    logMessage(fLogPtr, "Error failed initialStateInfo().");
-
-    return sequenceString;
-  }
-
-  result = stateFile2StateInfo(si, filename);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed stateFile2StateInfo().\n", progName);
-    logMessage(fLogPtr, "Error failed stateFile2StateInfo().");
-
-    return sequenceString;
-  }
-
-  sequenceString = STRDUP(si->seqNumStr);
-
-  zapStateInfo(&si);
-
-  return sequenceString;
-
-} /* END stateFile2SequenceString() **/
-
-/* sequence2PathPart(): converts sequence number into file system path parts.
- *
- * Parameters:
- *   pathPart: pointer to PATH_PART structure; caller initials pathPart.
- *   sequenceStr: character pointer to valid Sequence Number string.
- *
- * function replaces seq2PathParts().
- *
- ***********************************************************************/
-
-int sequence2PathPart(PATH_PART *pathPart, const char *sequenceStr){
-
-  ASSERTARGS(pathPart && sequenceStr);
-
-  if(! isGoodSequenceString(sequenceStr)){
-    fprintf(stderr, "%s: Error in sequence2PathPart() parameter 'sequenceStr': <%s>\n"
-            "failed isGoodSequenceString().\n", progName, sequenceStr);
-    return ztInvalidArg;
-  }
-
-  memset(pathPart, 0, sizeof(PATH_PART)); /* zero-out all members **/
-
-  /* to format with leading character using printf(), variable must be integer type **/
-  int    seqNum;
-  char   *endPtr;
-
-  seqNum = (int) strtol(sequenceStr, &endPtr, 10);
-  if( *endPtr != '\0'){
-    fprintf(stderr, "%s: Error in sequence2PathPart() failed strtol() for sequenceStr.\n", progName);
-    return ztInvalidArg;
-  }
-
-  /* make a string from seqNum with leading zeros **/
-  char   tmpBuf[10] = {0};
-
-  sprintf(tmpBuf, "%09d", seqNum);
-
-  strcpy(pathPart->sequenceNum, sequenceStr); /* copy as received, NOT as formatted **/
-
-  /* make Entry members from formatted string **/
-
-  strncpy(pathPart->rootEntry, tmpBuf, 3);
-
-  pathPart->rootEntry[3] = '/';
-  pathPart->rootEntry[4] = '\0';
-
-  strncpy(pathPart->parentEntry, tmpBuf + 3, 3);
-
-  pathPart->parentEntry[3] = '/';
-  pathPart->parentEntry[4] = '\0';
-
-  strncpy(pathPart->fileEntry, tmpBuf + 6, 3);
-
-  /* make members parentPath & filePath from entries above **/
-  snprintf(pathPart->parentPath, sizeof(pathPart->parentPath), "/%s%s", pathPart->rootEntry, pathPart->parentEntry);
-
-  snprintf(pathPart->filePath, sizeof(pathPart->filePath), "%s%s", pathPart->parentPath, pathPart->fileEntry);
-
-  return ztSuccess;
-
-} /* END sequence2PathPart() **/
 
 int isGoodSequenceString(const char *string){
 
@@ -2576,6 +1648,9 @@ int isRemoteFile(char *remoteSuffix){
      prototype: int myDownload(char *remotePathSuffix, char *localFile)
      first argument is our argument here 'remoteSuffix' we make string
      for the second argument, saving header to 'tmpDir'.
+
+     Another approach is to partially retrieve first chunk bytes (say 1024) to
+     memory; not to file, then compare to (look for) some hint string.
   *********************************************************************/
 
   char localFile[PATH_MAX] = {0};
@@ -2625,7 +1700,7 @@ int isRemoteFile(char *remoteSuffix){
   }
 
 #ifdef REMOVE_TMP
-  remove(localFile);
+  removeFile(localFile);
 #endif
 
   if(result == ztResponse404)
@@ -2724,7 +1799,7 @@ int areAdjacentStrings(char *sourceSuffix, char *firstStr, char *secondStr){
   if(secondElem == DL_NEXT(firstElem)){
 
 #ifdef REMOVE_TMP
-    remove(myFile);
+    removeFile(myFile);
 #endif
 
     zapStringList((void **) &list);
@@ -2806,6 +1881,13 @@ int isEndNewer(PATH_PART *startPP, PATH_PART *endPP){
 
   /* parse state.txt files (start & end) into STATE_INFOs **/
   result = stateFile2StateInfo(startStateInfo, startLocalFile);
+
+#ifdef REMOVE_TMP
+  removeFile(startLocalFile);
+  if(result != ztSuccess)
+	removeFile(endLocalFile);
+#endif
+
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed stateFile2StateInfo() function for start state.txt file.\n", progName);
     logMessage(fLogPtr, "Error failed stateFile2StateInfo() function for start state.txt file.");
@@ -2814,6 +1896,11 @@ int isEndNewer(PATH_PART *startPP, PATH_PART *endPP){
   }
 
   result = stateFile2StateInfo(endStateInfo, endLocalFile);
+
+#ifdef REMOVE_TMP
+  removeFile(endLocalFile);
+#endif
+
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error failed stateFile2StateInfo() function for end state.txt file.\n", progName);
     logMessage(fLogPtr, "Error failed stateFile2StateInfo() function for end state.txt file.");
@@ -2839,66 +1926,6 @@ int isEndNewer(PATH_PART *startPP, PATH_PART *endPP){
   return ztSuccess;
 
 } /* END isEndNewer() **/
-int makeOsmDir(PATH_PART *startPP, PATH_PART *latestPP, const char *rootDir){
-
-  int    result;
-  char   buffer[PATH_MAX] = {0};
-
-  ASSERTARGS(startPP && latestPP && rootDir);
-
-  /* startPP & latestPP must share rootEntry **/
-  if(strcmp(startPP->rootEntry, latestPP->rootEntry) != 0){
-    fprintf(stderr, "%s: Error rootEntry is not the same for parameters.\n", progName);
-    return ztInvalidArg;
-  }
-
-  /* rootDir parameter must exist and accessible **/
-  result = isDirUsable(rootDir);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed isDirUsable() for parameter 'rootDir'.\n", progName);
-    return result;
-  }
-
-  if(SLASH_ENDING(rootDir))
-    sprintf(buffer, "%s%s", rootDir, startPP->rootEntry);
-  else
-    sprintf(buffer, "%s/%s", rootDir, startPP->rootEntry);
-
-  result = myMkDir(buffer);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-    return result;
-  }
-
-  if(SLASH_ENDING(rootDir))
-    sprintf(buffer, "%s%s", rootDir, startPP->parentPath);
-  else
-    sprintf(buffer, "%s/%s", rootDir, startPP->parentPath);
-
-  result = myMkDir(buffer);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-    return result;
-  }
-
-  if(strcmp(startPP->parentEntry, latestPP->parentEntry) == 0)
-
-    return ztSuccess;
-
-  if(SLASH_ENDING(rootDir))
-    sprintf(buffer, "%s%s", rootDir, latestPP->parentPath);
-  else
-    sprintf(buffer, "%s/%s", rootDir, latestPP->parentPath);
-
-  result = myMkDir(buffer);
-  if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed myMkDir() function.\n", progName);
-    return result;
-  }
-
-  return ztSuccess;
-
-} /* END makeOsmDir() **/
 
 int getDiffersList(STRING_LIST *destList, PATH_PART *startPP, PATH_PART *endPP){
 
@@ -3174,18 +2201,18 @@ int getParentPage(STRING_LIST *destList, char *parentSuffix){
   }
 
 #ifdef REMOVE_TMP
-  remove(localParentFile);
+  removeFile(localParentFile);
 #endif
 
   return ztSuccess;
 
 } /* END getParentPage() **/
 
-int prependGranularity(STRING_LIST **list, char *what){
+/* Granularity string is one of: [minute, hour, day] **/
 
-  /* TODO: what should be one of [minute | hour | day] ONLY **/
+int prependGranularity(STRING_LIST **list, char *gString){
 
-  ASSERTARGS(list && what);
+  ASSERTARGS(list && gString);
 
   STRING_LIST *oldList;
   STRING_LIST *newList;
@@ -3214,7 +2241,7 @@ int prependGranularity(STRING_LIST **list, char *what){
   while(elem){
 
 	oldStr = (char *)DL_DATA(elem);
-	sprintf(buffer, "/%s%s", what, oldStr);
+	sprintf(buffer, "/%s%s", gString, oldStr);
 	newStr = STRDUP(buffer);
 
 	insertNextDL(newList, DL_TAIL(newList), (void *) newStr);
@@ -3229,3 +2256,555 @@ int prependGranularity(STRING_LIST **list, char *what){
   return ztSuccess;
 
 } /* END prependGranularity() **/
+
+#define IS_OK_SCHEME(x) ((strcmp(x, "http") == 0) || (strcmp(x, "https") == 0))
+
+/* isSourceSupported(): checks source string using CURLU handle.
+ * assumes handle was initialed with FULL URL source string.
+ *
+ * FULL URL string has set parts: scheme, host and path.
+ *
+ * furthermore function assumes LOWER CASE strings in above parts.
+ *
+ * return: ztSuccess when source is supported.
+ *
+ * Accepted sources:
+ *
+ * https://download.geofabrik.de/{AREA_COUNTRY}/[???]/{AREA_COUNTRY}-updates/
+ * https://osm-internal.download.geofabrik.de/{AREA_COUNTRY}/[???]/{AREA_COUNTRY}-updates/
+ *
+ * https://planet.osm.org/replication/[minute|day|hour]/
+ * https://planet.openstreetmap.org/replication/[minute|day|hour]/
+ *
+ * real examples for geofabrik server:
+ *
+ * https://download.geofabrik.de/north-america/us/arizona-updates/
+ * https://download.geofabrik.de/north-america/us/california-updates/
+ *
+ * https://download.geofabrik.de/north-america/mexico-updates/
+ *
+ * https://download.geofabrik.de/africa/egypt-updates/
+ * https://download.geofabrik.de/asia/india-updates/
+ * https://download.geofabrik.de/europe/france-updates/
+ *
+ **************************************************************/
+
+int isSourceSupported(char const *source, const CURLU *cParseHandle){
+
+  CURLUcode   curluCode;
+  CURLU *localHandle;
+
+
+
+  /* all are ASSUMED in lower case **/
+  char *srcInHandle = NULL; // source string retrieved from parser pointer
+  char *scheme = NULL;
+  char *host = NULL;
+  char *path = NULL;
+
+  ASSERTARGS(source && cParseHandle);
+
+  localHandle = curl_url_dup(cParseHandle); /* clone parser handle! */
+
+  if(! localHandle){
+    fprintf(stderr, "%s: Error failed duplicate function: curl_url_dup() .\n", progName);
+    return ztFailedLibCall;
+  }
+
+  //srcInHandle = getUrlStringCURLU(cParseHandle);
+  srcInHandle = getUrlStringCURLU(localHandle);
+  if(strcmp(source, srcInHandle) != 0){
+    fprintf(stderr, "Error; curl parser handle does not have same string.\n");
+
+    curl_url_cleanup(localHandle);
+    return ztInvalidArg;
+  }
+
+  //curluCode = curl_url_get(cParseHandle, CURLUPART_SCHEME, &scheme, 0);
+  curluCode = curl_url_get(localHandle, CURLUPART_SCHEME, &scheme, 0);
+  if (curluCode != CURLUE_OK) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for scheme part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    curl_url_cleanup(localHandle);
+
+    return ztFailedLibCall;
+  }
+
+  //curluCode = curl_url_get(cParseHandle, CURLUPART_HOST, &host, 0);
+  curluCode = curl_url_get(localHandle, CURLUPART_HOST, &host, 0);
+  if (curluCode != CURLUE_OK) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for server part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    curl_free(scheme);
+
+    curl_url_cleanup(localHandle);
+
+    return ztFailedLibCall;
+  }
+
+  //curluCode = curl_url_get(cParseHandle, CURLUPART_PATH, &path, 0);
+  curluCode = curl_url_get(localHandle, CURLUPART_PATH, &path, 0);
+  if ( curluCode != CURLUE_OK ) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    curl_free(scheme);
+    curl_free(host);
+
+    curl_url_cleanup(localHandle);
+
+    return ztFailedLibCall;
+  }
+
+  if( ! IS_OK_SCHEME(scheme)){
+    fprintf(stderr, "%s: Error unsupported 'scheme' in source; scheme: <%s>\n", progName, scheme);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+
+    curl_url_cleanup(localHandle);
+
+    return ztInvalidArg;
+  }
+
+  if( ! isSupportedServer(host)){
+    fprintf(stderr, "%s: Error unsupported 'server' in source; server: <%s>\n", progName, host);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+
+    curl_url_cleanup(localHandle);
+
+    return ztInvalidArg;
+  }
+
+  if(strstr(host, "planet") && ! isPlanetPath(path)){
+    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+
+    curl_url_cleanup(localHandle);
+
+    return ztInvalidArg;
+  }
+
+  if(strstr(host, "geofabrik") && ! isGeofabrikPath(path)){
+    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+
+    curl_url_cleanup(localHandle);
+
+    return ztInvalidArg;
+  }
+
+  curl_free(scheme);
+  curl_free(host);
+  curl_free(path);
+
+  curl_url_cleanup(localHandle);
+
+  return ztSuccess;
+
+} /* END isSourceSupported() **/
+
+int isSourceSupported_old(char const *source){
+
+  CURLU       *srcCurluHandle;
+  CURLUcode   curluCode;
+//  int         result;
+
+  /* all are ASSUMED in lower case **/
+  //char *lowerSource;
+  char *scheme = NULL;
+  char *host = NULL;
+  char *path = NULL;
+
+  ASSERTARGS(source);
+/*
+  result = string2Lower(&lowerSource, source);
+  if(!lowerSource){
+    fprintf(stderr, "Error failed string2Lower() function.\n");
+    return ztMemoryAllocate;
+  }
+
+  result = initialCurlSession();
+  if (result != ztSuccess){
+    fprintf(stderr, "Error failed initialCurlSession() function.\n");
+    return result;
+
+  }
+*/
+  /* get curl parse handle using our lowerSource **/
+  //srcCurluHandle = initialURL(lowerSource);
+  srcCurluHandle = initialURL(source);
+  if (! srcCurluHandle){
+    fprintf(stderr, "Error failed initialURL() function.\n");
+
+    //free(lowerSource);
+    //closeCurlSession();
+    return ztFailedLibCall;
+  }
+
+  curluCode = curl_url_get(srcCurluHandle, CURLUPART_SCHEME, &scheme, 0);
+  if (curluCode != CURLUE_OK) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for scheme part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztFailedLibCall;
+  }
+
+  curluCode = curl_url_get(srcCurluHandle, CURLUPART_HOST, &host, 0);
+  if (curluCode != CURLUE_OK) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for server part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    curl_free(scheme);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztFailedLibCall;
+  }
+
+  curluCode = curl_url_get(srcCurluHandle, CURLUPART_PATH, &path, 0);
+  if ( curluCode != CURLUE_OK ) {
+    fprintf(stderr, "%s: Error failed curl_url_get() for path part.\n"
+            "Curl error message: <%s>\n", progName,curl_url_strerror(curluCode));
+
+    curl_free(scheme);
+    curl_free(host);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztFailedLibCall;
+  }
+
+//  if( ! isSupportedScheme(scheme)){
+  if( ! IS_OK_SCHEME(scheme)){
+    fprintf(stderr, "%s: Error unsupported 'scheme' in source; scheme: <%s>\n", progName, scheme);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztInvalidArg;
+  }
+
+  if( ! isSupportedServer(host)){
+    fprintf(stderr, "%s: Error unsupported 'server' in source; server: <%s>\n", progName, host);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztInvalidArg;
+  }
+
+  if(strstr(host, "planet") && ! isPlanetPath(path)){
+    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztInvalidArg;
+  }
+
+  if(strstr(host, "geofabrik") && ! isGeofabrikPath(path)){
+    fprintf(stderr, "%s: Error invalid 'path' for server: <%s>; path: <%s>\n", progName, host, path);
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(path);
+    //free(lowerSource);
+
+    urlCleanup(srcCurluHandle);
+    //closeCurlSession();
+
+    return ztInvalidArg;
+  }
+
+  curl_free(scheme);
+  curl_free(host);
+  curl_free(path);
+  //free(lowerSource);
+
+  urlCleanup(srcCurluHandle);
+  //closeCurlSession();
+
+  return ztSuccess;
+
+} /* END isSourceSupported() **/
+
+
+
+
+/* isSupportedScheme():
+ *
+ * returns TRUE or FALSE
+ * assumes LOWER CASE string in scheme
+ *
+ ****************************************************************/
+
+/*
+int isSupportedScheme(const char *scheme){
+
+  ASSERTARGS(scheme);
+
+  char *supportedSchemes[] = {"http", "https", NULL};
+
+  char **mover = supportedSchemes;
+
+  while(*mover){
+
+    if(strcmp(*mover, scheme) == 0){
+
+      return TRUE;
+    }
+
+    mover++;
+  }
+
+  return FALSE;
+
+}* END isSupportedScheme() **/
+
+/* isSupportedServer():
+ *
+ * returns TRUE or FALSE
+ * assumes LOWER CASE string in server
+ *
+ ****************************************************************/
+int isSupportedServer(const char *server) {
+
+  ASSERTARGS(server);
+
+  /* Array of supported servers **/
+  char *supportedServers[] = {
+    "planet.openstreetmap.org",
+    "planet.osm.org",
+    "osm-internal.download.geofabrik.de",
+    "download.geofabrik.de",
+    NULL
+  };
+
+  char  **mover;
+
+  for(mover = supportedServers; *mover; mover++){
+
+    if(strcmp(*mover, server) == 0){
+
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+
+} /* END isSupportedServer() **/
+
+/* isPlanetPath():
+ *
+ * returns TRUE or FALSE
+ * assumes LOWER CASE string in path
+ *
+ * https://planet.osm.org/replication/[minute|day|hour]/
+ * https://planet.openstreetmap.org/replication/[minute|day|hour]/
+ *
+ ****************************************************************/
+int isPlanetPath(const char *path){
+
+  ASSERTARGS(path);
+
+  int  result;
+  char *myPath;
+
+  char *entry1 = "replication";
+  char *entry2Array[] = {"day", "hour", "minute", NULL};
+  char **mover;
+
+  char *myLastEntry, *myFirstEntry;
+
+  result = isGoodDirName(path); /* applies strict rules including rejecting
+                                   space character and multiple slashes **/
+  if(result != ztSuccess){
+    fprintf(stderr, "%s: Error failed isGoodDirName() in isPlanetPath() for 'path': <%s>\n",
+            progName, path);
+
+    return FALSE;
+  }
+
+  myPath = STRDUP(path); /* function allocates memory, exits program on failure! **/
+
+  myLastEntry = lastOfPath(myPath); /* lastOfPath() BEFORE strtok() **/
+
+  if(!myLastEntry){
+    fprintf(stderr, "%s: Error failed lastOfPath() in isPlanetPath().\n", progName);
+    free(myPath);
+
+    return FALSE;
+  }
+
+  myFirstEntry = strtok(myPath, "/");
+
+  if(!myFirstEntry){
+    fprintf(stderr, "%s: Error failed strtok() in isPlanetPath().\n", progName);
+    free(myPath);
+    free(myLastEntry);
+
+    return FALSE;
+  }
+
+  if(strcmp(myFirstEntry, entry1) != 0){
+    fprintf(stderr, "%s: Error invalid first entry of path in isPlanetPath().\n", progName);
+    free(myPath);
+    free(myLastEntry);
+
+    return FALSE;
+  }
+
+  mover = entry2Array;
+
+  while(*mover){
+    if(strcmp(*mover, myLastEntry) == 0){
+      free(myPath);
+      free(myLastEntry);
+
+      return TRUE;
+    }
+    mover++;
+  }
+
+  free(myPath);
+  free(myLastEntry);
+
+  fprintf(stderr, "%s: Error invalid last entry of path in isPlanetPath().\n", progName);
+
+  return FALSE;
+
+} /* END isPlanetPath() **/
+
+/* isGeofabrikPath():
+ *
+ * returns TRUE or FALSE
+ * assumes LOWER CASE string in path
+ *
+ ****************************************************************/
+int isGeofabrikPath(const char *path){
+
+  ASSERTARGS(path);
+
+  int  result;
+  char *myPath;
+
+  /* first entry in path must be one in list **/
+  char *entry1Array[] = {
+    "africa", "antarctica",
+    "asia", "australia-oceania",
+    "central-america", "europe",
+    "north-america", "south-america",
+    NULL};
+
+  /* last entry in path must end with '-updates' string **/
+  char *lastEntryMark = "-updates";
+
+  char *myFirstEntry;
+  char *myLastEntry;
+
+
+  result = isGoodDirName(path); /* applies strict rules including rejecting
+                                   space character and multiple slashes **/
+  if(result != ztSuccess){
+    fprintf(stderr, "%s: Error failed isGoodDirName() in isGeofabrikPath() for 'path': <%s>\n",
+            progName, path);
+    return FALSE;
+  }
+
+  myPath = STRDUP(path); /* function allocates memory **/
+
+  myLastEntry = lastOfPath(myPath); /* function allocates memory **/
+
+  if(!myLastEntry){
+    fprintf(stderr, "%s: Error failed lastOfPath() in isGeofabrikPath().\n", progName);
+    free(myPath);
+
+    return FALSE;
+  }
+
+  char *lastDash;
+
+  lastDash = strrchr(myLastEntry, '-');
+
+  if(!lastDash){
+    fprintf(stderr, "%s: Error failed to find dash in last entry in isGeofabrikPath().\n", progName);
+    free(myPath);
+    free(myLastEntry);
+
+    return FALSE;
+  }
+
+  if(strcmp(lastEntryMark, lastDash) != 0){
+    fprintf(stderr, "%s: Error last entry does not end with '-updates' in isGeofabrikPath().\n", progName);
+    free(myPath);
+    free(myLastEntry);
+
+    return FALSE;
+  }
+
+  myFirstEntry = strtok(myPath, "/");
+  if(!myFirstEntry){
+    fprintf(stderr, "%s: Error failed strtok() in isGeofabrikPath().\n", progName);
+    free(myPath);
+    free(myLastEntry);
+
+    return FALSE;
+  }
+
+  char **mover = entry1Array;
+
+  for(; *mover; mover++){
+    if(strcmp(*mover, myFirstEntry) == 0){
+      free(myPath);
+      free(myLastEntry);
+
+      return TRUE;
+    }
+  }
+
+  free(myPath);
+  free(myLastEntry);
+
+  fprintf(stdout, "%s: Error first entry is NOT a continent in isGeofabrikPath().\n", progName);
+
+  return FALSE;
+
+} /* END isGeofabrikPath() **/
+

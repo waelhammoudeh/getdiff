@@ -309,10 +309,6 @@ int removeFile(const char *filename){
 
   ASSERTARGS(filename);
 
-  /* we only keep cookie file. remove script and json settings files
-   * the right way is to use temporary files.
-   ***********************************************************/
-
   errno = 0;
 
   result = remove(filename);
@@ -766,18 +762,24 @@ int releaseLock(int fd){
 
   memset(&myLock, 0, sizeof(myLock));
   myLock.l_type = F_UNLCK;
-  myLock.l_whence = SEEK_SET;
+//  myLock.l_whence = SEEK_SET;
   myLock.l_start = 0;
   myLock.l_len = 0;
 
   errno = 0;
 
   result = fcntl(fd, F_SETLK, &myLock);
-
-  close(fd);
-
   if(result != 0){
     fprintf(stderr, "%s: Failed to unlock file!\n"
+            "System call failed for: %s\n", progName, strerror(errno));
+    return ztFailedSysCall;
+  }
+
+  sleep(1);
+
+  result = close(fd);
+  if(result != 0){
+    fprintf(stderr, "%s: Failed close(fd) call!\n"
             "System call failed for: %s\n", progName, strerror(errno));
     return ztFailedSysCall;
   }

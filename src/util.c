@@ -1414,13 +1414,26 @@ int myMkDir (char *name){
 
   int result;
 
+  ASSERTARGS(name);
+
   errno = 0;
   result = mkdir (name, MK_DIR_MODE);
 
-  if ( (result ==  -1) && (errno == EEXIST) )
+  if ( (result ==  -1) && (errno == EEXIST) ){
 
-    return ztSuccess;
+    struct stat status;
 
+    lstat(name, &status);
+
+    if (S_ISDIR(status.st_mode)) {
+        return ztSuccess;
+    }
+    else{
+      fprintf (stderr, "MyMkDir(): Error failed mkdir <%s>; entry exist as non-directory.\n"
+    		  "system error says: %s\n", name, strerror(errno));
+      return ztFailedSysCall;
+	}
+  }
   else if (result == -1){
 
     fprintf (stderr, "MyMkDir(): Error mkdir <%s>, system error says: %s\n",

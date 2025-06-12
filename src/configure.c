@@ -154,6 +154,11 @@ int initialConf(CONF_ENTRY *entries, int numEntries){
 
 } /* END initialConf() **/
 
+void zapConfEntry(CONF_ENTRY *entries){
+
+  return;
+}
+
 /* isOkayKey(): checks key string for allowed characters and string length.
  * Key string length should be no more than 16 characters - MAX_KEY_LENGTH.
  * The string is ALL capital letters, numbers, may include dash or underscore characters.
@@ -324,7 +329,7 @@ int isOkayBoolValue(const char *value){
  *  2) Drops read in linefeed character.
  *  3) Removes leading and trailing white spaces.
  *  4) Skips lines with ALL white spaces string (empty lines).
- *  5) Skips lines where first non-space [tab or space] character is either
+ *  5) Skips lines where first non-white [white is tab or space] character is either
  *     semicolon ';' or hash mark '#'.
  *  6) Sets lineNum pointer parameter to the original line number in the file.
  *  7) Function returns NULL on error and sets exported variable myFgetsError
@@ -468,7 +473,7 @@ int file2LineInfoList(DLIST *list, char const *filename){
   }
 
   /* set exported variable myFgetsError to zero **/
-  myFgetsError = ztSuccess;
+  myFgetsError = 0;
 
   chResult = myfgets(&myLine, &myLineNum, fPtr);
   while(chResult){

@@ -97,7 +97,7 @@ int download2File(char *filename, CURL *handle, CURLU *parseHandle);
 
 //char *getPrefixCURLU(CURLU *parseUrlHandle);
 
-char *getUrlStringCURLU(CURLU *parseUrlHandle);
+char *getUrlStringCURLU(const CURLU *parseUrlHandle);
 
 int performQuery(MEMORY_STRUCT *dst, char *whichData, CURL *qHandle, CURLU *srvrURL);
 

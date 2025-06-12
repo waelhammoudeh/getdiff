@@ -39,10 +39,14 @@ typedef enum CONF_TYPE_ {
 
 } CONF_TYPE;
 
-typedef struct CT2STRING_ {
-	CONF_TYPE ct;
-	char str[16];
-} CT2STRING;
+typedef struct CONF_ENTRY_ {
+
+  char *key;
+  char *value;
+  CONF_TYPE ctype;
+  int index; /* index of this entry in an array of configure entries **/
+
+} CONF_ENTRY;
 
 /* Notes:
  * NAME_CT : tested for string length only using #define MAX_USER_NAME 128
@@ -54,14 +58,10 @@ typedef struct CT2STRING_ {
  *
  ********************************************************************/
 
-typedef struct CONF_ENTRY_ {
-
-  char *key;
-  char *value;
-  CONF_TYPE ctype;
-  int index; /* index of this entry in an array of configure entries **/
-
-} CONF_ENTRY;
+typedef struct CT2STRING_ {
+	CONF_TYPE ct;
+	char str[16];
+} CT2STRING;
 
 typedef struct LINE_INFO_ {
   char		*string;

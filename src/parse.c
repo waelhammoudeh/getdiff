@@ -266,6 +266,8 @@ int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
       break;
 
     case 't':
+    	/* this is for debugging, might be removed.
+    	 * No list file is written when specified **/
 
       arguments->textOnly = 1;
       break;

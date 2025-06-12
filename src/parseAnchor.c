@@ -75,8 +75,8 @@ int parseHtmlFile(STRING_LIST *destList, const char *filename){
 
       result = parseAnchor(destList, line);
       if(result != ztSuccess){
-	fprintf(stderr, "%s: Error failed parseAnchor() function.\n", progName);
-	return result;
+        fprintf(stderr, "%s: Error failed parseAnchor() function.\n", progName);
+        return result;
       }
     }
 
@@ -137,6 +137,10 @@ int parseAnchor_strtok(STRING_LIST *destList, char *line){
   return ztSuccess;
 
 } /* END parseAnchor_strtok() **/
+
+/* note to self: parse whole line: name, last modified & size
+ * last modified is a hint to locate file given time
+ *************************************************************/
 
 int parseAnchor(STRING_LIST *destList, char *line){
 
