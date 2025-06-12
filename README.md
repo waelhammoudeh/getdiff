@@ -1,5 +1,7 @@
 # Changes:
-  - Current version: 0.01.77
+  - Current Version: 0.01.81 Date: June/11/2025
+    - Many memory bug fixes
+  - Version: 0.01.77
   - New 'end' option: Specifying 'begin' and 'end' arguments provide a new function to download a RANGE of files between specified sequence numbers.
   - Implemented a lock file mechanism to limit work directory access to one instance of the program.
   - Fully supports OSM planet servers.
@@ -221,4 +223,4 @@ Enjoy
 
 Wael Hammoudeh
 
-November 11/2024
+June 11/2025
