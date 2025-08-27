@@ -619,8 +619,15 @@ int main(int argc, char *argv[]){
 
   result = downloadFilesList(completedList, newDiffersList, diffDestPrefix, mySetting.textOnly);
   if(result != ztSuccess){
-    fprintf(stderr, "%s: Error failed downloadFilesList().\n", progName);
+    fprintf(stderr, "%s: Error failed downloadFilesList().\n"
+    		"See completed list in log file.", progName);
     logMessage(fLogPtr, "Error failed downloadFilesList().");
+
+    logMessage(fLogPtr, "we died ...");
+    if((DL_SIZE(newDiffersList) != DL_SIZE(completedList)))
+    	logMessage(fLogPtr, "Incomplete download ...");
+    logMessage(fLogPtr, "Completed list is below:");
+    fprintStringList(fLogPtr, completedList);
 
     value2Return = result;
     goto EXIT_CLEAN;
@@ -1250,7 +1257,8 @@ int isStateFileList(STRING_LIST *list){
 
     return FALSE;
 
-  if(DL_SIZE(list) != 3)
+//  if(DL_SIZE(list) != 3)
+  if(DL_SIZE(list) < 3)
 
     return FALSE;
 
@@ -1286,7 +1294,7 @@ int isGoodSequenceString(const char *string){
 
   ASSERTARGS(string);
 
-  if((strlen(string) > 9) || (strlen(string) < 4))
+  if((strlen(string) > 9) || (strlen(string) < 3)) // had to go back to day/2014
 
     return FALSE;
 
@@ -2109,10 +2117,10 @@ int downloadFilesList(STRING_LIST *completed, STRING_LIST *downloadList, char *l
     if(iCount < 11)
       sleepSeconds = SLEEP_INTERVAL;
 
-    /* increment sleep time after each 4 files **/
-    else if( (iCount % 4) == 0 )
-// disable increasing delay     sleepSeconds += SLEEP_INTERVAL;
-      sleepSeconds = SLEEP_INTERVAL;
+    /* increment sleep time after each 7 (had 4 before) files **/
+    else if( (iCount % 7) == 0 )
+      sleepSeconds += SLEEP_INTERVAL;
+      //sleepSeconds = SLEEP_INTERVAL;
 
     else ;
 
@@ -2191,6 +2199,18 @@ int getParentPage(STRING_LIST *destList, char *parentSuffix){
   }
 
   if(! IS_EVEN(DL_SIZE(destList))){
+
+//	  ELEM* findElemString (STRING_LIST *list, char *string) 876_old.osc.gz
+    ELEM *elem = NULL;
+    elem = findElemString(destList, "876_old.osc.gz");
+    if (elem){
+      char *str;
+      removeDL(destList, elem, (void **) &str);
+      logMessage(fLogPtr, "Removed change file with name: 876_old.osc.gz");
+      free(str);
+      return ztSuccess; // FIXME
+    }
+
     fprintf(stderr, "%s: Error childrenList size is not even number! Size is: <%d>\n"
             "Files should be in pairs; change file and its corresponding state.txt file from server.\n",
             progName, DL_SIZE(destList));
