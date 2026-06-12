@@ -553,7 +553,7 @@ int parseCookieFile (COOKIE *dstCookie, const char *filename){
 
   char  *timeStr;
 
-  char  *fileMarker = "gf_download_oauth=login|";
+  char  *fileMarker = "gf_download_oauth="; // \"login|";
   char  *string;
 
   ASSERTARGS (dstCookie && filename);
@@ -1479,7 +1479,7 @@ int isCookieFile(char *name){
   FILE  *filePtr;
   char  myLine[PATH_MAX] = {0};
 
-  char  *fileMarker = "gf_download_oauth=login|";
+  char  *fileMarker = "gf_download_oauth="; // \"login|";
   char  *strings[] = {"expires=", "HttpOnly", "Path=/", "Secure", NULL};
   char  semiColon = ';';
 

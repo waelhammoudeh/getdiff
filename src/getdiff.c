@@ -1449,6 +1449,13 @@ char *fetchLatestSequence(char *remoteName, char *localDest){
 
   latestSequence = stateFile2SequenceString(localDest);
 
+  if(! latestSequence ){
+    fprintf(stderr, "%s: fetchLatestSequence(): Error failed to get 'latestSequence'.\n"
+    		"   stateFile2SequenceString(localDest) failed in fetchLatestSequence() function.\n", progName);
+    logMessage(fLogPtr, "fetchLatestSequence(): Error failed stateFile2SequenceString(localDest) to set latestSequence");
+    return latestSequence;
+  }
+
   if(fVerbose){
     fprintf(stdout, "fetchLatestSequence(): Extracted latest SEQUENCE NUMBER from remote server: <%s>\n", latestSequence);
     logMessage(fLogPtr, "fetchLatestSequence(): Extracted latest SEQUENCE NUMBER from remote server below:");
