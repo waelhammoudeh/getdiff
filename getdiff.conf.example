@@ -48,6 +48,10 @@ SOURCE = https://osm-internal.download.geofabrik.de/north-america/us/arizona-upd
 
 DIRECTORY = /home/wael/Downloads/internal/
 
+# write log file to our common overpass 'logs' directory.
+# 'logs' directory was created BEFORE program use.
+# LOG_FILE = /var/lib/overpass/logs/getdiff.log
+
 # BEGIN: This is the sequence number from the 'nnn.state.txt' file to start download from.
 
 # Area data file has a corresponding 'state.txt' found in the same directory in geofabrik

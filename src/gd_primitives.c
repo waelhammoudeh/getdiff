@@ -312,6 +312,9 @@ int stateFile2StateInfo(STATE_INFO *stateInfo, const char *filename){
    * but check list anyway **/
   if(isStateFileList(fileStrList) == FALSE){
     fprintf(stderr, "%s: Error failed isStateFileList() test.\n", progName);
+
+    fprintStringList(stderr, fileStrList);
+
     logMessage(fLogPtr, "Error failed isStateFileList() test.");
     zapStringList((void **) &fileStrList);
 

@@ -101,6 +101,16 @@ int main(int argc, char *argv[]){
    *
    **********************************************************************************/
 
+  /* handle user changing log file - this was an after thought
+   * if set by user, change default already set in myFile.logFile **/
+
+  if(mySetting.logFile){
+	free(myFiles.logFile);
+
+	myFiles.logFile = STRDUP(mySetting.logFile);
+
+  }
+
   /* open log file and write start heading.
    * fLogPtr is global in this file; used by other functions. **/
   fLogPtr = initialLog(myFiles.logFile);
@@ -900,7 +910,8 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
   int  haveConfArgs = (settings->usr && settings->pswd &&
                        settings->source && settings->rootWD &&
                        settings->startNumber && settings->endNumber &&
-                       settings->newDifferOff && settings->verbose);
+                       settings->logFile && settings->newDifferOff &&
+					   settings->verbose);
 
   /* skip processing configuration file when
    * ALL arguments are given on the command line **/
@@ -913,6 +924,7 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
       {"PASSWD", NULL, NAME_CT, 0},
       {"SOURCE", NULL, INET_URL_CT, 0},
       {"DIRECTORY", NULL, DIR_CT, 0},
+	  {"LOG_FILE", NULL, FILE_CT, 0},
       {"BEGIN", NULL, DIGITS9_CT, 0},
       {"END", NULL, DIGITS9_CT, 0},
       {"VERBOSE", NULL, BOOL_CT, 0},
@@ -920,7 +932,7 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
       {NULL, NULL, 0, 0}
     };
 
-    result = initialConf(confEntries, 8);
+    result = initialConf(confEntries, 9);
     if(result != ztSuccess){
       fprintf(stderr, "%s: Error failed initialConf() function for <%s>. Exiting.\n",
               progName, ztCode2Msg(result));
@@ -994,6 +1006,10 @@ int getSettings(MY_SETTING *settings, int argc, char* const argv[]){
     return ztInvalidArg;
   }
 
+  /* logFile setting: use default {workdir}/getdiff.log if not set by user **/
+
+
+
   return ztSuccess;
 
 } /* END getSettings() **/
@@ -1049,7 +1065,15 @@ int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]){
       }
       break;
 
-    case 4: // BEGIN
+    case 4: // LOG_FILE
+
+      if ( !settings->logFile && mover->value){
+
+          settings->logFile = STRDUP (mover->value);
+      }
+      break;
+
+    case 5: // BEGIN
 
       if ( !settings->startNumber && mover->value){
 
@@ -1057,7 +1081,7 @@ int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]){
       }
       break;
 
-    case 5: // END
+    case 6: // END
 
       if ( !settings->endNumber && mover->value){
 
@@ -1065,7 +1089,7 @@ int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]){
       }
       break;
 
-    case 6: // VERBOSE
+    case 7: // VERBOSE
 
       if (settings->verbose == 1)
 
@@ -1091,7 +1115,7 @@ int mergeConfigure(MY_SETTING *settings, CONF_ENTRY confEntries[]){
 
       break;
 
-    case 7: // newDifferOff
+    case 8: // newDifferOff
 
       if(!settings->newDifferOff && mover->value)
 
@@ -1122,6 +1146,7 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
   if( isSourceSupported(sourceURL, curlParseHandle) != ztSuccess){
 //  if( isSourceSupported_old(sourceURL) != ztSuccess){
     fprintf (stderr, "%s: Error specified source URL is not supported by this program.\n", progName);
+    logMessage(fLogPtr, "Error specified source URL is not supported by this program.");
     return ztInvalidArg;
   }
 
@@ -1131,6 +1156,7 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
   if(result != ztSuccess){
     fprintf(stderr, "%s: Error could not connect to 'source': <%s>\n"
             "This program requires internet connection.", progName, settings->source);
+    logMessage(fLogPtr, "Not connected! This program requires internet connection.");
     return result;
   }
 
@@ -1147,14 +1173,14 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
     fprintf(stderr, "%s: Error missing 'usr' argument;\n"
             "User name for 'OSM ACCOUNT' is required for geofabrik.de internal server.\n"
             "Note that email associated with the account can be used for user name.\n", progName);
-
+    logMessage(fLogPtr, "Error missing 'usr' argument; User name for 'OSM ACCOUNT' is required for geofabrik.de internal server.");
     return ztMissingArg;
   }
 
   if(useInternal && (! settings->pswd)){
     fprintf(stderr, "%s: Error missing 'passwd' argument.\n"
             "Password for 'OSM ACCOUNT' is required for geofabrik.de internal server.\n", progName);
-
+    logMessage(fLogPtr, "Error missing 'passwd' argument; password for 'OSM ACCOUNT' is required for geofabrik.de internal server.");
     return ztMissingArg;
   }
 
@@ -1173,13 +1199,13 @@ int chkRequired(MY_SETTING *settings, char *previousFile){
 
   if(firstUse && (! settings->startNumber)){
     fprintf(stderr, "%s: Error missing 'begin' argument; argument is required for program first use.\n", progName);
-
+    logMessage(fLogPtr, "Error missing 'begin' argument; argument is required for program first use.");
     return ztMissingArg;
   }
 
   if(settings->endNumber && (settings->startNumber == NULL)){
     fprintf(stderr, "%s: Error missing 'begin' argument with 'end' set; argument is required to download a range of files.\n", progName);
-
+    logMessage(fLogPtr, "Error missing 'begin' argument with 'end' set; argument is required to download a range of files.");
     return ztMissingArg;
   }
 

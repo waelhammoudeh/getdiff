@@ -1,0 +1,278 @@
+Program "getdiff" is a command-line tool that allows users to download (OSM)
+Open Street Map differs; (.osc Open Street Change) files from a supported
+remote server listed below.
+This program is designed to be part of an automation process to update OSM
+database or data file, program does not update any data by itself.
+
+Supported servers are:
+  https://download.geofabrik.de/
+  https://osm-internal.download.geofabrik.de/
+  https://planet.osm.org/
+  https://planet.openstreetmap.org/
+
+The program supports a configuration file and accepts input from the command
+line, configuration file or combination of both. Command line setting overrides
+configuration file setting. Default configuration file is: {HOME}/getdiff.conf
+where {HOME} is current user home directory. You may specify a different file
+with '--conf' switch. Configuration file is a text file and is described below.
+
+Arguments required for long option are also required for short option.
+
+Usage: getdiff [OPTION]
+
+   -h, --help          Show this information page.
+   -V, --version       Prints program version and exits.
+   -v, --verbose       Prints progress messages to terminal. Default is off.
+   -s, --source URL    Set internet address URL to point to your region updates directory at
+                       geofabrik.de server; where the latest 'state.txt' file is found.
+   -d, --directory DIR Set the root directory for the program working directory; default is
+                       user {HOME} directory.
+   -l, --log FILE      Set program log file, directory must exist; default is: {workDir}/getdiff.log
+   -b, --begin NUM     Specify sequence number for the change file to start downloading from.
+                       This argument is required for first time use and ignored afterward.
+   -e, --end NUM       Specify sequence number for change file to stop downloading at.
+                       With 'begin NUM' above set, this provides a range of change files to download
+                       When 'end' equals 'begin', that change file and its corresponding state.txt
+                       are downloaded.
+   -u, --user NAME     Specify OSM account user name. Required for geofabrik internal server.
+   -p, --passwd SECRET Specify the password for the account above.
+   -c, --conf FILE     Configuration file to use, default {HOME}/getdiff.conf 
+   -n, --new           Specify the action for newly downloaded files. By default, the program
+                       appends the newly downloaded file names to 'newerFiles.txt'. Use this
+                       option to change this behavior.
+
+Arguments are explained below.
+
+URL for --source:
+Source argument is the full URL on the supported remote server where the latest
+'state.txt' file is found.
+For Geofabrik servers, the path starts with a continent name and ends with area or
+country name with '-updates' prepended to it.
+For Planet servers, the path starts with 'replication' entry followed by one of
+[minute | hour | day].
+In all cases this path is where the latest 'state.txt' file is found.
+
+Some examples for URL string are below, please verify your URL:
+
+https://download.geofabrik.de/africa/{area}-updates/
+https://download.geofabrik.de/antarctica-updates/
+https://download.geofabrik.de/asia/{area}-updates/
+https://download.geofabrik.de/australia-oceania/{area}-updates/
+https://download.geofabrik.de/central-america/{area}-updates/
+https://download.geofabrik.de/europe/{area}-updates/
+https://download.geofabrik.de/north-america/us/{area}-updates/
+https://download.geofabrik.de/south-america/{area}-updates/
+
+https://osm-internal.download.geofabrik.de/africa/{area}-updates/
+https://osm-internal.download.geofabrik.de/antarctica-updates/
+https://osm-internal.download.geofabrik.de/asia/{area}-updates/
+https://osm-internal.download.geofabrik.de/australia-oceania/{area}-updates/
+https://osm-internal.download.geofabrik.de/central-america/{area}-updates/
+https://osm-internal.download.geofabrik.de/europe/{area}-updates/
+https://osm-internal.download.geofabrik.de/north-america/us/{area}-updates/
+https://osm-internal.download.geofabrik.de/south-america/{area}-updates/
+
+https://planet.osm.org/replication/minute/
+https://planet.osm.org/replication/hour/
+https://planet.osm.org/replication/day/
+
+https://planet.openstreetmap.org/replication/minute/
+https://planet.openstreetmap.org/replication/hour/
+https://planet.openstreetmap.org/replication/day/
+
+DIR for --directory:
+This is the root or parent directory for the program working directory; where
+program files are kept. Program creates its own working directory with the name
+'getdiff', by default under current user {HOME} directory. With this option
+user may change this default to different directory which MUST exist with read,
+write and execute permissions / ownership permissions.
+Path can NOT end with 'getdiff' entry.
+
+FILE for --log:
+FILE is user specified log file name and path, program will create log file but not
+any directories. Default log file is: {workDir}/getdiff.log.
+
+NUM for --begin:
+This argument is needed the first time you use 'getdiff' and ignored afterward.
+
+NUM is the full SEQUENCE NUMBER for change file to start downloading from.
+Sequence number is listed in that change file corresponding 'state.txt' file.
+The 'state.txt' file has timestamp and sequenceNumber lines; timestamp indicates
+date and time for latest data included in that change file. The sequenceNumber is
+a unique number for the change file, it is [4 - 9] digits long number.
+
+NUM for --end:
+This argument is the sequence number for change file to end or stop download at.
+Together with 'begin' set this provides a RANGE of change files to download.
+With 'end' equals 'begin'; that change file and its corresponding state.txt are downloaded.
+Note that both sequence numbers must be from the same GRANULARITY (minute, hour or day).
+Downloaded file list are appended to 'rangeList.txt' file in working directory.
+
+NAME for --user:
+Geofabrik internal server usage is restricted to account holders at openstreetmap.org.
+NAME is the user name for that account, you can use the email address used when
+you created your account with openstreetmap.org.
+
+SECRET for --passwd:
+SECRET is the password for the account mentioned above.
+The string length for both NAME and SECTRET can not be longer than 64 characters.
+Those arguments are required only for geofabrik.de internal server usage.
+
+FILE for --conf:
+FILE is user specified configuration file, must be in a directory with read and
+write permissions. Program will terminate if specified file is not accessible
+or empty - may have no setting at all; it can NOT have zero length bytes. See
+'Configuration File' section.
+
+ACTION for --new:
+By default each time program downloads new files, it appends the newly downloaded
+file names to file 'newerFiles.txt' in its working directory. To stop this behaviour
+use this option (No argument is required on the command line).
+
+Limitations:
+"getdiff" limits the number of downloaded change files to avoid overwhelming the
+server. By default, it fetches at most 61 pairs of files in one run or session.
+
+Configuration File:
+
+Configuration file is a text file with each line providing a directive pair of
+KEY and VALUE separated by space and an optional equal sign '='.
+Comment lines start with '#' or ';' characters, no comment is allowed on a
+directive line. KEYS correspond to command line options. Allowed directive KEYS set:
+{VERBOSE, USER, PASSWD, DIRECTORY, BEGIN, END, NEWER_FILE}.
+Unrecognized and duplicate directive 'KEYS' trigger error. You may set values to any
+number of KEYS or none.
+Default configuration file is {HOME}/getdiff.conf - user home directory. File is not
+required, not even default; but if specified then it must exist, be accessible and it
+can not be empty with zero byte length or size.
+
+Keep in mind set command line option overrides corresponding configuration value.
+
+ VERBOSE : accepted values [on, true, 1] case ignored.
+
+ SOURCE : same as --source option.
+
+ DIRECTORY : same as --directory option.
+
+ LOG_FILE : same as --log option. Specify full path in configuration file.
+
+ BEGIN : same as --begin option.
+
+ END : same as --end option.
+
+ USER : same as --user option.
+
+ PASSWD : same as --passwd option.
+
+ NEWER_FILE : same as --new option.
+
+The following is an example configuration file:
+
+# This is getdiff.conf file example; configuration file for getdiff program.
+# This line is a comment line (starts with #).
+; So is this one too (starts with ;). No comment is allowed on directive line.
+
+# To turn verbose mode on use: TRUE, ON or 1. Case ignored for TRUE and ON.
+# VERBOSE = True
+
+# USER : user name for openstreetmap.org account or email.
+# Required for internal server only, name is limited to 64 characters length.
+USER = johndoe
+
+# PASSWD: password for above account, also limited to 64 characters length.
+# PASSWD = mysecret
+
+# Try to always use "https:" NOT  "http:" even with public servers.
+# URL full path to region latest 'state.txt' file including protocol and server name
+# ending with your {region}-updates entry.
+SOURCE = https://osm-internal.download.geofabrik.de/north-america/us/arizona-updates/
+
+# DIRECTORY : the root directory for your 'getdiff' work directory.
+# path can NOT end with 'getdiff' entry.
+# User must have full permissions (read, write and execute) on this directory.
+DIRECTORY = /path/to/your/root/
+
+# BEGIN: sequence number for change file to start downloading from; [4 - 9] digits
+# number. Sequence number is listed in corresponding 'state.txt' file.
+BEGIN = 3264
+
+# Program appends new downloaded file names to 'newerFiles.txt' file in its
+# working directory; to turn this off specify one of ['none', 'off'] - case
+# ignored.
+# NEWER_FILE = NONE
+
+# End configuration example.
+
+THIS IS STILL UNDER CONSTRUCTION!
+
+How It Works:
+
+The "getdiff" program works by fetching new change files and their corresponding
+'state.txt' files from the specified server. The 'source' URL points to the region
+updates page on the server where the latest 'state.txt' file is found. The 'begin'
+argument is required the first time the program is used and ignored afterward; it
+specifies the sequence number for the change file to start the download from.
+
+If using geofabrik.de INTERNAL server, the program requires an OSM account user name
+and password. The user name and password are limited to 64 characters length, email
+used during account registration can be used as the user name. User name and password
+are sent to server in plain text format; they are never stored by the program.
+
+When executed program creates a working directory named "getdiff" for its own files.
+The working directory is created under current user {HOME} by default or as specified
+by the 'directory' option.
+Directories for supported servers are created in the working directory with 'geofabrik'
+and 'planet' entry names. Three directories are created under 'planet' with names: minute,
+hour and day entries. This is shown below:
+
+  rootWD
+     |--getdiff
+          |--tmp
+          |--geofabrik
+          |--planet
+               |--minute
+               |--hour
+               |--day
+
+Open street maps directory structure is mirrored under those directories above - entries are
+created as needed based on the path part of the downloaded file. Downloaded files are saved
+to the same path on the local machine as that on the remote server. 
+Please note that "diff" directory is no longer created or used.
+
+The 'newerFiles.txt' file in the working directory acts as a "bucket" storing a list
+of downloaded file names to destination directory. Downloaded file names are
+appended to this file. Another process is expected to use listed file names in this
+file to apply the update and remove 'newerFiles.txt' file when done; effectively
+emptying the "bucket".
+
+When using the 'range' function, program appends a list of downloaded files to file
+'rangeList.txt' in its working directory.
+
+Program writes minimal progress messages to terminal and log file in working directory,
+using 'verbose' option will generate extra messages for debugging.
+
+Program writes the following files in its working directory:
+
+ - geofabrikCookie.txt : most recent geofabrik internal server cookie file - do NOT delete
+ - getdiff.log: program log file, you need to empty it once in awhile.
+ - newerFiles.txt: our "bucket" file, your script need to empty it.
+ - previous.seq: sequence number of last downloaded change file.
+ - latest.state.txt: state file for latest successfully downloaded file.
+ - rangeList.txt: list of downloaded files when using 'range' function.
+
+Temporary files are written to 'tmp' directory under the program directory.
+
+IMPORTANT: Do Not Delete 'previous.seq' from working directory.
+
+Typically one would store SOURCE, USER and DIRECTORY in a configuration file and
+start the program with :
+ ~$ getdiff -c /path/to/my/getdiff.conf -p xxxxxxxx
+ where xxxxxxxx is USER password for openstreetmap.org account.
+
+                        Please NOTE the following:
+Geofabrik GmbH generously provides many free services to OSM communities, this
+deserves our sincere and deep gratitude. Please do not overuse this program or
+abuse geofabrik.de servers. Please do not download too many files in a short
+period of time. Please familiarize yourself with geofabrik GmbH by visiting
+their web site : www.geofabrik.de.
+Thank you all in advance for following this request.

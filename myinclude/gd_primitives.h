@@ -36,6 +36,7 @@ typedef struct MY_SETTING_ {
   char *source;
   char *rootWD;
   char *configureFile;
+  char *logFile;
   char *usr;
   char *pswd;
   char *startNumber;

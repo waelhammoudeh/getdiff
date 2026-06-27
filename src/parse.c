@@ -28,11 +28,12 @@
 int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
 
   int    result;
-  static const char *shortOptions = "c:u:p:s:d:b:e:vtnhV";
+  static const char *shortOptions = "c:l:u:p:s:d:b:e:vtnhV";
 
   static const struct option longOptions[] = {
     {"version", 0, NULL, 'V'},
     {"conf", 1, NULL, 'c'},
+	{"log", 1, NULL, 'l'},
     {"user", 1, NULL, 'u'},
     {"passwd", 1, NULL, 'p'},
     {"source", 1, NULL, 's'},
@@ -50,9 +51,9 @@ int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
   int  longIndex = 0;
   int  confFlag, usrFlag, passwdFlag,
     srcFlag, destFlag, beginFlag, endFlag,
-    newFlag; /* do not allow same option twice */
+    logFileFlag, newFlag; /* do not allow same option twice */
 
-  confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = endFlag = newFlag = 0;
+  confFlag = usrFlag = passwdFlag = srcFlag = destFlag = beginFlag = endFlag = logFileFlag = newFlag = 0;
   /* This is ugly maybe!
    * It is easy to specify same option more than once with short option?! */
 
@@ -130,6 +131,43 @@ int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
       confFlag = 1;
       break;
 
+    case 'l':
+
+        if (logFileFlag){
+          fprintf(stderr, "%s: Error; duplicate LOG_FILE option used!\n", progName);
+          return ztMalformedCML;
+        }
+
+        withPath = NULL;
+
+        withPath = arg2FullPath(optarg);
+
+        if(!withPath){
+          fprintf(stderr, "%s: Error 'withPath' variable is NULL in parseCmdLine(); Exiting.\n", progName);
+          fprintf(stderr, "optarg was: <%s> @@\n\n", optarg);
+          fprintf(stderr, " %s: Failed arg2FullPath() function in parseCmdLine().\n", progName);
+          return ztUnknownError;
+        }
+
+        result = isGoodFilename(withPath);
+        if (result != ztSuccess){
+          fprintf(stderr, "%s: Error configure filename  <%s> is NOT good filename.\n"
+  		" Filename is not good for: <%s> \n", progName, withPath, ztCode2Msg(result));
+          return result;
+        }
+/*
+        result = isFileUsable(withPath);
+        if (result != ztSuccess){
+          fprintf(stderr, "%s: Error specified log file  <%s> is NOT usable file!\n"
+  		" File is not usable for: <%s> \n", progName, withPath, ztCode2Msg(result));
+          return result;
+        }
+**/
+        arguments->logFile = STRDUP(withPath);
+
+        logFileFlag = 1;
+        break;
+
     case 'u':
 
       if (usrFlag){
@@ -146,7 +184,6 @@ int parseCmdLine(MY_SETTING *arguments, int argc, char* const argv[]){
 
       usrFlag = 1;
       break;
-
 
     case 'p':
 

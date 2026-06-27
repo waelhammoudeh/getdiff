@@ -911,7 +911,7 @@ curl_free(path);
     			"\tsizeDownload: %ld\n"
     			"\tsizeHeader: %ld\n"
     			"\tsizeDisk: %ld\n\n",
-			filename, sizeDownload, sizeHeader, sizeDisk);
+				filename, sizeDownload, sizeHeader, sizeDisk);
 
         if(curlLogtoFP){
           sprintf(logBuffer, "download2File(): Warning different sizes in sizeHeader and sizeDownload.\n"
@@ -983,15 +983,19 @@ int download2FileRetry(char *destFile, CURL *handle, CURLU *parseHandle){
 
     return result;
 
-  if( (result == ztResponse302) ||
-      (result == ztResponse500) ||
+  if( (result == ztResponseNone)||
+      (result == ztResponse302) ||
+	  (result == ztResponse500) ||
       (result == ztResponse502) ||
       (result == ztResponse503) ||
       (result == ztResponse504) ||
       (result == ztNetConnFailed) ||
-      (result == ztHostResolveFailed) )
+      (result == ztHostResolveFailed) ){
+
+    if (result == ztResponseNone) delay = 2 * delay;
 
     sleep(delay);
+  }
 
   else {
 

@@ -46,6 +46,7 @@ void showHelp(void){
     "                       geofabrik.de server; where the latest 'state.txt' file is found.\n"
     "   -d, --directory DIR Set the root directory for the program working directory; default is\n"
     "                       user {HOME} directory.\n"
+	"   -l, --log FILE      Set program log file, directory must exist; default is: {workDir}/getdiff.log\n"
     "   -b, --begin NUM     Specify sequence number for the change file to start downloading from.\n"
     "                       This argument is required for first time use and ignored afterward.\n"
     "   -e, --end NUM       Specify sequence number for change file to stop downloading at.\n"
@@ -156,6 +157,13 @@ void showHelp(void){
     "or empty - may have no setting at all; it can NOT have zero length bytes. See\n"
     "'Configuration File' section.\n\n";
 
+  char	*usageLog =
+
+	"FILE for --log:\n"
+
+	"FILE is user specified log file name and path, program will create log file but not\n"
+	"any directories. Default log file is: {workDir}/getdiff.log.\n\n";
+
   char   *usageNew =
 
     "ACTION for --new:\n"
@@ -190,7 +198,9 @@ void showHelp(void){
 
     " SOURCE : same as --source option.\n\n"
 
-    " DIRECTORY : same as --directory option.\n\n"
+    " DIRECTORY : same as --directory option. Specify full path in configuration file.\n\n"
+
+    " LOG_FILE : same as --log option. Specify full path in configuration file.\n\n"
 
     " BEGIN : same as --begin option.\n\n"
 
@@ -334,6 +344,8 @@ void showHelp(void){
   fprintf(stdout, usageURL);
 
   fprintf(stdout, usageDir);
+
+  fprintf(stdout, usageLog);
 
   fprintf(stdout, usageBegin);
 

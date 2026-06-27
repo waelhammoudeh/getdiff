@@ -15,7 +15,7 @@
 
 //#define VERSION "0.01.43" up to "0.01.77"
 //#define VERSION "0.01.77"
-#define VERSION "0.01.81"
+#define VERSION "0.01.87"
 
 /* constant strings; I use defines for them **/
 #define WORK_ENTRY         "getdiff"

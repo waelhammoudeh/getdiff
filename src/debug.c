@@ -294,6 +294,11 @@ void fprintSetting(FILE *toFP, MY_SETTING *settings){
   else
     fprintf(destFP, NEG_TEMPLATE, "configureFile");
 
+  if(settings->logFile)
+    fprintf(destFP, OK_TEMPLATE, "logFile", settings->logFile);
+  else
+    fprintf(destFP, NEG_TEMPLATE, "logFile");
+
   if(settings->usr)
     fprintf(destFP, OK_TEMPLATE, "usr", settings->usr);
   else
