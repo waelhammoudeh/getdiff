@@ -22,7 +22,7 @@
 
 Program to download Open Street Maps differ files  also known as "OSM change files" from remote server.
 
-Program uses change files SequenceNumber to accomplish its work. See [changeFile.md](changeFile.md) for
+Program uses change files SequenceNumber to accomplish its work. See [changeFile.md](https://github.com/waelhammoudeh/getdiff/blob/main/changeFiles.md) for
 a short introduction to OSM change files. The program is written in C programming language, uses
 curl library to achieve its goal.
 
