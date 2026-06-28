@@ -105,13 +105,21 @@ Data:
 
  - Name: file name given in the command line
 
- - base_url: the URL update page for the file
+ - osmosis_replication_base_url: this is the URL for update page for your OSM extract data file.
 
- - sequence_number: sequence number for **last included** change file, start update from
- **next** sequence number; more about this below.
+ Copy this URL and paste it into your browser address bar; take yourself into a tour, note the
+ listed "state.txt" file - for latest available change file - take a look inside this state.txt file.
+ Then click on links to see how change files and their state.txt files are organized. Take the same
+ tour after few days and see how often files are updated.
 
- - timestamp: **(Header)** extract calculation time; extract includes data
- **up to this timestamp** use this timestamp as starting point to bring your
+ Note that you need to login into your "openstreetmap.org" account to access Geofabrik.de INTERNAL
+ server. You may want to create an account if you do not have one!
+
+ - osmosis_replication_sequence_number: sequence number for **last included** change file,
+ start update from **next** sequence number; more about this below.
+
+ - osmosis_replication_timestamp: **(Header)** extract calculation time; extract includes
+ data **up to this timestamp** use this timestamp as starting point to bring your
  extract OSM data file in alignment with planet daily update.
 
  - Timestamps: In *Data* section lists included data timestamps for First and Last
