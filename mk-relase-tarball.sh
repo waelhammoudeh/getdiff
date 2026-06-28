@@ -62,12 +62,12 @@ GITHUB=https://github.com/waelhammoudeh/getdiff
 HOMEPAGE="$GITHUB"
 DOWNLOAD="$GITHUB/releases/download/v$VERSION/getdiff-$VERSION.tar.gz"
 
-sed -i "s/^VERSION=.*/VERSION=$VERSION/" "$REPO/SlackBuild/getdiff.SlackBuild"
+sed -i "s/^VERSION=.*/VERSION=$VERSION/" "$REPO/getdiff.SlackBuild/getdiff.SlackBuild"
 
 echo "Updated version # in SlackBuild"
 
 # overwrite info file
-cat << EOF > "$REPO/SlackBuild/getdiff.info"
+cat << EOF > "$REPO/getdiff.SlackBuild/getdiff.info"
 PRGNAM="getdiff"
 VERSION="$VERSION"
 HOMEPAGE="$HOMEPAGE"
