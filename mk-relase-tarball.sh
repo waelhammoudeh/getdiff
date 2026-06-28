@@ -52,6 +52,8 @@ fi
 
 popd
 
+rm -rf $TMP/$DIR2TAR
+
 # update SlackBuild script and its info file
 
 NEW_MD5=$(cat "$REPO/releases/download/v$VERSION/$DIR2TAR.tar.gz.md5" | cut -d ' ' -f1)
