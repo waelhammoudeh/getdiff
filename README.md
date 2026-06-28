@@ -70,7 +70,7 @@ On startup program creates its working directory where it stores its own files a
 downloaded differ files and their corresponding state.txt files. Directories are created as shown
 below:
 
-
+```
 getdiff
   ├── tmp
   ├── geofabrik
@@ -78,7 +78,7 @@ getdiff
       ├── day
       ├── hour
       └── minute
-
+```
 
 By default working directory is created under current user {HOME} directory, this can be changed by
 using `--directory` command line option or 'DIRECTORY' configuration file key - use full path for directory
