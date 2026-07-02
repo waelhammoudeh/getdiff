@@ -1,4 +1,7 @@
 # Changes:
+  - Version: 0.01.89 Date: July 2/2026
+    - Bug fix: allow single change file download.
+
   - Version: 0.01.87 Date: June 26/2026
     - getdiff: added `--log` option & 'LOG_FILE' key in configure file, user may set log file
       to something other than default: {workDir}/getdiff.log
@@ -119,15 +122,20 @@ Program does not maintain or check `newerFiles.txt`, it is expected to be mainta
 or program. You may stop appending to the file with `--new` command line switch or use 'NEWER_FILE' key with
 value set to none or off.
 
-Another use for this program is to download a range of change files (and their corresponding state.txt files)
-from a remote server by setting `begin` and `end` options on the same invokation. Both sequence numbers must
-be from the same granularity. downloaded filenames are appended to `rangeList.txt` file in program working
-directory.
+**Range Function:**
+
+By specifying and setting `--begin` and `--end` options on the same invocation, program will download
+change files and their corresponding state.txt files in the range of the specified begin and end sequence
+numbers inclusive.
+Specified sequence numbers must be from the same Granularity; that is both are for minute, hour or day
+change files. Program appends a sorted list of downloaded files to `rangeList.txt` file in its working
+directory each time it is invoked with the range function. You may mix lists in `rangeList.txt` file if
+desired, doing so enables you to cover any arbitrary time period.
 
 See [here](https://github.com/waelhammoudeh/overpass-4-slackware/tree/master/Extract_and_Planet_Change_Files)
-for real examples of using the program range function.
+for real example of using the program range function.
 
 
 Wael Hammoudeh
 
-June 26/2026
+July 2/2026
