@@ -49,7 +49,7 @@ int file2StringList(STRING_LIST *strList, const char *filename){
   if(result != ztSuccess){
 
     fprintf(stderr, "file2StringList(): Error failed isFileReadable()"
-	    " for argument 'filename'.\n");
+	    " for argument 'filename': %s.\n", filename);
     return result;
   }
 

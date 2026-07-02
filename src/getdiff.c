@@ -1653,7 +1653,11 @@ int areNumsGoodPair(const char *startNum, const char *endNum){
     }
   }
 
-  /* 'end' must be newer than 'start' - compare time stamps from state.txt files **/
+  /* allow single change file download **/
+  if(strcmp(startPP.sequenceNum, endPP.sequenceNum) == 0) return ztSuccess;
+
+  /* unless endSeq == startSeq 'end' must be newer than 'start' -
+   * compare time stamps from state.txt files **/
 
   result = isEndNewer(&startPP, &endPP);
   if(result != ztSuccess){
