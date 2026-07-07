@@ -1,12 +1,10 @@
-This file is a cut-out part from [README.md](https://github.com/waelhammoudeh/overpass-4-slackware/tree/master/Extract_and_Planet_Change_Files)
-included here as a brief introduction to OSM change files, you may want to read the whole file!
-
-For the purpose of this subject one needs to know few definition and understand few
-terms presented here in a very short and simplified way.
+This file presents few definitions and breifly discuss OSM change files. Terms
+and ideas presented here should be famaliar to anybody interested in OSM data files.
+The use of a web browser is helpful to locate files on remote servers.
 
 **Change Files:** Change file is the difference between two OSM data files from two
-different points in time. Merging the change file with the older data file results in the
-newer data file.
+different points in time. Merging the change file with the older data file results
+in the newer data file.
 
 When a new change file is calculated; it is assigned a **timestamp** and a unique
 **replication sequence number** (sequence number for short) both are written to a
@@ -14,10 +12,15 @@ corresponding "state.txt" file. Given one variable, to retrieve the other variab
 we look in the "state.txt" file for that.
 
 Change files are usually named with numbers, corresponding state.txt file will start
-with the same numbers as change file. See naming scheme below.
+with the same numbers as change file. See below for naming scheme.
 
 Planet change files are calculated for three different time intervals (called Granularity),
 those are minutely, hourly and daily change files calculated at the top of each time period.
+
+Change files from Geofabrik.de servers are daily change files calculated between
+20:00 and 21:00 UTC for most regions. Change files from Geofabrik.de INTERNAl and
+PUBLIC server are calculated at the same time each day so they share the same
+naming numbers and the same "state.txt" files.
 
 **Timestamp and Change file:** We know that each element in OSM data file has its own
 timestamp, the **change file timestamp** indicates that it includes elements with
@@ -25,7 +28,8 @@ timestamp, the **change file timestamp** indicates that it includes elements wit
 means it has **start** and **end** time. The **change file timestamp** is always the
 **end time**. The implied **start time** in **minutely** change file is **one minute before**
 its end time, for an **hourly** change file its start time is **one hour before** its end time,
-and for a daily change file the implied start time is **one day before**  its end time.
+and for a daily change file the implied start time is **one day before** its end time
+indecated by its timestamp.
 
 **Sequence Number and Change File:** Formally called "replication sequence number" is
 a unique number assigned to change file when calculated **by replication service provider.**
@@ -35,21 +39,30 @@ change files from Geofabrik only. Sequence number is an integer of 9 digits or l
 
 Timestamps and sequence numbers can be used to locate change file on replication servers.
 
-**Locate Change File By Timestamp:** Files are placed into directory hierarchy on
-replication service provider sites. Starting from the top directory we traverse file
-system hierarchy using the "Last Modified" time for directory entries and our
-timestamp (consider directory "Last Modified" time as its closing time). One way
-to do that is locate the closest "Last Modified" time to our timestamp, if this closest
-"Last Modified" time is after our timestamp then we look in that directory - we made
-it before its closing time. If "Last Modified" time is before our timestamp - we
-missed that directory closing time - we look in the next directory up to that with
-closest "Latest Modified" time.
+**Locate Change File By Timestamp:** Change files are placed into directory hierarchy
+on replication service provider sites (like planet.osm.org/replication/day). Starting
+from the top directory we traverse file system hierarchy using the "Last modified"
+time for directory entries and our timestamp (consider directory "Last modified" time
+as a store closing time). One way to do that is locate the closest "Last modified"
+time to our timestamp, if this closest "Last modified" time is after our timestamp
+- store still open - then we look in that directory - we made it before its closing
+time. If "Last modified" time is before our timestamp - we missed that directory
+closing time - we look in the next directory up to that with closest "Latest Modified"
+time. Applying the same principle until we find a directory we can enter.
+
+Usually timestamp you see in OSM files are formated slightly different than the
+"Last modified" time for file system. You may reformat your timestamp to match
+that "Last modified" time. Drop the second part from clock part:
+```
+2007-08-10T17:38:36Z ---> 2007-08-10 17:38
+```
+The last format is what you see for "Last modified" time on servers.
 
 **Locate Change File By Sequence Number:** Sequence numbers are used to store files
 on disks. The following scheme is used to store change files on disks by converting
 sequence number to file system structure:
 
-sequence number is placed into a nine-digit long field padded with leading zeros -
+Sequence number is placed into a nine-digit long field padded with leading zeros -
 when needed, the string is then split into 3 fields 3 character long each, three
 slashes are inserted starting from the left:
 Note: column heading "# 0s" is for number of digits present in the sequence number,
@@ -81,7 +94,7 @@ Man osmium-fileinfo for its full usage.
 
 My SlackBuild for osmium tool is [here.](https://github.com/waelhammoudeh/osmium-tool_slackbuild)
 
-Using my extract data file, selected and important lines from "osmium fileinfo -e "
+Using an example extract data file, selected and important lines from "osmium fileinfo -e "
 are shown and explained below:
 
 <pre>

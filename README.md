@@ -1,4 +1,8 @@
 # Changes:
+  - Version: 0.01.90 Date July 7/2026
+    - rename "changeFiles.md to README.changeFiles.md
+    - updated usage.c makefile getdiff.h
+
   - Version: 0.01.89 Date: July 2/2026
     - Bug fix: allow single change file download.
 
@@ -25,9 +29,9 @@
 
 Program to download Open Street Maps differ files  also known as "OSM change files" from remote server.
 
-Program uses change files SequenceNumber to accomplish its work. See [changeFile.md](https://github.com/waelhammoudeh/getdiff/blob/main/changeFiles.md) for
-a short introduction to OSM change files. The program is written in C programming language, uses
-curl library to achieve its goal.
+Program uses change files SequenceNumber to accomplish its work. See [README.changeFile.md](README.changeFiles.md)
+for a condensed summary of what you need to know about OSM change files. The program
+is written in C programming language, uses curl library to achieve its goal.
 
 This command line program aims to ease the process of updating OSM data files and databases that
 use OSM change files. The basic idea is to break the update process into two steps; collecting

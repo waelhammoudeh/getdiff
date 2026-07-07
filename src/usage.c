@@ -16,8 +16,10 @@ void showHelp(void){
   char   *description =
 
     "Program \"%s\" is a command-line tool that allows users to download (OSM)\n"
-    "Open Street Map differs; (.osc Open Street Change) files from a supported\n"
+    "OpenStreetMap differs; (.osc Open Street Change) files from a supported\n"
     "remote server listed below.\n"
+	"Program uses change files sequence numbers for input, a condensed summary\n"
+	"about OSM change files is found in \"README.changeFiles.md\" file. \n"
     "This program is designed to be part of an automation process to update OSM\n"
     "database or data file, program does not update any data by itself.\n\n"
 

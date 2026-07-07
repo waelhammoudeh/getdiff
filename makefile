@@ -52,5 +52,5 @@ install: $(EXEC)
 	install -d $(DESTDIR)$(PREFIX)/doc/getdiff/
 	install -m 644 getdiff.conf.example $(DESTDIR)$(PREFIX)/doc/getdiff/
 	install -m 644 getdiff.help $(DESTDIR)$(PREFIX)/doc/getdiff/
-	install -m 644 changeFiles.md $(DESTDIR)$(PREFIX)/doc/getdiff/
+	install -m 644 README.changeFiles.md $(DESTDIR)$(PREFIX)/doc/getdiff/
 	install -m 644 LICENSE $(DESTDIR)$(PREFIX)/doc/getdiff/

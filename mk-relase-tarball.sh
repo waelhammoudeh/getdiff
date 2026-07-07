@@ -29,7 +29,7 @@ cp "$REPO/LICENSE" \
    "$REPO/README.md" \
    "$REPO/getdiff.conf.example" \
    "$REPO/getdiff.help" \
-   "$REPO/changeFiles.md" \
+   "$REPO/README.changeFiles.md" \
    "$DIR2TAR"
 
 mkdir -p "$REPO/releases/download/v$VERSION"
