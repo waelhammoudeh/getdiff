@@ -1,6 +1,8 @@
 Program "getdiff" is a command-line tool that allows users to download (OSM)
-Open Street Map differs; (.osc Open Street Change) files from a supported
+OpenStreetMap differs; (.osc Open Street Change) files from a supported
 remote server listed below.
+Program uses change files sequence numbers for input, a condensed summary
+about OSM change files is found in "README.changeFiles.md" file.
 This program is designed to be part of an automation process to update OSM
 database or data file, program does not update any data by itself.
 
