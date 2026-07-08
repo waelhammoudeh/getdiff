@@ -29,7 +29,7 @@ means it has **start** and **end** time. The **change file timestamp** is always
 **end time**. The implied **start time** in **minutely** change file is **one minute before**
 its end time, for an **hourly** change file its start time is **one hour before** its end time,
 and for a daily change file the implied start time is **one day before** its end time
-indecated by its timestamp.
+indicated by its timestamp.
 
 **Sequence Number and Change File:** Formally called "replication sequence number" is
 a unique number assigned to change file when calculated **by replication service provider.**
@@ -44,17 +44,21 @@ on replication service provider sites (like planet.osm.org/replication/day). Sta
 from the top directory we traverse file system hierarchy using the "Last modified"
 time for directory entries and our timestamp (consider directory "Last modified" time
 as a store closing time). One way to do that is locate the closest "Last modified"
-time to our timestamp, if this closest "Last modified" time is after our timestamp
-- store still open - then we look in that directory - we made it before its closing
+time to our timestamp, if this closest "Last modified" time is after our timestamp -
+store is still open - then we look in that directory - we made it before its closing
 time. If "Last modified" time is before our timestamp - we missed that directory
-closing time - we look in the next directory up to that with closest "Latest Modified"
+closing time - we look in the next directory up to that with closest "Latest modified"
 time. Applying the same principle until we find a directory we can enter.
 
 Usually timestamp you see in OSM files are formated slightly different than the
 "Last modified" time for file system. You may reformat your timestamp to match
-that "Last modified" time. Drop the second part from clock part:
+that "Last modified" time. Replace the "T" with "space" separating the "date" part
+from the "clock" part, remove "back slashes or slashes" if present and finaly drop
+the "seconds" part from the "clock" part:
 ```
 2007-08-10T17:38:36Z ---> 2007-08-10 17:38
+
+2026-07-07T20\:21\:26Z ---> 2026-07-07 20:21
 ```
 The last format is what you see for "Last modified" time on servers.
 
