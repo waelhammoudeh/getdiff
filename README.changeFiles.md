@@ -91,6 +91,8 @@ state.txt file names:
    /000/004/537 ---> /000/004/537.osc.gz and /000/004/537.state.txt
 </pre>
 
+The path part above is appended to replication provider root page.
+
 **Extract OSM Data File Info:** OSM data files contain meta information about the
 file. We use **"osmium fileinfo"** to retrieve and view this information, using
 the --extended (-e) option with the command gives more information.
