@@ -53,7 +53,7 @@ time. Applying the same principle until we find a directory we can enter.
 Usually timestamp you see in OSM files are formated slightly different than the
 "Last modified" time for file system. You may reformat your timestamp to match
 that "Last modified" time. Replace the "T" with "space" separating the "date" part
-from the "clock" part, remove "back slashes or slashes" if present and finaly drop
+from the "clock" part, remove "back slashes or slashes" if present and finally drop
 the "seconds" part from the "clock" part:
 ```
 2007-08-10T17:38:36Z ---> 2007-08-10 17:38
