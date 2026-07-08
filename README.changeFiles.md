@@ -141,11 +141,8 @@ Data:
  data **up to this timestamp** use this timestamp as starting point to bring your
  extract OSM data file in alignment with planet daily update.
 
- - Timestamps: In *Data* section lists included data timestamps for First and Last
- data elements, if missing "replication_timestamp" in "Header" info; then use timestamp
- for **Last** data as your starting point to bring your OSM data file in alignment
- with planet daily update. Timestamp for Last included data above is
- "Last: 2025-09-03T20:00:57Z".
+ - Timestamps: The *Data* section lists included data timestamps for First and Last
+ data elements among other information about the input file.
 
 The Geofabrik download page for extract includes the timestamp for that extract in
 the same line it states the extract creation time; something like:
